@@ -1,41 +1,19 @@
 {
-  "project_name": "OmniPost",
+  "app": "OmniPost",
   "version": "1.0.0",
-  "form_settings": {
-    "job_logic": {
-      "reference": "ROME_France_Travail",
-      "fields": ["title", "description", "salary_min", "salary_max"]
+  "config": {
+    "privacy_mode": {
+      "default_hide_phone": true,
+      "default_hide_address": true,
+      "allow_email_only": true
     },
-    "selection_filters": {
-      "experience_levels": [
-        "beginner",
-        "1-3_years",
-        "3-5_years",
-        "5_plus"
-      ],
-      "certifications_required": [
-        "Permis B (Auto)",
-        "Permis C (Poids Lourd)",
-        "CACES 1",
-        "CACES 3",
-        "CACES 5"
-      ],
-      "languages": [
-        "Français",
-        "Anglais",
-        "Espagnol",
-        "Arabe"
-      ]
+    "recruitment_fields": {
+      "mandatory": ["job_title", "contract_type", "location_city"],
+      "filters": ["experience_years", "caces_permis", "languages"]
     },
-    "privacy_defaults": {
-      "hide_phone_number": true,
-      "hide_exact_address": true,
-      "show_city_only": true,
-      "contact_method": "app_email_forwarding"
-    },
-    "automation": {
-      "auto_post_to": ["Indeed", "LinkedIn", "France_Travail", "Instagram"],
-      "agency_mailing_list": "enabled"
+    "active_channels": {
+      "jobboards": ["LinkedIn", "Indeed", "France_Travail"],
+      "direct_mail": ["Agences_Interim"]
     }
   }
 }
