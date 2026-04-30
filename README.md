@@ -1,63 +1,72 @@
 # 🚀 OmniPost : Recrutement Intelligent & Multidiffusion 1-Clic
 
-**OmniPost** est une application SaaS conçue pour les patrons et recruteurs pressés. Elle permet de diffuser une offre d'emploi sur tous les canaux majeurs et de trier automatiquement les CV reçus, tout en protégeant la vie privée de l'employeur.
+**OmniPost** est une solution logicielle innovante conçue pour simplifier radicalement le processus de recrutement des TPE, PME et entreprises en forte croissance. L'objectif est de permettre une diffusion universelle des offres et un tri automatisé des candidatures en un temps record.
 
 ---
 
-## ✨ La Promesse "1-Clic"
-1. **Saisissez** le métier (l'IA génère la fiche de poste).
-2. **Cochez** vos critères (Permis, Expérience, Langues).
-3. **Diffusez** partout (LinkedIn, Indeed, France Travail, Agences d'intérim).
-4. **Recrutez** (L'app trie les CV et vous donne les "Matchs Verts").
+## 👩‍💻 Créatrice du Projet
+Ce projet a été conçu et initialisé par **RAKOTOBE Liliane**.
 
 ---
 
-## 🛠️ Fonctionnalités Clés
-
-### 📡 Multidiffusion Automatisée
-- Publication instantanée via APIs (LinkedIn, Indeed, France Travail).
-- Envoi automatique d'emails structurés à une liste personnalisée d'agences d'intérim.
-
-### 🛡️ Mode Discrétion (Confidentialité)
-- Masquage automatique du numéro de téléphone et de l'adresse exacte.
-- Seul l'email de candidature est exposé pour filtrer les appels intempestifs.
-
-### 🧠 Tri & Scoring IA (Vert/Orange/Rouge)
-- **Parsing PDF/Word :** Extraction automatique du texte des CV reçus par email.
-- **Matching Engine :** Comparaison des compétences du candidat avec les critères cochés par l'employeur.
-- **Classification :** Les candidats sont classés par couleur pour une lecture instantanée.
-
-### 🔄 Flexibilité des Flux
-- Gestion multi-comptes : Changez l'adresse email de réception des candidatures à tout moment selon vos besoins.
+## ✨ La Vision "1-Clic"
+OmniPost répond à la problématique du temps perdu dans le sourcing et le tri manuel :
+1. **Saisie Simplifiée :** L'intelligence du système génère la fiche de poste à partir d'un intitulé.
+2. **Cochage de Critères :** Sélection rapide des impératifs (Permis, Expérience, Langues).
+3. **Diffusion Omnicanale :** Publication simultanée sur LinkedIn, Indeed, France Travail et via mailing-list d'agences d'intérim.
+4. **Matching Intelligent :** L'algorithme trie les CV reçus et classe les candidats par pertinence (Vert/Orange/Rouge).
 
 ---
 
-## 🏗️ Architecture du Projet
+## 🛠️ Fonctionnalités Validées (MVP)
 
-Le projet est structuré de manière modulaire pour être robuste et évolutif :
+### 📡 Module de Multidiffusion
+- Automatisation de l'envoi vers les APIs des plateformes d'emploi majeures.
+- Envoi de templates d'emails structurés aux partenaires de recrutement.
 
-| Fichier | Rôle |
+### 🛡️ Protection de la Vie Privée (Mode Discrétion)
+- Masquage automatique des coordonnées directes (téléphone, adresse exacte) sur les annonces publiques pour éviter les sollicitations directes non filtrées.
+
+### 🧠 Analyse IA & Parsing de CV
+- **Extraction de texte :** Lecture automatisée des formats PDF et Word.
+- **Scoring Engine :** Système de notation basé sur les compétences réelles extraites du CV par rapport aux besoins cochés par l'employeur.
+
+### 🔄 Gestion Dynamique des Flux
+- Capacité de changer l'adresse email de réception et de diffusion à la volée pour une gestion multi-sites ou multi-services.
+
+---
+
+## 🏗️ Architecture du Code
+
+| Fichier | Description |
 | :--- | :--- |
-| `account_manager.py` | Gestion des comptes emails et des accès diffuseurs. |
-| `multiposter.py` | Moteur de diffusion vers les jobboards et agences. |
-| `cv_parser.py` | Intelligence Artificielle pour la lecture des CV (PDF/Word). |
-| `matcher.py` | Algorithme de scoring et de classification (Matching). |
-| `data_structure.json` | Logique métier et modèles de formulaires. |
+| `account_manager.py` | Contrôle et basculement des comptes emails. |
+| `multiposter.py` | Automatisation de la diffusion sur les canaux externes. |
+| `cv_parser.py` | Moteur de lecture et d'analyse des fichiers CV. |
+| `matcher.py` | Logique de calcul des scores (Matching). |
+| `candidate_manager.py` | Gestion des réponses automatiques aux candidats. |
+| `data_structure.json` | Définition des règles métier et du formulaire. |
 
 ---
 
-## 📋 État d'avancement (Checklist)
+## 📋 État d'avancement du Projet
 
-- [x] **Étape 1 :** Conception et Architecture (Workflow, JSON).
-- [x] **Étape 2 :** Moteur de Connexion (Email, Sécurité).
-- [x] **Étape 3 :** Multidiffusion (APIs, Templates Agences).
-- [x] **Étape 4 :** Analyse IA (Parsing CV, Scoring).
-- [ ] **Étape 5 :** Gestion des Candidats (Relances et Refus 1-clic) - *En cours*.
+- [x] **Étape 1 :** Conception, Architecture et Design.
+- [x] **Étape 2 :** Moteur de Connexion et Sécurité.
+- [x] **Étape 3 :** Module de Multidiffusion (APIs & Emails).
+- [x] **Étape 4 :** Analyse IA et Scoring de CV.
+- [x] **Étape 5 :** Gestion des Candidats (Relances et Refus 1-clic).
 
 ---
 
-## 🚀 Installation & Lancement
+## 🚀 Installation
 
-1. Clonez le dépôt :
-   ```bash
-   git clone [https://github.com/votre-compte/OmniPost.git](https://github.com/votre-compte/OmniPost.git)
+```bash
+# Cloner le projet
+git clone [https://github.com/votre-utilisateur/OmniPost.git](https://github.com/votre-utilisateur/OmniPost.git)
+
+# Installer les outils nécessaires
+pip install -r requirements.txt
+
+# Configurer vos accès
+cp .env.example .env
