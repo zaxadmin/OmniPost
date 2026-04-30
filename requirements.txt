@@ -1,16 +1,17 @@
-# --- Cœur du Système & Sécurité ---
-python-dotenv==1.0.1
-cryptography==42.0.0
+# --- Interface Web & Déploiement Cloud ---
+streamlit
+python-dotenv
 
-# --- Gestion des Emails & API ---
-imaplib2==3.6
-requests==2.31.0
+# --- Moteur de Connexion & Réseau ---
+imaplib2
+requests
 
 # --- Analyse IA Multilingue (NLP) ---
-spacy==3.7.2
-pdfminer.six==20231228
-python-docx==1.1.0
+spacy
+pdfminer.six
+python-docx
 
-# --- Modèles de langue IA à installer séparément via terminal ---
-# python -m spacy download fr_core_news_sm
-# python -m spacy download en_core_web_sm
+# --- Modèles de Langue IA ---
+# Note : Les modèles ci-dessous sont installés via app.py ou le script de build
+# fr_core_news_sm
+# en_core_web_sm
