@@ -1,32 +1,43 @@
 import requests
 
 class OmniPostDistributor:
-    """Gère l'envoi de l'offre vers les différents canaux."""
+    """Gère la multidiffusion des offres sur les canaux FR et Internationaux."""
 
-    def __init__(self, job_data, channels):
+    def __init__(self, job_data, selected_channels, language="fr"):
         self.job_data = job_data
-        self.channels = channels
+        self.channels = selected_channels
+        self.language = language
 
-    def broadcast(self):
+    def broadcast_all(self):
         """Lance la diffusion sur tous les canaux sélectionnés."""
-        results = {}
+        report = {}
+        print(f"🌍 Starting broadcast in {self.language.upper()}...")
+
         for channel in self.channels:
-            if channel == "LinkedIn":
-                results["LinkedIn"] = self._post_to_linkedin()
-            elif channel == "Indeed":
-                results["Indeed"] = self._post_to_indeed()
-            elif channel == "Interim_Agencies":
-                results["Agencies"] = self._send_to_agencies()
-        return results
+            if channel in ["LinkedIn", "Glassdoor", "Monster"]:
+                report[channel] = self._post_to_global_api(channel)
+            elif channel == "France Travail":
+                report[channel] = self._post_to_local_api("France Travail")
+            elif channel == "Agencies":
+                report[channel] = self._email_partners()
+        
+        return report
 
-    def _post_to_linkedin(self):
-        print("📤 Envoi vers LinkedIn API...")
-        return "Success"
+    def _post_to_global_api(self, platform_name):
+        """Simule l'envoi vers une API internationale (Monster, Glassdoor, etc.)."""
+        print(f"📤 [GLOBAL] Posting job to {platform_name}...")
+        return "SUCCESS"
 
-    def _post_to_indeed(self):
-        print("📤 Envoi vers Indeed API...")
-        return "Success"
+    def _post_to_local_api(self, platform_name):
+        """Simule l'envoi vers une plateforme spécifique (ex: France Travail)."""
+        print(f"📤 [LOCAL] Publication sur {platform_name}...")
+        return "SUCCESS"
 
-    def _send_to_agencies(self):
-        print("📧 Envoi de l'offre à la liste d'agences d'intérim...")
-        return "Emails Sent"
+    def _email_partners(self):
+        """Envoie l'offre aux agences d'intérim."""
+        lang_header = "Nouvelle offre" if self.language == "fr" else "New Job Opening"
+        print(f"📧 Sending automated emails to agencies with header: {lang_header}")
+        return "SENT"
+
+# Exemple : 
+# poster = OmniPostDistributor(data, ["LinkedIn", "Monster"], language="en")
