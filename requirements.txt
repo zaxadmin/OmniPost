@@ -1,17 +1,3 @@
-# --- Interface Web & Déploiement Cloud ---
 streamlit
+supabase
 python-dotenv
-
-# --- Moteur de Connexion & Réseau ---
-imaplib2
-requests
-
-# --- Analyse IA Multilingue (NLP) ---
-spacy
-pdfminer.six
-python-docx
-
-# --- Modèles de Langue IA ---
-# Note : Les modèles ci-dessous sont installés via app.py ou le script de build
-# fr_core_news_sm
-# en_core_web_sm
