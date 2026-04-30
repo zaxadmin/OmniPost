@@ -1,98 +1,89 @@
 import streamlit as st
-from datetime import date
+from supabase import create_client, Client
 
-# Configuration de la page
+# 1. CONNEXION SUPABASE (Utilise tes secrets Streamlit Cloud)
+try:
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    supabase: Client = create_client(url, key)
+except:
+    st.error("⚠️ Erreur : Les clés Supabase ne sont pas configurées dans les Secrets de Streamlit.")
+    st.stop()
+
 st.set_page_config(page_title="OmniPost - Rakotobe Liliane", page_icon="🚀", layout="wide")
 
-# --- DATA DES DIFFUSEURS (GRATUIT VS PAYANT) ---
-DIFFUSEURS_INFO = {
-    "LinkedIn": {"Gratuit": "1 annonce/mois (limitée)", "Payant": "Sponsorisation (Prix variable)", "Tag": "Premium"},
-    "Indeed": {"Gratuit": "Standard (Visibilité basse)", "Payant": "Annonces Sponsorisées (Par clic)", "Tag": "Budget"},
-    "France Travail": {"Gratuit": "Illimité (Public)", "Payant": "Aucun", "Tag": "Gratuit"},
-    "Hellowork": {"Gratuit": "Aucun", "Payant": "Abonnement ou Unité", "Tag": "Pro"},
-    "Monster": {"Gratuit": "Essai 7 jours", "Payant": "Pack Annonces", "Tag": "Pro"}
-}
+# --- GESTION DE LA SESSION ---
+if 'auth' not in st.session_state:
+    st.session_state.auth = False
+if 'auth_mode' not in st.session_state:
+    st.session_state.auth_mode = "login"
 
-st.title("🚀 OmniPost : Gestionnaire de Diffusion")
-st.markdown("---")
+# --- INTERFACE AUTHENTIFICATION (LOGIN / SIGNUP) ---
+if not st.session_state.auth:
+    if st.session_state.auth_mode == "login":
+        st.title("🔐 Connexion RH - OmniPost")
+        email = st.text_input("Email professionnel")
+        pwd = st.text_input("Mot de passe", type="password")
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("Se connecter"):
+                res = supabase.table("profiles").select("*").eq("email", email).eq("password", pwd).execute()
+                if len(res.data) > 0:
+                    st.session_state.auth = True
+                    st.session_state.user = res.data[0]
+                    st.rerun()
+                else: st.error("Échec de connexion.")
+        with col2:
+            if st.button("Créer un compte"):
+                st.session_state.auth_mode = "signup"
+                st.rerun()
 
-tab1, tab2, tab3 = st.tabs(["📝 Créer une Offre", "🔑 Comptes & Tarifs", "📁 Candidatures Triées"])
+    elif st.session_state.auth_mode == "signup":
+        st.title("📝 Inscription Nouvel Employeur")
+        n_email = st.text_input("Email")
+        n_pwd = st.text_input("Mot de passe", type="password")
+        n_ent = st.text_input("Nom de l'entreprise")
+        if st.button("Valider l'inscription"):
+            supabase.table("profiles").insert({"email": n_email, "password": n_pwd, "entreprise": n_ent}).execute()
+            st.success("Compte créé ! Connectez-vous.")
+            st.session_state.auth_mode = "login"
+            st.rerun()
+        if st.button("Retour"):
+            st.session_state.auth_mode = "login"
+            st.rerun()
+    st.stop()
 
-# --- ONGLET 1 : ÉDITION & DIFFUSION ---
+# --- TABLEAU DE BORD (SI CONNECTÉ) ---
+st.title(f"🚀 OmniPost - {st.session_state.user['entreprise']}")
+if st.sidebar.button("Déconnexion"):
+    st.session_state.auth = False
+    st.rerun()
+
+tab1, tab2, tab3 = st.tabs(["📝 Créer une Offre", "🔑 Mes Comptes", "📁 Candidatures"])
+
+# --- ONGLET 1 : CRÉATION (CLOISONNÉE) ---
 with tab1:
     st.header("Nouvelle Annonce")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        metier = st.selectbox("Métier", ["Conducteur de Travaux", "Chef de Projet IT", "Commercial", "Assistant Logistique"])
-        lieu = st.text_input("Localisation", placeholder="ex: Bordeaux")
-    with c2:
-        type_contrat = st.selectbox("Contrat", ["CDI", "CDD", "Alternance"])
-        salaire = st.number_input("Salaire (K€)", 20, 150, 35)
-    with c3:
-        demande_lm = st.toggle("Lettre de Motivation obligatoire", value=True)
-        urgent = st.toggle("🚨 Option Urgent (Payant sur certains sites)")
+    titre = st.text_input("Titre du poste")
+    if st.button("Publier l'offre"):
+        # On injecte l'ID de l'employeur pour que l'offre lui appartienne
+        supabase.table("offres").insert({
+            "titre": titre, 
+            "id_employeur": st.session_state.user['id']
+        }).execute()
+        st.success("Offre enregistrée dans votre espace privé !")
 
-    st.divider()
-    st.subheader("Sélection des canaux de diffusion")
-    
-    # Affichage des plateformes avec rappel des prix
-    choix_plateformes = st.multiselect(
-        "Choisissez où diffuser :",
-        list(DIFFUSEURS_INFO.keys()),
-        help="Certains canaux appliquent des frais de sponsorisation."
-    )
-    
-    # Rappel dynamique des coûts selon la sélection
-    if choix_plateformes:
-        cols = st.columns(len(choix_plateformes))
-        for i, p in enumerate(choix_plateformes):
-            with cols[i]:
-                st.caption(f"**{p}**")
-                if "Payant" in DIFFUSEURS_INFO[p] and DIFFUSEURS_INFO[p]["Payant"] != "Aucun":
-                    st.warning(f"💰 {DIFFUSEURS_INFO[p]['Payant']}")
-                else:
-                    st.success("✅ 100% Gratuit")
-
-    if st.button("🚀 LANCER LA DIFFUSION"):
-        if metier and lieu and choix_plateformes:
-            st.balloons()
-            st.success("Diffusion en cours sur les réseaux sélectionnés !")
-        else:
-            st.error("Veuillez remplir les informations et choisir au moins un diffuseur.")
-
-# --- ONGLET 2 : COMPTES & TABLEAU DES TARIFS ---
-with tab2:
-    st.header("Récapitulatif des Partenariats")
-    
-    # Création du tableau comparatif
-    data_table = []
-    for k, v in DIFFUSEURS_INFO.items():
-        data_table.append({"Diffuseur": k, "Option Gratuite": v["Gratuit"], "Option Payante": v["Payant"]})
-    
-    st.table(data_table)
-    
-    st.divider()
-    st.subheader("🔑 Vos Identifiants")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.text_input("Identifiant LinkedIn")
-        st.text_input("Clé API Indeed", type="password")
-    with col_b:
-        st.text_input("Identifiant France Travail")
-        st.text_input("Identifiant Monster")
-
-# --- ONGLET 3 : TRI DES CV ---
+# --- ONGLET 3 : CANDIDATURES (FILTRÉES) ---
 with tab3:
-    st.header("Dossiers Candidats")
-    st.info("Les CV arrivant sur rakotobelili63@gmail.com sont triés ici.")
-    # (Le code de tri reste le même que précédemment)
-    st.write("Aucune nouvelle candidature aujourd'hui.")
+    st.header("Vos Candidats")
+    # On ne récupère que les candidats liés aux offres de cet employeur
+    data = supabase.table("candidats").select("*, offres!inner(*)").eq("offres.id_employeur", st.session_state.user['id']).execute()
+    if data.data:
+        for c in data.data:
+            st.write(f"👤 {c['nom']} - Score : {c['score']}%")
+    else:
+        st.write("Aucun candidat pour le moment.")
 
 # --- FOOTER ---
 st.markdown("---")
-footer = """
-    <div style="text-align: center; color: #888; font-size: 12px;">
-        Créé par <a href="mailto:rakotobelili63@gmail.com" style="color: #3b82f6;">RAKOTOBE Liliane</a>
-    </div>
-"""
-st.markdown(footer, unsafe_allow_html=True)
+st.markdown(f'<div style="text-align: center; color: #888; font-size: 12px;">Créé par <a href="mailto:rakotobelili63@gmail.com" style="color: #3b82f6;">RAKOTOBE Liliane</a></div>', unsafe_allow_html=True)
