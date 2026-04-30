@@ -1,0 +1,19 @@
+{
+  "agencies": [
+    {
+      "name": "Adecco Pro",
+      "email": "contact@adecco-exemple.fr",
+      "specialty": "BTP"
+    },
+    {
+      "name": "Randstad Local",
+      "email": "agence123@randstad.fr",
+      "specialty": "Generaliste"
+    },
+    {
+      "name": "Manpower",
+      "email": "recrutement@manpower-test.fr",
+      "specialty": "Industrie"
+    }
+  ]
+}
