@@ -3,22 +3,6 @@ import streamlit as st
 # Configuration de la page
 st.set_page_config(page_title="OmniPost - Rakotobe Liliane", page_icon="🚀")
 
-# Style CSS pour améliorer le visuel
-st.markdown("""
-    <style>
-    .main {
-        background-color: #0e1117;
-    }
-    .stButton>button {
-        width: 100%;
-        background-color: #ff4b4b;
-        color: white;
-        border-radius: 5px;
-        height: 3em;
-    }
-    </style>
-    """, unsafe_allow_stdio=True)
-
 # En-tête
 st.title("🚀 OmniPost")
 st.write("### Créé par **RAKOTOBE Liliane**")
@@ -27,7 +11,7 @@ st.markdown("---")
 # Barre latérale pour les options
 with st.sidebar:
     st.header("Paramètres / Settings")
-    lang = st.radio("Langue de l'interface", ["Français", "English"])
+    lang = st.radio("Langue / Language", ["Français", "English"])
     st.divider()
     st.info("Version 1.1.0 - Bilingue Ready")
 
@@ -39,7 +23,7 @@ if lang == "Français":
     t_job_title = "Intitulé du poste (ex: Chef de projet)"
     t_platforms = "Diffuser sur ces plateformes :"
     t_btn = "Lancer la multidiffusion 1-Clic"
-    t_success = "🚀 Offre diffusée avec succès sur tous les canaux !"
+    t_success = "🚀 Offre diffusée avec succès !"
 else:
     t_config = "⚙️ Stream Configuration"
     t_email = "Candidate reception email"
@@ -47,7 +31,7 @@ else:
     t_job_title = "Job Title (e.g. Project Manager)"
     t_platforms = "Post on these platforms:"
     t_btn = "Launch 1-Click Broadcast"
-    t_success = "🚀 Job successfully posted on all channels!"
+    t_success = "🚀 Job successfully posted!"
 
 # Section 1 : Configuration
 st.header(t_config)
@@ -75,11 +59,7 @@ if st.button(t_btn):
     if job and platforms:
         st.balloons()
         st.success(t_success)
-        st.json({
-            "status": "Active",
-            "job": job,
-            "distributed_to": platforms,
-            "owner": "RAKOTOBE Liliane"
-        })
+        st.write(f"**Poste :** {job}")
+        st.write(f"**Canaux :** {', '.join(platforms)}")
     else:
         st.error("Veuillez remplir le titre et choisir au moins une plateforme.")
