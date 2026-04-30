@@ -1,0 +1,27 @@
+{
+  "active_job": "Conducteur de Travaux",
+  "total_received": 12,
+  "candidates_list": [
+    {
+      "id": 1,
+      "name": "Jean Dupont",
+      "score": "🟢 VERT",
+      "missing_criteria": [],
+      "action_required": "Planifier Entretien"
+    },
+    {
+      "id": 2,
+      "name": "Marie Curie",
+      "score": "🟡 ORANGE",
+      "missing_criteria": ["Permis C"],
+      "action_required": "Relancer pour précision"
+    },
+    {
+      "id": 3,
+      "name": "Anonyme 45",
+      "score": "🔴 ROUGE",
+      "missing_criteria": ["Expérience < 2 ans"],
+      "action_required": "Refus Automatique"
+    }
+  ]
+}
