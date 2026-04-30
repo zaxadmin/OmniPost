@@ -1,19 +1,28 @@
 {
-  "app": "OmniPost",
-  "version": "1.0.0",
-  "config": {
+  "app_identity": {
+    "name": "OmniPost",
+    "creator": "RAKOTOBE Liliane",
+    "version": "1.1.0"
+  },
+  "international_settings": {
+    "supported_languages": ["fr", "en"],
+    "default_language": "fr",
+    "currencies": ["EUR", "USD", "GBP"]
+  },
+  "form_logic": {
     "privacy_mode": {
-      "default_hide_phone": true,
-      "default_hide_address": true,
-      "allow_email_only": true
+      "hide_phone": true,
+      "hide_exact_address": true
     },
-    "recruitment_fields": {
-      "mandatory": ["job_title", "contract_type", "location_city"],
-      "filters": ["experience_years", "caces_permis", "languages"]
-    },
-    "active_channels": {
-      "jobboards": ["LinkedIn", "Indeed", "France_Travail"],
-      "direct_mail": ["Agences_Interim"]
+    "job_categories": ["Tech", "Construction", "Retail", "Healthcare"],
+    "filters": {
+      "experience": ["Junior", "Intermediate", "Senior"],
+      "requirements": ["Driving License", "Certifications", "Degree"]
     }
+  },
+  "distribution_channels": {
+    "french_jobboards": ["France Travail", "Indeed FR", "Apec"],
+    "english_jobboards": ["Monster", "Glassdoor", "LinkedIn Global", "Reed.co.uk"],
+    "partners": ["Interim Agencies", "Recruitment Firms"]
   }
 }
