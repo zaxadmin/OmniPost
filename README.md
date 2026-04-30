@@ -9,7 +9,8 @@ L'application est divisée en modules pour assurer flexibilité et sécurité :
 - **Privacy Layer :** Anonymisation automatique des données employeur.
 
 ## 📋 Fonctionnalités Validées
-- [x] Configuration multi-emails (Changement de flux à la volée).
-- [x] Mode Discrétion (Masquage Tel/Adresse).
-- [x] Structure de données JSON pour le formulaire 1-clic.
-- [x] Workflow de tri automatique (Matching des CV).
+- [x] Configuration multi-emails.
+- [x] Mode Discrétion.
+- [x] Structure de données JSON.
+- [x] Workflow de tri automatique.
+- [x] **Module de Multidiffusion (Étape 3) : Envoi API et Emails Agences.**
