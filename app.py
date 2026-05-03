@@ -1,137 +1,130 @@
 import streamlit as st
-from supabase import create_client, Client
+from supabase import create_client
+import google.generativeai as genai
 
-# --- 1. CONFIGURATION DE LA PAGE ---
-st.set_page_config(page_title="OmniPost - Rakotobe Liliane", page_icon="🚀", layout="wide")
+# --- CONFIGURATION INITIALE ---
+st.set_page_config(page_title="OmniPost Premium", layout="wide")
 
-# --- 2. CONNEXION SUPABASE ---
-@st.cache_resource
-def init_connection():
-    try:
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
-        return create_client(url, key)
-    except Exception as e:
-        st.error("⚠️ Erreur : Les 'Secrets' ne sont pas configurés sur Streamlit Cloud.")
-        st.stop()
+# Initialisation de la session pour la prévisualisation et l'IA
+if 'preview_mode' not in st.session_state:
+    st.session_state.preview_mode = False
+if 'desc_auto' not in st.session_state:
+    st.session_state.desc_auto = ""
 
-supabase = init_connection()
+# Connexion Supabase
+supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
-# --- 3. GESTION DE LA SESSION ---
-if 'auth' not in st.session_state:
-    st.session_state.auth = False
-if 'auth_mode' not in st.session_state:
-    st.session_state.auth_mode = "login"
+# --- BARRE LATÉRALE ---
+with st.sidebar:
+    lang = st.radio("🌐 Langue", ["Français", "English"])
+    st.divider()
+    st.metric("🎁 Crédits offerts", "3")
+    st.caption("Pack Premium activé")
 
-# --- 4. INTERFACE AUTHENTIFICATION ---
-if not st.session_state.auth:
-    if st.session_state.auth_mode == "login":
-        st.title("🔐 Connexion RH - OmniPost")
-        email = st.text_input("Email professionnel")
-        pwd = st.text_input("Mot de passe", type="password")
-        
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button("Se connecter"):
-                res = supabase.table("profiles").select("*").eq("email", email).eq("password", pwd).execute()
-                if len(res.data) > 0:
-                    st.session_state.auth = True
-                    st.session_state.user = res.data[0]
-                    st.rerun()
-                else:
-                    st.error("Identifiants incorrects.")
-        with col2:
-            if st.button("Créer un compte"):
-                st.session_state.auth_mode = "signup"
-                st.rerun()
+# --- DICTIONNAIRE DE LIENS DIFFUSEURS ---
+URLS_DIFFUSEURS = {
+    "LinkedIn": "https://www.linkedin.com/talent/post-a-job",
+    "Indeed": "https://www.indeed.com/hire",
+    "Apec": "https://www.apec.fr/recruteur/deposer-une-offre.html",
+    "France Travail": "https://entreprise.francetravail.fr/",
+    "Welcome to the Jungle": "https://pro.welcometothejungle.com/",
+    "Remote OK": "https://remoteok.com/hire-remote-talent",
+    "We Work Remotely": "https://weworkremotely.com/post-a-job"
+}
 
-    elif st.session_state.auth_mode == "signup":
-        st.title("📝 Inscription Nouvel Employeur")
-        n_email = st.text_input("Email")
-        n_pwd = st.text_input("Mot de passe", type="password")
-        n_ent = st.text_input("Nom de l'entreprise")
-        
-        if st.button("Valider l'inscription"):
-            if n_email and n_pwd and n_ent:
-                supabase.table("profiles").insert({
-                    "email": n_email, 
-                    "password": n_pwd, 
-                    "entreprise": n_ent
-                }).execute()
-                st.success("Compte créé ! Connectez-vous.")
-                st.session_state.auth_mode = "login"
-                st.rerun()
-            else:
-                st.warning("Veuillez remplir tous les champs.")
-        
-        if st.button("Retour"):
-            st.session_state.auth_mode = "login"
-            st.rerun()
-    st.stop()
+tab1, tab2 = st.tabs(["📝 Créer & Diffuser", "⚙️ Configuration IA"])
 
-# --- 5. TABLEAU DE BORD (SI CONNECTÉ) ---
-st.sidebar.title(f"🏢 {st.session_state.user['entreprise']}")
-st.sidebar.write(f"ID : `{st.session_state.user['id'][:8]}`")
-
-if st.sidebar.button("Déconnexion"):
-    st.session_state.auth = False
-    st.rerun()
-
-st.title(f"🚀 Dashboard OmniPost")
-tab1, tab2, tab3 = st.tabs(["📝 Créer une Offre", "🔑 Mes Comptes", "📁 Candidatures"])
-
-# --- ONGLET 1 : CRÉATION ---
-with tab1:
-    st.header("Nouvelle Annonce")
-    titre = st.text_input("Titre du poste", placeholder="ex: Ingénieur DevOps")
-    lieu = st.text_input("Localisation", placeholder="ex: Paris / Remote")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        contrat = st.selectbox("Contrat", ["CDI", "CDD", "Alternance"])
-    with col_b:
-        salaire = st.number_input("Salaire (K€)", value=40)
-            
-    if st.button("🚀 Publier l'offre"):
-        if titre:
-            supabase.table("offres").insert({
-                "titre": titre, 
-                "lieu": lieu,
-                "contrat": contrat,
-                "salaire": salaire,
-                "id_employeur": st.session_state.user['id']
-            }).execute()
-            st.balloons()
-            st.success("Offre publiée !")
-        else:
-            st.error("Le titre est obligatoire.")
-
-# --- ONGLET 2 : COMPTES ---
+# --- ONGLET 2 : CONFIGURATION IA ---
 with tab2:
-    st.header("Configurations")
-    st.info("Paramétrez vos accès diffuseurs.")
-    st.text_input("Clé API LinkedIn", type="password")
-    st.text_input("Clé API Indeed", type="password")
-
-# --- ONGLET 3 : CANDIDATURES ---
-with tab3:
-    st.header("Vos Candidats")
-    data = supabase.table("candidats").select("*, offres!inner(*)").eq("offres.id_employeur", st.session_state.user['id']).execute()
+    st.header("🤖 Paramètres du moteur d'intelligence artificielle")
+    ia_moteur = st.selectbox("Choisir le modèle", ["Gemini", "GPT-4 (OpenAI)", "Claude (Anthropic)", "Copilot (Azure)"])
+    ia_cle = st.text_input("Votre Clé API personnelle", type="password", help="Cette clé reste strictement privée et liée à votre compte.")
     
-    if data.data:
-        for c in data.data:
-            with st.expander(f"👤 {c['nom']} - Match : {c['score']}%"):
-                st.write(f"**Poste :** {c['offres']['titre']}")
-                st.button(f"Contacter", key=f"btn_{c['id']}")
-    else:
-        st.write("Aucune candidature.")
+    if st.button("Enregistrer la configuration"):
+        # Sauvegarde simulée dans Supabase (à lier à votre table profiles)
+        st.success(f"OmniPost est maintenant configuré avec {ia_moteur}")
 
-# --- FOOTER ---
-st.markdown("---")
-# Correction de la syntaxe des guillemets ici :
-footer_html = f"""
-<div style="text-align: center; color: #888; font-size: 12px;">
-    OmniPost App | Propriété de {st.session_state.user['entreprise']} | 
-    Support : <a href="mailto:rakotobelili63@gmail.com" style="color: #3b82f6;">RAKOTOBE Liliane</a>
-</div>
-"""
-st.markdown(footer_html, unsafe_allow_html=True)
+# --- ONGLET 1 : FORMULAIRE ET APERÇU ---
+with tab1:
+    if not st.session_state.preview_mode:
+        st.header("Nouveau Poste")
+        
+        is_remote = st.toggle("🌍 Poste 100% en Télétravail (Remote)")
+
+        with st.form("main_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                titre = st.text_input("Titre du métier", placeholder="ex: Comptable, Développeur...")
+                lieu = st.text_input("Lieu", value="Remote" if is_remote else "Paris", disabled=is_remote)
+            with col2:
+                contrat = st.selectbox("Type de contrat", ["CDI", "CDD", "Freelance", "Alternance"])
+                experience = st.select_slider("Expérience requise", ["Débutant", "1-3 ans", "3-5 ans", "5 ans+"])
+
+            st.divider()
+            
+            # IA Générateur
+            st.subheader("📄 Description de l'offre")
+            if st.form_submit_button("✨ Demander à l'IA de rédiger l'annonce"):
+                # Simulation de génération (nécessite la configuration Gemini faite précédemment)
+                st.session_state.desc_auto = f"Voici une annonce générée pour un poste de {titre}..." 
+            
+            description = st.text_area("Texte de l'annonce", value=st.session_state.desc_auto, height=250)
+
+            st.divider()
+            
+            st.subheader("📢 Plateformes de diffusion")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                diff_gen = st.multiselect("Généralistes", ["LinkedIn", "Indeed", "France Travail"], default=["LinkedIn"])
+            with c2:
+                diff_prem = st.multiselect("Cadres & Experts", ["Apec", "Welcome to the Jungle"])
+            with c3:
+                def_rem = ["Remote OK"] if is_remote else []
+                diff_rem = st.multiselect("Remote spécialisés", ["Remote OK", "We Work Remotely"], default=def_rem)
+
+            valider = st.form_submit_button("👁️ Voir l'aperçu avant diffusion")
+            
+            if valider:
+                st.session_state.temp_job = {
+                    "titre": titre, "lieu": lieu, "contrat": contrat, 
+                    "exp": experience, "desc": description,
+                    "sites": diff_gen + diff_prem + diff_rem
+                }
+                st.session_state.preview_mode = True
+                st.rerun()
+
+    # --- ÉTAPE DE VUE FINALE (PREVIEW) ---
+    else:
+        job = st.session_state.temp_job
+        st.header("👁️ Validation finale")
+        st.warning("Relisez attentivement l'annonce ci-dessous avant de confirmer la publication.")
+
+        with st.container(border=True):
+            st.title(job['titre'])
+            st.caption(f"📍 {job['lieu']} | 📄 {job['contrat']} | 🎓 Expérience : {job['exp']}")
+            st.markdown("---")
+            st.markdown(job['desc'])
+            st.markdown("---")
+            st.write("**Diffuseurs sélectionnés :**")
+            # Affichage des badges pour chaque site
+            st.write(", ".join([f"**{site}**" for site in job['sites']]))
+
+        col_v1, col_v2 = st.columns(2)
+        with col_v1:
+            if st.button("✅ Valider et Générer les liens de diffusion"):
+                st.success("🎉 Annonce validée ! Cliquez sur les liens ci-dessous pour finaliser le dépôt sur chaque site.")
+                st.session_state.job_valide = True
+        with col_v2:
+            if st.button("⬅️ Retour pour modifier"):
+                st.session_state.preview_mode = False
+                st.rerun()
+
+        # AFFICHAGE DES LIENS DIRECTS APRÈS VALIDATION
+        if st.session_state.get('job_valide'):
+            st.divider()
+            st.subheader("🔗 Vos liens de publication directs :")
+            cols = st.columns(len(job['sites']))
+            for i, site in enumerate(job['sites']):
+                with cols[i]:
+                    st.link_button(f"Publier sur {site}", URLS_DIFFUSEURS.get(site, "#"))
+
