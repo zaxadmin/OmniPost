@@ -1,6 +1,6 @@
 streamlit
 supabase
 google-generativeai
+openai
+anthropic
 pandas
-postgrest
-httpx
