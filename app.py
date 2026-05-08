@@ -1,128 +1,155 @@
 import streamlit as st
 import pandas as pd
-import streamlit_webrtc as webrtc
 from PIL import Image
 from streamlit_javascript import st_javascript
 
-# --- 1. CONFIGURATION ET STYLE ---
-st.set_page_config(page_title="OmniPost.app", page_icon="🚀", layout="wide")
+# --- 1. CONFIGURATION & STYLE ---
+st.set_page_config(page_title="OmniPost Global", page_icon="🌍", layout="wide")
 
 st.markdown("""
     <style>
-    :root { --primary-blue: #00467F; --secondary-cyan: #4FA9D1; }
-    h1, h2, h3 { color: var(--primary-blue) !important; }
-    .stButton>button { background-color: var(--primary-blue); color: white; border-radius: 8px; border: none; }
-    .stButton>button:hover { background-color: var(--secondary-cyan); }
-    
-    /* Bouton d'achat fictif */
-    .buy-button { 
-        display: inline-block; padding: 15px 30px; background-color: #22c55e; 
-        color: white !important; border-radius: 10px; text-decoration: none; 
-        font-weight: bold; font-size: 18px; margin-top: 10px; 
-    }
-    
-    .footer { position: fixed; left: 0; bottom: 0; width: 100%; background-color: white; text-align: center; padding: 10px; border-top: 1px solid #e2e8f0; z-index: 100; font-size: 14px; }
-    .footer a { color: var(--primary-blue); text-decoration: none; font-size: 20px; margin-left: 5px; }
-    .license-alert { background-color: #fef2f2; border: 2px solid #ef4444; padding: 30px; border-radius: 15px; text-align: center; color: #b91c1c; margin: 20px 0; }
+    :root { --primary: #00467F; --cyan: #4FA9D1; --green: #22c55e; }
+    .stButton>button { background-color: var(--primary); color: white; border-radius: 8px; width: 100%; }
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+    .stTabs [data-baseweb="tab"] { background-color: #f0f2f6; border-radius: 5px; padding: 10px; }
+    .footer { position: fixed; left: 0; bottom: 0; width: 100%; background: white; text-align: center; padding: 8px; border-top: 1px solid #ddd; z-index: 100; }
+    .license-alert { background-color: #fff5f5; border: 2px solid #ff4b4b; padding: 20px; border-radius: 10px; text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. DÉTECTEUR D'IP & SÉCURITÉ ---
-# Récupération de l'IP pour éviter les contournements par changement d'email
+# --- 2. GESTION DES LANGUES (20+ LANGUES) ---
+# Dictionnaire simplifié pour la démo (extensible à 20 langues)
+LANG_DATA = {
+    "Français 🇫🇷": {"code": "FR", "region": "France"},
+    "English (US) 🇺🇸": {"code": "US", "region": "Global/USA"},
+    "English (UK) 🇬🇧": {"code": "UK", "region": "Global/UK"},
+    "Malagasy 🇲🇬": {"code": "MG", "region": "Madagascar"},
+    "Deutsch 🇩🇪": {"code": "DE", "region": "Germany"},
+    "Español 🇪🇸": {"code": "ES", "region": "Spain"},
+    "中文 🇨🇳": {"code": "CN", "region": "China"},
+    "日本語 🇯🇵": {"code": "JP", "region": "Japan"},
+    "Português 🇧🇷": {"code": "BR", "region": "Brazil"}
+}
+
+if 'lang' not in st.session_state:
+    st.session_state.lang = "Français 🇫🇷"
+
+# --- 3. BASE DE DONNÉES DIFFUSEURS ---
+DIFFUSEURS = {
+    "France": ["France Travail", "Indeed", "APEC", "Welcome to the Jungle", "Remote.com", "LinkedIn", "Facebook Pro", "Instagram"],
+    "Global/USA": ["Indeed (Global)", "LinkedIn", "Monster", "Glassdoor", "Remote.com", "Twitter/X"],
+    "Global/UK": ["Reed.co.uk", "LinkedIn", "Indeed UK", "Totaljobs"],
+    "Madagascar": ["Portal Job MG", "LinkedIn", "Facebook Pages", "Remote.com"]
+}
+
+# --- 4. RÉCUPÉRATION IP & COMPTEUR ---
 user_ip = st_javascript("await fetch('https://api.ipify.org?format=json').then(res => res.json()).then(data => data.ip)")
 
-if 'used_ips' not in st.session_state:
-    st.session_state.used_ips = []
-
+if 'credentials' not in st.session_state:
+    st.session_state.credentials = {}  # Stockage fictif des IDs
 if 'ads_count' not in st.session_state:
     st.session_state.ads_count = 0
 
-# Vérification du blocage
-is_ip_blocked = user_ip in st.session_state.used_ips
-is_limit_reached = st.session_state.ads_count >= 1 or is_ip_blocked
+is_limit_reached = st.session_state.ads_count >= 1
 
-# --- 3. DONNÉES DE SESSION ---
-if 'candidates' not in st.session_state:
-    st.session_state.candidates = [
-        {"Nom": "Marc Riva", "Score": 96, "Statut": "En attente", "Handicap": True},
-        {"Nom": "Alice Vion", "Score": 84, "Statut": "En attente", "Handicap": False}
-    ]
-
-# --- 4. BARRE LATÉRALE (LOGO) ---
+# --- 5. SIDEBAR : LOGO & LANGUES ---
 with st.sidebar:
     try:
-        # Utilisation du nom exact du fichier uploadé
         logo = Image.open('logo_omnipost.jpg')
         st.image(logo, use_container_width=True)
     except:
-        st.title("🚀 OMNIPOST")
+        st.title("OMNIPOST")
     
     st.divider()
-    if user_ip:
-        st.caption(f"ID Connexion : {user_ip}")
+    st.subheader("🌐 Langue / Language")
+    st.session_state.lang = st.selectbox("Choisir la langue", list(LANG_DATA.keys()))
     
+    current_region = LANG_DATA[st.session_state.lang]["region"]
+    st.info(f"Région active : {current_region}")
+
     if is_limit_reached:
-        st.error("🔒 Limite d'essai atteinte")
+        st.error("🔒 Essai terminé")
     else:
-        st.success("✅ 1 annonce d'essai disponible")
+        st.success("✅ 1 Annonce Multi-diffusion offerte")
 
-# --- 5. DASHBOARD PRINCIPAL ---
-st.title("OmniPost : Recrutement Prédictif")
+# --- 6. DASHBOARD ---
+st.title("🌍 OmniPost Multi-Posting Global")
 
-tabs = st.tabs(["📢 Publication", "📂 Tri des CV (IA)", "📹 Salon Vidéo"])
+tabs = st.tabs(["📢 Diffuser l'offre", "🔑 Mes Comptes", "📊 Rapports"])
 
-# --- ONGLET 1 : PUBLICATION ---
+# --- ONGLET : DIFFUSION ---
 with tabs[0]:
     if is_limit_reached:
-        st.markdown(f"""
+        st.markdown("""
             <div class="license-alert">
-                <h2>🔒 Accès Limité (IP : {user_ip})</h2>
-                <p>Une annonce a déjà été publiée depuis ce réseau ou cet appareil.</p>
-                <p>Pour débloquer les publications illimitées et accéder à toutes les fonctions :</p>
-                <br>
-                <a href="#" class="buy-button">💳 Acheter la Licence Illimitée</a>
+                <h3>Limite d'essai atteinte</h3>
+                <p>Pour continuer à diffuser sur tous vos réseaux et agences intérim, activez votre licence.</p>
+                <a href="#" style="background:#22c55e; color:white; padding:10px; text-decoration:none; border-radius:5px;">Activer la Licence Pro</a>
             </div>
         """, unsafe_allow_html=True)
     else:
-        st.subheader("Publiez votre offre d'essai")
-        job_name = st.text_input("Titre du poste")
-        st.toggle("Option inclusion handicap", value=True)
+        st.subheader("Configuration de l'annonce")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            title = st.text_input("Intitulé du poste")
+            desc = st.text_area("Description du poste")
+        
+        with col2:
+            st.write("🎯 **Cibles de diffusion**")
+            # Choix dynamique selon la région
+            options = DIFFUSEURS.get(current_region, DIFFUSEURS["Global/USA"])
+            targets = st.multiselect("Choisir les plateformes", options)
             
-        if st.button("🚀 Publier maintenant"):
-            if job_name:
-                st.session_state.used_ips.append(user_ip)
+            interim = st.toggle("Envoyer aux agences d'intérim locales")
+            if interim:
+                dept = st.text_input("Département ou Ville", placeholder="ex: 06 ou Paris")
+                st.caption("L'IA va lister les agences (Adecco, Manpower, Randstad...) de cette zone.")
+
+        if st.button("🚀 Diffuser partout d'un seul clic"):
+            if title and targets:
                 st.session_state.ads_count += 1
-                st.session_state.current_job = job_name
-                st.success("Annonce publiée ! Vous pouvez voir le tri dans l'onglet suivant.")
+                st.success(f"Annonce envoyée vers : {', '.join(targets)}")
+                if interim:
+                    st.info(f"📧 Email envoyé aux agences d'intérim de {dept}")
                 st.rerun()
             else:
-                st.warning("Veuillez saisir un titre.")
+                st.warning("Veuillez remplir le titre et choisir au moins un diffuseur.")
 
-# --- ONGLET 2 : GESTION DES CV ---
+# --- ONGLET : MES COMPTES (IDENTIFIANTS) ---
 with tabs[1]:
-    if st.session_state.ads_count == 0 and not is_ip_blocked:
-        st.info("Publiez votre première annonce pour activer le tri automatique.")
-    else:
-        st.subheader("Candidats classés par l'IA")
-        for i, row in pd.DataFrame(st.session_state.candidates).iterrows():
-            with st.expander(f"{row['Nom']} - Matching {row['Score']}%"):
-                if st.button("Valider pour entretien", key=f"v_{i}"):
-                    st.session_state.candidates[i]['Statut'] = "🤝 Validé"
-                    st.rerun()
+    st.subheader("🔑 Gestion des identifiants enregistrés")
+    st.write("Enregistrez vos comptes pour ne plus avoir à vous connecter.")
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.write("**Réseaux Sociaux**")
+        st.text_input("Facebook Page ID", value=st.session_state.credentials.get('fb', ''))
+        st.text_input("LinkedIn Business ID")
+    with col_b:
+        st.write("**Job Boards**")
+        st.text_input("Indeed Account")
+        st.text_input("Welcome to the Jungle ID")
+    
+    if st.button("💾 Sauvegarder mes identifiants"):
+        st.toast("Identifiants sécurisés et sauvegardés !")
 
-# --- ONGLET 3 : SALON VIDÉO ---
+# --- ONGLET : RAPPORTS (GRATUITÉ) ---
 with tabs[2]:
-    confirmes = [c['Nom'] for c in st.session_state.candidates if c['Statut'] == "🤝 Validé"]
-    if confirmes:
-        st.selectbox("Candidat prêt :", confirmes)
-        webrtc.webrtc_streamer(key="video")
-    else:
-        st.warning("Aucun candidat validé pour l'instant.")
+    st.subheader("📈 Suivi des crédits diffuseurs")
+    st.write("OmniPost vous rappelle vos quotas gratuits sur les plateformes tierces.")
+    
+    data = {
+        "Diffuseur": ["Indeed", "France Travail", "LinkedIn", "Welcome to the Jungle"],
+        "Offre": ["1 gratuite/mois", "Illimité (Public)", "3 gratuites", "Payant (Licence requise)"],
+        "Statut": ["Disponible", "Disponible", "Dernier essai", "Abonnement requis"]
+    }
+    st.table(pd.DataFrame(data))
 
-# --- 6. FOOTER ---
+# --- 7. FOOTER ---
 st.markdown(f"""
     <div class="footer">
-        Créée par <b>RAKOTOBE Liliane</b> 
-        <a href="mailto:creationsites06@gmail.com" title="Contacter Liliane">📩</a>
+        Créée par <b>RAKOTOBE Liliane</b> | 
+        <a href="mailto:creationsites06@gmail.com" title="Contact">📩</a>
     </div>
     """, unsafe_allow_html=True)
