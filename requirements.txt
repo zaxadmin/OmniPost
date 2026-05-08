@@ -5,3 +5,4 @@ openai
 anthropic
 panda
 streamlit-webrtc
+streamlit-javascript
