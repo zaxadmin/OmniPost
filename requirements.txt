@@ -3,4 +3,5 @@ supabase
 google-generativeai
 openai
 anthropic
-pandas
+panda
+streamlit-webrtc
