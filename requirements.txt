@@ -1,9 +1,8 @@
 streamlit
 supabase
-google-generativeai
-openai
-anthropic
-panda
+pandas
+pdfminer.high_level
 streamlit-webrtc
 streamlit-javascript
+Pillow
 python-dotenv
