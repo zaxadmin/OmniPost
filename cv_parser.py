@@ -1,21 +1,21 @@
 import pdfminer.high_level
+import io
 
 class OmniPostParser:
-    """Outil de lecture automatique des fichiers CV."""
-
-    def extract_text_from_pdf(self, pdf_path):
-        """Transforme un CV PDF en texte lisible par l'IA."""
+    def extract_text_from_pdf(self, pdf_file):
         try:
-            text = pdfminer.high_level.extract_text(pdf_path)
-            return text.lower() # On met tout en minuscule pour faciliter la recherche
+            # On lit directement le binaire envoyé par Streamlit
+            text = pdfminer.high_level.extract_text(io.BytesIO(pdf_file.getvalue()))
+            return text.lower()
         except Exception as e:
-            print(f"❌ Erreur lors de la lecture du PDF : {e}")
+            st.error(f"Erreur de lecture PDF : {e}")
             return ""
 
-    def search_keywords(self, cv_text, keywords):
-        """Recherche les compétences clés dans le texte du CV."""
-        found = []
-        for word in keywords:
-            if word.lower() in cv_text:
-                found.append(word)
-        return found
+    def save_parsed_cv(self, candidate_id, text_content):
+        # On sauvegarde le texte brut dans ZIP pour que l'IA puisse le relire plus tard
+        from candidate_manager import get_zip_client
+        zip_client = get_zip_client()
+        zip_client.table("cv_data").upsert({
+            "candidate_id": candidate_id,
+            "raw_text": text_content
+        }).execute()
