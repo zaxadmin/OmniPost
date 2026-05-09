@@ -6,3 +6,4 @@ streamlit-webrtc
 streamlit-javascript
 Pillow
 python-dotenv
+google-generativeai
