@@ -6,3 +6,4 @@ anthropic
 panda
 streamlit-webrtc
 streamlit-javascript
+python-dotenv
