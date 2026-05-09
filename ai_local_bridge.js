@@ -1,8 +1,11 @@
-// Ce code détecte si l'appareil peut supporter l'IA locale
 async function checkLocalAI() {
-    if (window.ai && window.ai.canCreateTextSession) {
-        const canCreate = await window.ai.canCreateTextSession();
-        return canCreate === "readily";
+    try {
+        if (window.ai && (await window.ai.canCreateTextSession()) === "readily") {
+            return true;
+        }
+        return false;
+    } catch (e) {
+        return false;
     }
-    return false;
 }
+checkLocalAI();
