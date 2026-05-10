@@ -2,37 +2,22 @@ import streamlit as st
 import google.generativeai as genai
 import json
 
-def analyze_cv_with_ai(cv_text, job_description):
-    """Analyse le CV par rapport à l'offre d'emploi via Gemini."""
-    
-    # Configuration via les secrets Streamlit
-    if "GEMINI_API_KEY" not in st.secrets:
-        return {"score": 0, "verdict": "Clé API Gemini manquante dans les Secrets."}
-        
+def get_model():
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    
-    # Modèle Flash (Rapide et gratuit dans les limites du quota)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    
-    prompt = f"""
-    En tant qu'expert RH, analyse la pertinence de ce CV pour ce poste.
-    
-    POSTE : {job_description}
-    CV : {cv_text}
-    
-    Réponds uniquement en JSON :
-    {{
-        "score": (0-100),
-        "points_forts": [],
-        "points_faibles": [],
-        "verdict": "court résumé"
-    }}
-    """
-    
+    return genai.GenerativeModel('gemini-1.5-flash')
+
+def generate_job_description(job_title):
+    """CÔTÉ EMPLOYEUR : Rédige l'offre automatiquement"""
+    model = get_model()
+    prompt = f"Rédige une offre d'emploi professionnelle pour le poste de : {job_title}. Structure avec Missions, Profil et Avantages."
+    return model.generate_content(prompt).text
+
+def analyze_cv_with_ai(cv_text, job_description):
+    """CÔTÉ CANDIDAT : Calcule le score de matching"""
+    model = get_model()
+    prompt = f"Analyse ce CV : {cv_text} par rapport à cette OFFRE : {job_description}. Réponds uniquement en JSON: {{\"score\": 0-100, \"verdict\": \"\", \"points_forts\": []}}"
     try:
         response = model.generate_content(prompt)
-        # Nettoyage pour extraire le JSON
-        txt = response.text.strip().replace('```json', '').replace('```', '')
-        return json.loads(txt)
-    except Exception as e:
-        return {"score": 0, "verdict": f"Erreur technique : {str(e)}"}
+        return json.loads(response.text.replace('```json', '').replace('```', ''))
+    except:
+        return {"score": 0, "verdict": "Erreur d'analyse"}
