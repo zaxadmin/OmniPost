@@ -7,3 +7,4 @@ streamlit-javascript
 Pillow
 python-dotenv
 google-generativeai
+tornado==6.3.3
