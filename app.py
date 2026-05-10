@@ -3,6 +3,7 @@ import pandas as pd
 import streamlit_webrtc as webrtc
 from PIL import Image
 from streamlit_javascript import st_javascript
+from processor import process_matching
 
 # --- 1. CONFIGURATION & STYLE ---
 st.set_page_config(page_title="Zaxx.app | OmniPost IA", page_icon="🚀", layout="wide")
@@ -17,158 +18,132 @@ st.markdown("""
         font-weight: bold; font-size: 18px; margin: 10px 0; text-align: center; width: 100%;
     }
     .license-alert { background-color: #fff5f5; border: 2px solid #ff4b4b; padding: 25px; border-radius: 12px; text-align: center; }
-    
-    /* Footer fixe */
     .footer { 
         position: fixed; left: 0; bottom: 0; width: 100%; 
         background: white; text-align: center; padding: 15px; 
         border-top: 1px solid #ddd; z-index: 100; 
     }
+    .score-box { padding: 20px; border-radius: 10px; border: 1px solid #ddd; background: #f9f9f9; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. MULTILINGUE (20 LANGUES) ---
-LANG_DATA = {
-    "Français 🇫🇷": {"region": "France"},
-    "English (US) 🇺🇸": {"region": "Global/USA"},
-    "English (UK) 🇬🇧": {"region": "Global/UK"},
-    "Malagasy 🇲🇬": {"region": "Madagascar"},
-    "Deutsch 🇩🇪": {"region": "Germany"},
-    "Español 🇪🇸": {"region": "Spain"},
-    "Italiano 🇮🇹": {"region": "Global"},
-    "Português 🇧🇷": {"region": "Brazil"},
-    "Русский 🇷🇺": {"region": "Global"},
-    "日本語 🇯🇵": {"region": "Japan"},
-    "한국어 🇰🇷": {"region": "Global"},
-    "हिन्दी 🇮🇳": {"region": "Global"},
-    "العربية 🇸🇦": {"region": "Global"},
-    "Türkçe 🇹🇷": {"region": "Global"},
-    "Polski 🇵🇱": {"region": "Global"},
-    "Tiếng Việt 🇻🇳": {"region": "Global"},
-    "ไทย 🇹🇭": {"region": "Global"},
-    "Nederlands 🇳🇱": {"region": "Global"},
-    "Bahasa Indonesia 🇮🇩": {"region": "Global"},
-    "Svenska 🇸🇪": {"region": "Global"}
-}
-
-# --- 3. RÉSEAUX DE DIFFUSION ---
-DIFFUSEURS = {
-    "France": ["France Travail", "Indeed", "APEC", "Welcome to the Jungle", "LinkedIn", "Hellowork"],
-    "Global/USA": ["Indeed (US)", "LinkedIn", "Monster", "Glassdoor", "ZipRecruiter"],
-    "Madagascar": ["Portal Job MG", "Orange Jobs", "LinkedIn", "Facebook Jobs"],
-    "Global": ["LinkedIn", "Indeed (Global)", "Remote.com", "Facebook Pro", "Instagram"]
-}
-
-# --- 4. SÉCURITÉ IP & LIMITES ---
+# --- 2. DÉTECTION IA LOCALE (BRIDGE JS) ---
+# On récupère l'IP pour le quota et on vérifie si window.ai est dispo
 user_ip = st_javascript("await fetch('https://api.ipify.org?format=json').then(res => res.json()).then(data => data.ip)")
 
-if 'ads_count' not in st.session_state: st.session_state.ads_count = 0
-if 'used_ips' not in st.session_state: st.session_state.used_ips = []
-if 'credentials' not in st.session_state: st.session_state.credentials = {}
+has_local_ai = st_javascript("""
+    async function check() {
+        if (window.ai && (await window.ai.canCreateTextSession()) === "readily") {
+            return true;
+        }
+        return false;
+    }
+    return await check();
+""")
 
-is_blocked = user_ip in st.session_state.used_ips
-limit_reached = st.session_state.ads_count >= 1 or is_blocked
+# --- 3. DONNÉES MULTILINGUES ---
+LANG_DATA = {
+    "Français 🇫🇷": {"region": "France", "welcome": "Bienvenue sur OmniPost"},
+    "English (US) 🇺🇸": {"region": "Global/USA", "welcome": "Welcome to OmniPost"},
+    "English (UK) 🇬🇧": {"region": "Global/UK", "welcome": "Welcome to OmniPost"},
+    "Malagasy 🇲🇬": {"region": "Madagascar", "welcome": "Tongasoa eto amin'ny OmniPost"},
+    "Deutsch 🇩🇪": {"region": "Germany", "welcome": "Willkommen bei OmniPost"},
+    "Español 🇪🇸": {"region": "Spain", "welcome": "Bienvenido a OmniPost"},
+    "Italiano 🇮🇹": {"region": "Global", "welcome": "Benvenuti in OmniPost"},
+    "Português 🇧🇷": {"region": "Brazil", "welcome": "Bem-vindo ao OmniPost"},
+    "Русский 🇷🇺": {"region": "Global", "welcome": "Добро пожаловать в OmniPost"},
+    "日本語 🇯🇵": {"region": "Japan", "welcome": "OmniPostへようこそ"},
+    "한국어 🇰🇷": {"region": "Global", "welcome": "OmniPost에 오신 것을 환영합니다"},
+    "हिन्दी 🇮🇳": {"region": "Global", "welcome": "OmniPost में आपका स्वागत है"},
+    "العربية 🇸🇦": {"region": "Global", "welcome": "مرحباً بكم في OmniPost"},
+    "Türkçe 🇹🇷": {"region": "Global", "welcome": "OmniPost'a hoş geldiniz"},
+    "Polski 🇵🇱": {"region": "Global", "welcome": "Witaj en OmniPost"},
+    "Tiếng Việt 🇻🇳": {"region": "Global", "welcome": "Chào mừng đến với OmniPost"},
+    "ไทย 🇹🇭": {"region": "Global", "welcome": "ยินดีต้อนรับสู่ OmniPost"},
+    "Nederlands 🇳🇱": {"region": "Global", "welcome": "Welkom bij OmniPost"},
+    "Bahasa Indonesia 🇮🇩": {"region": "Global", "welcome": "Selamat datang di OmniPost"},
+    "Svenska 🇸🇪": {"region": "Global", "welcome": "Välkommen till OmniPost"}
+}
+
+DIFFUSEURS = {
+    "France": ["France Travail", "Indeed", "APEC", "LinkedIn"],
+    "Global/USA": ["Indeed (US)", "LinkedIn", "ZipRecruiter"],
+    "Madagascar": ["Portal Job MG", "Orange Jobs", "LinkedIn"],
+    "Global": ["LinkedIn", "Indeed (Global)", "Remote.com"]
+}
+
+# --- 4. GESTION DE L'ÉTAT ---
+if 'ads_count' not in st.session_state: st.session_state.ads_count = 0
 
 # --- 5. SIDEBAR ---
 with st.sidebar:
     try:
-        logo = Image.open('logo_omnipost.jpg')
-        st.image(logo, use_container_width=True)
+        st.image('logo_omnipost.jpg', use_container_width=True)
     except:
         st.title("ZAXX.app")
     
     st.divider()
-    selected_lang = st.selectbox("🌐 Langue du Dashboard", list(LANG_DATA.keys()))
+    selected_lang = st.selectbox("🌐 Langue / Language", list(LANG_DATA.keys()))
     region = LANG_DATA[selected_lang]["region"]
     
-    st.info(f"Région de diffusion : {region}")
-    
-    if limit_reached:
-        st.error("🔒 Licence d'essai expirée")
+    if has_local_ai:
+        st.success("🚀 IA Native détectée (Gratuit)")
     else:
-        st.success("✅ 1 Crédit de diffusion offert")
+        st.info("☁️ IA Cloud active")
 
-# --- 6. DASHBOARD ZAXX / OMNIPOST ---
-st.title("Zaxx : Multipostage Intelligent")
+# --- 6. DASHBOARD ---
+st.title(LANG_DATA[selected_lang]["welcome"])
 
-t1, t2, t3, t4 = st.tabs(["📢 Diffuser l'offre", "🔑 Mes Comptes", "📂 Tri IA & Vidéo", "📈 Analytique"])
+t1, t2, t3, t4 = st.tabs(["📢 Diffusion", "🔑 Comptes", "📂 Tri IA", "📈 Analytique"])
 
-# --- TAB 1 : DIFFUSION ---
 with t1:
-    if limit_reached:
-        st.markdown(f"""
-            <div class="license-alert">
-                <h2>Identifiant de session : {user_ip}</h2>
-                <p>Votre offre de bienvenue OmniPost sur <b>zaxx.app</b> a été utilisée.</p>
-                <p>Pour débloquer la diffusion illimitée vers toutes les agences d'intérim et réseaux sociaux :</p>
-                <br>
-                <a href="#" class="buy-button">💳 Activer ma Licence Pro sur Zaxx.app</a>
-            </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.subheader("Nouvelle publication multicanale")
-        c1, c2 = st.columns(2)
-        with c1:
-            title = st.text_input("Titre du poste à pourvoir")
-            targets = st.multiselect("Canaux Jobboards", DIFFUSEURS.get(region, DIFFUSEURS["Global"]))
-        with c2:
-            social = st.multiselect("Canaux Sociaux", ["LinkedIn Business", "Facebook Page", "Instagram Ads", "X / Twitter"])
-            interim = st.toggle("Alerter les agences d'intérim locales")
-            
-        if st.button("🚀 Diffuser sur tous les canaux"):
-            if title and (targets or social):
-                st.session_state.used_ips.append(user_ip)
-                st.session_state.ads_count += 1
-                st.balloons()
-                st.success("Diffusion en cours sur zaxx.app...")
-                st.rerun()
-
-# --- TAB 2 : COMPTES ---
-with t2:
-    st.subheader("🔑 Gestionnaire de clés & identifiants")
-    st.caption("Enregistrez vos accès une seule fois pour automatiser vos prochaines publications.")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.text_input("LinkedIn API Key", type="password")
-        st.text_input("Facebook Page Token", type="password")
-    with col_b:
-        st.text_input("Identifiant Indeed Employer")
-        st.text_input("Emails Agences Intérim (séparés par des virgules)")
+    st.subheader("Publier une offre")
+    title = st.text_input("Titre du poste")
+    job_desc = st.text_area("Description complète de l'offre")
     
-    if st.button("💾 Mémoriser sur Zaxx"):
-        st.toast("Identifiants sauvegardés avec succès !")
+    if st.button("🚀 Diffuser partout"):
+        if title and job_desc:
+            st.session_state.job_desc = job_desc # Sauvegarde pour le tri
+            st.success("Offre diffusée sur les réseaux de la région : " + region)
+            st.balloons()
 
-# --- TAB 3 : TRI IA ---
+with t2:
+    st.subheader("Identifiants")
+    st.text_input("LinkedIn API", type="password")
+    st.text_input("Supabase Secret", type="password")
+    st.button("Sauvegarder")
+
 with t3:
-    st.subheader("📂 Analyse des candidatures entrantes")
-    if st.session_state.ads_count > 0:
-        st.write("Candidat matché : **Alice Durand** (94% de correspondance)")
-        if st.button("Lancer l'entretien Vidéo"):
-            webrtc.webrtc_streamer(key="video")
-    else:
-        st.info("Les CV apparaîtront ici après votre première diffusion.")
+    st.subheader("Analyse de CV")
+    uploaded_cv = st.text_area("Collez le texte du CV ici (ou importez)")
+    
+    if st.button("🔍 Analyser le matching"):
+        if 'job_desc' not in st.session_state:
+            st.warning("Veuillez d'abord créer une offre dans l'onglet Diffusion.")
+        else:
+            # APPEL AU PROCESSOR (Lien JS + Python)
+            with st.spinner("Analyse en cours..."):
+                result = process_matching(uploaded_cv, st.session_state.job_desc, user_ip)
+                
+                if isinstance(result, dict):
+                    st.markdown(f"""
+                    <div class="score-box">
+                        <h3>Score : {result.get('score', 0)}%</h3>
+                        <p><b>Verdict :</b> {result.get('verdict', '')}</p>
+                        <p>✅ <b>Points forts :</b> {', '.join(result.get('points_forts', []))}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.error(result)
 
-# --- TAB 4 : RAPPORTS ---
 with t4:
-    st.subheader("📊 État des services tiers")
-    df = pd.DataFrame({
-        "Service": ["LinkedIn", "Indeed", "Agences Intérim", "Facebook"],
-        "Statut": ["Connecté", "Prêt", "En attente", "Connecté"],
-        "Crédits": ["3 restants", "1 gratuit", "Illimité", "Illimité"]
-    })
-    st.table(df)
+    st.write("Statistiques de diffusion en temps réel.")
+    st.table(pd.DataFrame({"Canal": ["LinkedIn", "Indeed"], "Vues": [124, 89]}))
 
-# --- 7. FOOTER (Mention Propriété Zaxx / OmniPost) ---
+# --- 7. FOOTER ---
 st.markdown(f"""
     <div class="footer">
-        <small>
-            © 2026 <b>ZAXX.app</b> | OmniPost est une marque de RAKOTOBE Liliane. 
-            Sous Licence Commerciale Exclusive.
-            <a href="mailto:creationsites06@gmail.com?subject=Support%20OmniPost%20Zaxx" 
-               title="Contacter le support technique" 
-               style="color:#00ced1; text-decoration:none; margin-left:15px; font-size:1.1rem;">
-               📩 Support Technique
-            </a>
-        </small>
+        <small>© 2026 <b>ZAXX.app</b> | OmniPost est une marque de RAKOTOBE Liliane. 
+        <a href="mailto:creationsites06@gmail.com" style="color:#00467F; margin-left:10px;">📩 Support</a></small>
     </div>
     """, unsafe_allow_html=True)
