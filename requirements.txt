@@ -1,7 +1,7 @@
 streamlit
 supabase
 pandas
-pdfminer.high_level
+pdfminer.six
 streamlit-webrtc
 streamlit-javascript
 Pillow
