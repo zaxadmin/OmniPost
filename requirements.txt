@@ -1,10 +1,7 @@
 streamlit
 supabase
-pandas
-pdfminer.six
-streamlit-webrtc
-streamlit-javascript
-Pillow
-python-dotenv
 google-generativeai
+streamlit-javascript
+fpdf
+pandas
 tornado==6.3.3
