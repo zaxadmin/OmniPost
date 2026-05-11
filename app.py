@@ -1,16 +1,21 @@
 import streamlit as st
+from supabase import create_client
+from datetime import datetime, timedelta
 
 # --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(page_title="Zipngo-Zaxx", page_icon="👍", layout="wide")
 
-# --- 2. INJECTION DU DESIGN (LE CORRECTIF) ---
-# Ce bloc dit à Streamlit : "Ceci n'est pas du texte, c'est du style"
+# --- 2. INJECTION DU STYLE (CSS) ---
+# Ce bloc transforme le code technique en design visuel
 st.markdown("""
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
     /* Logo et Titre */
     .main-logo-text { font-size: 65px !important; font-weight: 900; color: #002147; text-align: center; margin-bottom: 0px; text-transform: lowercase; letter-spacing: -2px; font-family: sans-serif; }
     .power-title { text-align: center; color: #00E5FF; font-size: 22px; font-weight: 800; margin-top: -25px; text-transform: uppercase; letter-spacing: 2px; font-family: sans-serif; }
+
+    /* Cartes de présentation */
+    .feature-card { background-color: #FFFFFF; padding: 25px; border-radius: 15px; border: 1px solid #e1f5fe; box-shadow: 0 10px 20px rgba(0, 33, 71, 0.05); text-align: center; margin-bottom: 20px; }
 
     /* Boutons Personnalisés */
     .stButton>button { 
@@ -39,31 +44,59 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. CONTENU DE LA PAGE ---
-# Langue
-col_l, _ = st.columns([1, 2])
-with col_l:
-    sel_lang = st.selectbox("🌐 Language", ["Français 🇫🇷", "English 🇺🇸", "Malagasy 🇲🇬"])
+# --- 3. LOGIQUE DES LANGUES ---
+LANGS = {
+    "Français 🇫🇷": {"cand": "Essai 1 jour : 1 relooking IA et 1 test ATS.", "emp": "Essai 7 jours : Accès talents et visio."},
+    "English 🇺🇸": {"cand": "1-day trial: 1 AI makeover and 1 ATS test.", "emp": "7-day trial: Talent access and video."},
+    "Malagasy 🇲🇬": {"cand": "Andrana 1 andro: Fanavaozana 1 sy fizahana ATS 1.", "emp": "Andrana 7 andro: Tahiry sy horonantsary."},
+    "Español 🇪🇸": {"cand": "Prueba de 1 día: 1 rediseño IA y 1 test ATS.", "emp": "Prueba de 7 días: Acceso y video."}
+}
 
-# Affichage du Logo
-st.markdown("<h1 style='text-align: center; color: #F3812B; font-size: 80px; margin-bottom:0;'>👍</h1>", unsafe_allow_html=True)
-st.markdown('<p class="main-logo-text">zipngo</p>', unsafe_allow_html=True)
-st.markdown('<p class="power-title">The Power of Choice</p>', unsafe_allow_html=True)
+# --- 4. ACCUEIL ---
+if 'user' not in st.session_state:
+    st.session_state.user = None
 
-# Bouton de test pour voir si le style fonctionne
-st.markdown("<br>", unsafe_allow_html=True)
-if st.button("Tester le bouton 👍"):
-    st.balloons()
+if not st.session_state.user:
+    # Sélecteur de langue en haut à gauche
+    col_l, _ = st.columns([1, 2])
+    with col_l:
+        sel_lang = st.selectbox("🌐 Language", list(LANGS.keys()))
+    
+    # Affichage Logo
+    st.markdown("<h1 style='text-align: center; color: #F3812B; font-size: 80px; margin-bottom:0;'>👍</h1>", unsafe_allow_html=True)
+    st.markdown('<p class="main-logo-text">zipngo</p>', unsafe_allow_html=True)
+    st.markdown('<p class="power-title">The Power of Choice</p>', unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Cartes Candidat / Employeur
+    col1, col2 = st.columns(2, gap="large")
+    with col1:
+        st.markdown(f'<div class="feature-card"><h2 style="color:#002147;">Candidat</h2><p>{LANGS[sel_lang]["cand"]}</p></div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown(f'<div class="feature-card"><h2 style="color:#002147;">Employeur</h2><p>{LANGS[sel_lang]["emp"]}</p></div>', unsafe_allow_html=True)
 
-# --- 4. FOOTER ---
+    # Inscription Simplifiée
+    t1, t2 = st.tabs(["🔑 Connexion", "📝 Inscription"])
+    with t2:
+        re = st.text_input("Email", key="reg_email")
+        if st.button("Démarrer mon essai 👍"):
+            st.session_state.user = re
+            st.rerun()
+
+# --- 5. FOOTER FIXÉ ---
 st.markdown('<div class="footer-container"></div>', unsafe_allow_html=True)
-f1, f2, f3 = st.columns(3)
+f_col1, f_col2, f_col3 = st.columns(3)
 
-with f1:
+with f_col1:
     with st.expander("⚖️ Mentions Légales"):
-        st.write("Éditeur : RAKOTOBE Liliane.")
+        st.write("Éditeur : RAKOTOBE Liliane. Propriété exclusive.")
 
-with f3:
+with f_col2:
+    with st.expander("📜 CGV"):
+        st.write("Services numériques. Pas de remboursement après exécution.")
+
+with f_col3:
     st.markdown(f"""
         <div class="footer-text">
             © 2026 <b>RAKOTOBE Liliane</b> | 
