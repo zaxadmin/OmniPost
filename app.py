@@ -4,40 +4,52 @@ import time
 # --- 1. CONFIGURATION ---
 st.set_page_config(page_title="Zipngo-Zaxx", page_icon="👍", layout="wide")
 
-# --- 2. STYLE CSS ---
+# --- 2. STYLE CSS (DESIGN & DISCRÉTION) ---
 st.markdown("""
 <style>
     .main-logo-text { font-size: 60px !important; font-weight: 900; color: #002147; text-align: center; margin: 0; text-transform: lowercase; letter-spacing: -2px; }
     .power-title { text-align: center; color: #00E5FF; font-size: 20px; font-weight: 800; margin-top: -20px; text-transform: uppercase; }
+    
+    /* Boutons standards */
     .stButton>button { background-color: #002147 !important; color: white !important; border-radius: 10px !important; font-weight: bold; height: 45px; width: 100%; }
     .stButton>button:hover { background-color: #F3812B !important; }
-    
-    /* Style Spécifique Footer */
+
+    /* Liens Footer Ultra Discrets (Boutons transparents) */
     div[data-testid="stVerticalBlock"] div[data-testid="stHorizontalBlock"] button {
-        background-color: transparent !important; color: #999 !important; border: none !important; font-size: 11px !important; height: auto !important; padding: 0 !important;
+        background-color: transparent !important;
+        color: #999 !important;
+        border: none !important;
+        font-size: 11px !important;
+        height: auto !important;
+        padding: 0 !important;
     }
+    div[data-testid="stVerticalBlock"] div[data-testid="stHorizontalBlock"] button:hover {
+        color: #F3812B !important;
+        text-decoration: underline !important;
+    }
+
+    /* Sécurité Vidéo */
+    video::-internal-media-controls-download-button { display:none; }
+    video::-webkit-media-controls-enclosure { overflow:hidden; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. INITIALISATION & LANGUES ---
+# --- 3. LOGIQUE & LANGUES ---
 LISTE_LANGUES = ["Français", "English", "Español", "Deutsch", "Italiano", "Português", "Mandarin", "Japonais", "Arabe", "Russe", "Hindi", "Bengali", "Malagasy", "Coréen", "Turc", "Vietnamien", "Polonais", "Néerlandais", "Suédois", "Indonésien"]
 
 if 'user' not in st.session_state: st.session_state.user = None
 if 'role' not in st.session_state: st.session_state.role = None
 if 'footer_view' not in st.session_state: st.session_state.footer_view = None
-if 'paiement_en_cours' not in st.session_state: st.session_state.paiement_en_cours = False
 
 # --- 4. FONCTION DE PAIEMENT FICTIF ---
 def tunnel_paiement(prix, offre):
-    st.session_state.paiement_en_cours = True
-    st.warning(f"💳 Connexion sécurisée au tunnel de paiement (Mode Test)... Plan : {offre}")
-    with st.spinner("Traitement de la transaction..."):
+    st.warning(f"💳 Connexion au tunnel de paiement sécurisé... Plan : {offre}")
+    with st.spinner("Validation de la transaction..."):
         time.sleep(2)
-        st.success(f"✅ Paiement de {prix} accepté ! Votre Pass 3 mois est activé.")
-        time.sleep(1)
-    st.session_state.paiement_en_cours = False
+        st.success(f"✅ Paiement de {prix} accepté ! Votre Pass 90 jours est actif.")
+    time.sleep(1)
 
-# --- 5. INTERFACE D'ACCUEIL ---
+# --- 5. ACCUEIL ---
 if not st.session_state.user:
     col_l, _ = st.columns([1, 4])
     with col_l: st.selectbox("🌐", LISTE_LANGUES, label_visibility="collapsed")
@@ -56,9 +68,9 @@ if not st.session_state.user:
                 st.session_state.user, st.session_state.role = e, r
                 st.rerun()
         with mode[1]:
-            st.info("🎁 Inclus : Essai Recruteur (7j) ou Candidat (1j + Pack IA)")
+            st.info("🎁 Essai : Recruteur (7j) | Candidat (1j + Pack IA)")
             if st.button("Démarrer mon essai gratuit 🚀"):
-                st.session_state.user = "Nouvel Utilisateur"
+                st.session_state.user = "Utilisateur Essai"
                 st.session_state.role = "Candidat"
                 st.rerun()
 
@@ -75,28 +87,26 @@ else:
         with c1: st.button("🔍 Scan ATS")
         with c2: st.button("✨ Relooking CV")
         with c3: st.button("✍️ Lettre Motivation")
-        
         st.divider()
-        if st.button("💎 Activer le Pass 3 mois (Paiement Fictif)"):
+        if st.button("💎 Activer le Pass 90j (Paiement)"):
             tunnel_paiement("29€", "Candidat 90 jours")
-
     else:
         st.subheader("🔍 Espace Recruteur (Essai 7 jours)")
         st.video("https://www.w3schools.com/html/mov_bbb.mp4")
-        if st.button("💎 S'abonner : Pass 3 mois (Paiement Fictif)"):
+        if st.button("💎 S'abonner : Pass 90j (Paiement)"):
             tunnel_paiement("149€", "Recruteur 90 jours")
 
-# --- 7. FOOTER DISCRET (CGV MISES À JOUR) ---
+# --- 7. FOOTER DISCRET (MIS À JOUR) ---
 st.divider()
 
 if st.session_state.footer_view == "mentions":
-    st.info("⚖️ **Mentions Légales :** Responsable : RAKOTOBE Liliane. Éducation/Test via Streamlit Cloud. Contact : creationsites06@gmail.com. Zipngo-Zaxx est une marque déposée.")
+    st.info("⚖️ **Mentions Légales :** Responsable de publication : RAKOTOBE Liliane. Contact technique : creationsites06@gmail.com. Zipngo-Zaxx est une marque déposée.")
 elif st.session_state.footer_view == "cgv":
     st.info("""📜 **CGV & Pass :**
-    \n **Recruteur :** Essai 7j gratuit. Pass 3 mois (90j) avec paiement immédiat (sans renouvellement tacite).
-    \n **Candidat :** Essai 1j incluant : 1 scan ATS, 1 relooking, 1 lettre de motivation, 1 scan post-relooking et export PDF. Pass 3 mois (90j) avec mise en veille automatique après expiration.""")
+    \n **Recruteur :** Essai 7j gratuit. Pass 90j avec paiement immédiat sans renouvellement tacite et sans remboursement.
+    \n **Candidat :** Essai 1j incluant : 1 scan ATS, 1 relooking, 1 lettre de motivation, 1 scan post-relooking et export PDF. Pass 90j avec paiement immédiat sans remboursement et mise en veille automatique du profil après expiration.""")
 elif st.session_state.footer_view == "rgpd":
-    st.info("🔒 **RGPD :** Vidéo et données protégées. Suppression de compte sur simple demande.")
+    st.info("🔒 **RGPD :** Vidéos et données protégées. Suppression totale du compte et des données sur simple demande.")
 
 f_col1, f_col2, f_col3, f_col4 = st.columns([1, 1, 1, 0.5])
 with f_col1:
@@ -111,6 +121,9 @@ with f_col4:
 
 st.markdown("""
 <div style="text-align: center; margin-top: 10px;">
-    <p style="font-size: 11px; color: #999;">✉️ Contact : RAKOTOBE Liliane | © 2026 Zipngo-Zaxx</p>
+    <a href="mailto:creationsites06@gmail.com" style="color: #F3812B; text-decoration: none; font-size: 12px; font-weight: bold;">
+        ✉️ Contact : RAKOTOBE Liliane
+    </a>
+    <p style="font-size: 10px; color: #ccc;">© 2026 Zipngo-Zaxx | Tous droits réservés</p>
 </div>
 """, unsafe_allow_html=True)
