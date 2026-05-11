@@ -4,50 +4,47 @@ from datetime import datetime
 # --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(page_title="Zipngo-Zaxx", page_icon="👍", layout="wide")
 
-# --- 2. STYLE CSS (DESIGN, FOOTER & SÉCURITÉ VIDÉO) ---
+# --- 2. STYLE CSS (DESIGN PRO, FOOTER & SÉCURITÉ) ---
 st.markdown("""
 <style>
+    /* Logo et Titres */
     .main-logo-text { font-size: 65px !important; font-weight: 900; color: #002147; text-align: center; margin: 0; text-transform: lowercase; letter-spacing: -2px; font-family: sans-serif; }
     .power-title { text-align: center; color: #00E5FF; font-size: 22px; font-weight: 800; margin-top: -25px; text-transform: uppercase; letter-spacing: 2px; font-family: sans-serif; }
-    .stButton>button { background-color: #002147 !important; color: white !important; border-radius: 10px !important; border: none !important; transition: 0.3s; width: 100%; font-weight: bold; }
     
-    /* Footer Style Professionnel */
-    .footer-container { text-align: center; font-size: 12px; color: #444; margin-top: 60px; padding: 30px; border-top: 2px solid #002147; background-color: #f9f9f9; border-radius: 10px 10px 0 0; }
-    .mailto-link { color: #F3812B !important; text-decoration: none; font-weight: bold; font-size: 15px; border: 1px solid #F3812B; padding: 5px 10px; border-radius: 5px; transition: 0.3s; }
-    .mailto-link:hover { background-color: #F3812B; color: white !important; }
-    .legal-section { margin-top: 20px; text-align: left; max-width: 900px; margin-left: auto; margin-right: auto; padding: 20px; background: white; border-radius: 8px; border: 1px solid #ddd; line-height: 1.6; }
-    .legal-title { font-weight: bold; color: #002147; text-transform: uppercase; font-size: 11px; margin-top: 15px; display: block; border-bottom: 1px solid #eee; padding-bottom: 3px; }
-    
-    /* Bannettes de tri */
-    .bannette-card { background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #eee; margin-bottom: 10px; border-left: 5px solid #ddd; }
-    .border-top { border-left-color: #2e7d32 !important; }
-    .border-chance { border-left-color: #F3812B !important; }
-    .instruction-note { background-color: #f0f7ff; padding: 15px; border-radius: 10px; border-left: 5px solid #00E5FF; margin-bottom: 20px; font-size: 14px; }
+    /* Boutons */
+    .stButton>button { background-color: #002147 !important; color: white !important; border-radius: 10px !important; border: none !important; transition: 0.3s; width: 100%; font-weight: bold; height: 45px; }
+    .stButton>button:hover { background-color: #F3812B !important; transform: translateY(-2px); }
 
-    /* Sécurité Vidéo : Désactiver le téléchargement */
+    /* Alertes Statut (Mise en veille) */
+    .status-veille { background-color: #fff3cd; color: #856404; padding: 20px; border-radius: 12px; border: 1px solid #ffeeba; margin-bottom: 25px; text-align: center; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+
+    /* Footer Style Professionnel */
+    .footer-container { text-align: center; font-size: 13px; color: #444; margin-top: 80px; padding: 50px 20px; border-top: 3px solid #002147; background-color: #f4f7f9; border-radius: 30px 30px 0 0; }
+    .mailto-link { color: #F3812B !important; text-decoration: none; font-weight: bold; font-size: 16px; padding: 12px 25px; border: 2px solid #F3812B; border-radius: 12px; display: inline-block; transition: 0.3s; background: white; }
+    .mailto-link:hover { background-color: #F3812B; color: white !important; }
+    
+    .legal-section { margin-top: 40px; text-align: left; max-width: 1000px; margin-left: auto; margin-right: auto; padding: 30px; background: white; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+    .legal-title { font-weight: 800; color: #002147; text-transform: uppercase; font-size: 13px; margin-bottom: 10px; display: block; border-bottom: 2px solid #F3812B; width: fit-content; padding-bottom: 4px; }
+    .legal-text { margin-bottom: 25px; line-height: 1.7; color: #333; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+    /* Sécurité Vidéo */
     video::-internal-media-controls-download-button { display:none; }
     video::-webkit-media-controls-enclosure { overflow:hidden; }
     video::-webkit-media-controls-panel { width: calc(100% + 30px); }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. DONNÉES ET LANGUES ---
-LISTE_LANGUES = [
-    "Français", "English", "Español", "Deutsch", "Italiano", "Português", 
-    "Mandarin", "Japonais", "Arabe", "Russe", "Hindi", "Bengali", 
-    "Malagasy", "Coréen", "Turc", "Vietnamien", "Polonais", "Néerlandais", 
-    "Suédois", "Indonésien"
-]
+# --- 3. DONNÉES & LANGUES ---
+LISTE_LANGUES = ["Français", "English", "Español", "Deutsch", "Italiano", "Português", "Mandarin", "Japonais", "Arabe", "Russe", "Hindi", "Bengali", "Malagasy", "Coréen", "Turc", "Vietnamien", "Polonais", "Néerlandais", "Suédois", "Indonésien"]
 
-# --- 4. INITIALISATION ---
 if 'user' not in st.session_state: st.session_state.user = None
 if 'role' not in st.session_state: st.session_state.role = None
-if 'contact_email' not in st.session_state: st.session_state.contact_email = ""
+if 'pass_actif' not in st.session_state: st.session_state.pass_actif = True 
 
-# --- 5. AUTHENTIFICATION ---
+# --- 4. INTERFACE D'ACCUEIL ---
 if not st.session_state.user:
-    col_l, _ = st.columns([1, 4])
-    with col_l:
+    col_lang, _ = st.columns([1, 4])
+    with col_lang:
         st.selectbox("🌐 Langue / Language", LISTE_LANGUES, index=0)
 
     st.markdown("<h1 style='text-align: center; color: #F3812B; font-size: 80px; margin-bottom:0;'>👍</h1>", unsafe_allow_html=True)
@@ -59,81 +56,63 @@ if not st.session_state.user:
         mode = st.tabs(["Connexion", "Créer un compte"])
         
         with mode[0]:
-            e_login = st.text_input("Email de connexion")
-            p_login = st.text_input("Mot de passe", type="password")
-            r_login = st.radio("Accès :", ["Employeur", "Candidat"], horizontal=True)
+            e_log = st.text_input("Email de connexion")
+            p_log = st.text_input("Mot de passe", type="password")
+            r_log = st.radio("Accès :", ["Employeur", "Candidat"], horizontal=True)
             if st.button("Se connecter 👍"):
-                st.session_state.user, st.session_state.role = e_login, r_login
-                st.session_state.contact_email = e_login
+                st.session_state.user, st.session_state.role = e_log, r_log
                 st.rerun()
-            st.button("Mot de passe oublié ?", type="secondary")
 
         with mode[1]:
-            st.text_input("Email souhaité")
-            st.text_input("Mot de passe", type="password", key="reg_p")
-            st.radio("Rôle :", ["Employeur", "Candidat"], horizontal=True, key="reg_r")
-            st.checkbox("J'accepte les Conditions Générales de Vente (CGV)")
-            st.checkbox("J'accepte la Politique de Confidentialité & RGPD")
-            st.button("Créer mon compte 🚀")
+            st.info("🎯 Accès complet via le Pass 3 mois (90 jours).")
+            st.text_input("Email")
+            st.text_input("Choisir un mot de passe", type="password")
+            st.radio("Je suis :", ["Employeur", "Candidat"], horizontal=True, key="reg_role")
+            st.checkbox("J'accepte les CGV et le principe du Pass 3 mois")
+            st.button("Activer mon Pass et m'inscrire 🚀")
 
-# --- 6. DASHBOARDS ---
+# --- 5. ESPACES CONNECTÉS ---
 else:
     with st.sidebar:
-        st.markdown('<p style="font-size:25px; font-weight:900; color:#002147;">zaxx</p>', unsafe_allow_html=True)
-        st.write(f"🔑 **ID :** {st.session_state.user}")
-        st.write(f"📧 **Contact :** {st.session_state.contact_email}")
+        st.markdown(f"### Espace {st.session_state.role}")
+        st.write(f"👤 {st.session_state.user}")
         st.divider()
         st.selectbox("🌐 Changer de langue", LISTE_LANGUES)
         if st.button("Déconnexion"):
             st.session_state.user = None
             st.rerun()
-
-    # --- ESPACE RECRUTEUR ---
-    if st.session_state.role == "Employeur":
-        t1, t2, t3, t4 = st.tabs(["📢 Publier", "📥 Sourcing", "📅 RDV Vidéo", "⚙️ Mon Compte"])
-        
-        with t1:
-            st.subheader("Diffusion d'offre IA")
-            st.text_input("Poste")
-            st.multiselect("Langues requises", LISTE_LANGUES)
-            st.button("Multipostage 🚀")
-
-        with t2:
-            st.subheader("Candidatures reçues")
-            st.markdown("<div class='bannette-card border-top'><b>Candidat #007</b> (Top Match)</div>", unsafe_allow_html=True)
-            st.write("🎥 **Pitch Vidéo (Lecture seule)**")
-            st.video("https://www.w3schools.com/html/mov_bbb.mp4")
-            st.caption("🔒 Protection Zipngo : Téléchargement bloqué.")
-
-        with t3:
-            st.subheader("Planifier un entretien")
-            st.date_input("Date du rendez-vous")
-            st.button("Envoyer l'invitation vidéo")
-
-        with t4:
-            st.subheader("Paramètres")
-            st.session_state.contact_email = st.text_input("Email de réception des CV", value=st.session_state.contact_email)
-            st.button("Mettre à jour")
+        # Simulation d'expiration pour démo
+        if st.button("Toggle Statut Pass (Démo)"):
+            st.session_state.pass_actif = not st.session_state.pass_actif
 
     # --- ESPACE CANDIDAT ---
-    else:
-        c1, c2, c3, c4 = st.tabs(["🪄 Coach IA", "🎥 Pitch (Optionnel)", "📩 Mes RDV", "👤 Mon Profil"])
+    if st.session_state.role == "Candidat":
+        if not st.session_state.pass_actif:
+            st.markdown('<div class="status-veille">⚠️ Votre Pass 3 mois a expiré. Votre CV est actuellement en VEILLE (invisible pour les recruteurs).</div>', unsafe_allow_html=True)
+            st.button("Réactiver mon Pass pour redevenir visible 🚀")
         
+        c1, c2, c3 = st.tabs(["🪄 Coach IA", "🎥 Vidéo (Optionnel)", "👤 Mon Profil"])
+        with c1:
+            st.subheader("Optimisation de votre CV")
+            st.text_area("Collez votre CV ici pour l'IA...")
         with c2:
-            st.subheader("Pitch Vidéo (Facultatif)")
-            st.markdown('<div class="instruction-note">Présentez-vous en 30s pour booster votre profil. Non obligatoire.</div>', unsafe_allow_html=True)
-            if st.checkbox("Activer l'enregistrement"):
-                st.button("🔴 Démarrer la caméra")
+            st.subheader("Pitch Vidéo")
+            st.info("Le pitch vidéo est facultatif mais recommandé pour sortir du mode veille plus rapidement.")
+            if st.checkbox("Je souhaite m'enregistrer"):
+                st.button("🔴 Lancer l'enregistrement")
 
-        with c4:
-            st.subheader("Coordonnées")
-            st.session_state.contact_email = st.text_input("Email de contact recruteur", value=st.session_state.contact_email)
-            st.button("Sauvegarder")
+    # --- ESPACE RECRUTEUR ---
+    else:
+        t1, t2 = st.tabs(["📥 Candidatures", "📅 Entretiens"])
+        with t1:
+            st.subheader("Sourcing International")
+            st.write("Visionnage des pitchs candidats (Lecture seule sécurisée).")
+            st.video("https://www.w3schools.com/html/mov_bbb.mp4")
 
-# --- 7. FOOTER FINAL AVEC TEXTES LÉGAUX ET MAILTO ---
+# --- 6. FOOTER FINAL (TEXTES RÉELS & MAILTO) ---
 st.markdown("""
 <div class="footer-container">
-    <div>
+    <div style="margin-bottom: 30px;">
         © 2026 
         <a href="mailto:creationsites06@gmail.com" class="mailto-link">
             ✉️ RAKOTOBE Liliane
@@ -141,20 +120,28 @@ st.markdown("""
     </div>
 
     <div class="legal-section">
-        <span class="legal-title">Mentions Légales</span>
-        Responsable de publication : RAKOTOBE Liliane. 
-        Plateforme hébergée par Streamlit Cloud. Base de données sécurisée via Supabase. 
-        Contact technique : creationsites06@gmail.com. Toute reproduction du concept Zaxx est interdite.
+        <div class="legal-text">
+            <span class="legal-title">Mentions Légales</span>
+            Responsable de publication : RAKOTOBE Liliane. 
+            Plateforme technologique éditée via Streamlit Cloud. Base de données sécurisée sous Supabase. 
+            Contact technique : creationsites06@gmail.com. Zipngo-Zaxx est une marque déposée.
+        </div>
 
-        <span class="legal-title">CGV (Conditions Générales de Vente)</span>
-        Zipngo-Zaxx fournit une solution technique de mise en relation entre recruteurs et candidats. 
-        L'accès aux services premium pour les entreprises est soumis à un abonnement mensuel. 
-        Nous ne garantissons pas l'embauche mais optimisons la pertinence des profils via nos algorithmes IA.
+        <div class="legal-text">
+            <span class="legal-title">CGV & Pass 3 Mois (Candidats et Recruteurs)</span>
+            L'accès aux services Zipngo-Zaxx s'effectue par l'acquisition d'un <b>Pass 3 mois</b> (90 jours). 
+            À l'expiration de ce délai, sans renouvellement de la part de l'utilisateur, le compte est placé en <b>mode veille</b>. 
+            Pour le candidat, cela signifie que son CV et son profil deviennent invisibles pour les recruteurs. 
+            Les données restent conservées de manière sécurisée pour permettre une réactivation ultérieure immédiate. 
+            Il n'y a aucun renouvellement automatique ni prélèvement non consenti.
+        </div>
 
-        <span class="legal-title">RGPD & Protection des Données</span>
-        Vos données personnelles (email, CV) sont traitées dans l'unique but de faciliter votre recrutement. 
-        Conformément à la loi, vous disposez d'un droit de retrait total de vos informations. 
-        Les vidéos déposées sur la plateforme sont cryptées et ne peuvent être téléchargées par des tiers.
+        <div class="legal-text">
+            <span class="legal-title">RGPD & Protection des Données</span>
+            Nous appliquons une politique de transparence totale. Vos données personnelles sont utilisées exclusivement pour le recrutement. 
+            Les vidéos de présentation (pitch) sont protégées par un protocole anti-téléchargement pour garantir votre droit à l'image. 
+            Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression totale de vos données sur simple demande ou via votre espace profil.
+        </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
