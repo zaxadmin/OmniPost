@@ -88,13 +88,15 @@ else:
         with c2: st.button("✨ Relooking CV")
         with c3: st.button("✍️ Lettre Motivation")
         st.divider()
-        if st.button("💎 Activer le Pass 90j (Paiement)"):
-            tunnel_paiement("29€", "Candidat 90 jours")
+        # Mise à jour du bouton avec tarif candidat
+        if st.button("💎 Activer mes 90j — 3 €"):
+            tunnel_paiement("3 €", "Candidat 90 jours")
     else:
         st.subheader("🔍 Espace Recruteur (Essai 7 jours)")
         st.video("https://www.w3schools.com/html/mov_bbb.mp4")
-        if st.button("💎 S'abonner : Pass 90j (Paiement)"):
-            tunnel_paiement("149€", "Recruteur 90 jours")
+        # Mise à jour du bouton avec tarif recruteur
+        if st.button("💎 Activer mes 90j — 49 €"):
+            tunnel_paiement("49 €", "Recruteur 90 jours")
 
 # --- 7. FOOTER DISCRET (MIS À JOUR) ---
 st.divider()
@@ -103,8 +105,8 @@ if st.session_state.footer_view == "mentions":
     st.info("⚖️ **Mentions Légales :** Responsable de publication : RAKOTOBE Liliane. Contact technique : creationsites06@gmail.com. Zipngo-Zaxx est une marque déposée.")
 elif st.session_state.footer_view == "cgv":
     st.info("""📜 **CGV & Pass :**
-    \n **Recruteur :** Essai 7j gratuit. Pass 90j avec paiement immédiat sans renouvellement tacite et sans remboursement.
-    \n **Candidat :** Essai 1j incluant : 1 scan ATS, 1 relooking, 1 lettre de motivation, 1 scan post-relooking et export PDF. Pass 90j avec paiement immédiat sans remboursement et mise en veille automatique du profil après expiration.""")
+    \n **Recruteur :** Essai 7j gratuit. Pass 90j (49 €) avec paiement immédiat sans renouvellement tacite et sans remboursement.
+    \n **Candidat :** Essai 1j incluant : 1 scan ATS, 1 relooking, 1 lettre de motivation, 1 scan post-relooking et export PDF. Pass 90j (3 €) avec paiement immédiat sans remboursement et mise en veille automatique du profil après expiration.""")
 elif st.session_state.footer_view == "rgpd":
     st.info("🔒 **RGPD :** Vidéos et données protégées. Suppression totale du compte et des données sur simple demande.")
 
