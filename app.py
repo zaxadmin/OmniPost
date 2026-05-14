@@ -2,104 +2,84 @@ import streamlit as st
 import pandas as pd
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="zipngo.zaxx | Recruitment", layout="wide")
+st.set_page_config(page_title="zipngo.zaxx | Talent Dispatch", layout="wide")
 
-# --- STYLE & VISIBILITÉ ---
-st.markdown("""
-<style>
-    label { color: #1A237E !important; font-weight: bold !important; font-size: 1.1rem !important; }
-    .stApp { background-color: #FFFFFF; }
-    .stButton>button { background: #1A237E !important; color: #00E5FF !important; border-radius: 20px; font-weight: bold; border: 2px solid #00E5FF; }
-    .ats-panel { padding: 20px; border-radius: 15px; background: #E3F2FD; border: 1px solid #00E5FF; margin-bottom: 20px; color: #1A237E; }
-    .footer-zip { position: fixed; left: 0; bottom: 0; width: 100%; background: #1A237E; color: white; text-align: center; padding: 10px; font-size: 12px; z-index: 999; }
-</style>
-""", unsafe_allow_html=True)
+LANGUAGES = [
+    "Français", "English (US)", "Malagasy", "Español", "Deutsch", "Italiano", 
+    "Português", "Русский", "中文", "日本語", "한국어", "العربية", "हिन्दी", 
+    "Türkçe", "Nederlands", "Polski", "Svenska", "Tiếng Việt", "Ελληνικά", "Português (BR)"
+]
 
-def render_zipngo_logo(height=200):
-    logo_html = """
-    <div style="background-color: #1A237E; padding: 20px; text-align: center; border-radius: 15px; font-family: sans-serif;">
-        <div style="display: flex; align-items: baseline; justify-content: center;">
-            <span style="color: white; font-size: 45px; font-weight: 800; letter-spacing: -2px;">zipngo</span>
-            <span style="color: #00e5ff; font-size: 45px; margin: 0 5px;">.</span>
-            <div style="background: #ff8c00; padding: 2px 12px; border-radius: 8px; position: relative; margin-left: 5px;">
-                <span style="color: #00e5ff; font-size: 35px; font-weight: 900;">zaxx</span>
-                <span style="position: absolute; top: -25px; right: -10px; font-size: 30px;">👍</span>
-            </div>
-        </div>
-        <hr style="height: 2px; background: white; border: none; margin: 10px 0;">
-        <div style="color: white; font-size: 14px; letter-spacing: 5px; text-transform: uppercase;">The power of choice</div>
-    </div>
-    """
-    st.components.v1.html(logo_html, height=height)
+def apply_zip_theme():
+    st.markdown("""
+    <style>
+        .stApp { background-color: #FFFFFF; color: #1A237E; }
+        [data-testid="stSidebar"] { background-color: #F0F4F8 !important; border-right: 2px solid #00E5FF; }
+        .stButton>button { background: #1A237E !important; color: #00E5FF !important; border-radius: 25px; border: 2px solid #00E5FF; font-weight: bold; width: 100%; }
+        .footer-zip { position: fixed; left: 0; bottom: 0; width: 100%; background: #1A237E; color: white; text-align: center; padding: 15px; font-size: 11px; z-index: 999; }
+        .ats-panel { padding: 20px; border-radius: 15px; background: #E3F2FD; border: 1px solid #00E5FF; margin-bottom: 20px; }
+        a { color: #00E5FF !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- ÉTATS ---
 if "z_auth" not in st.session_state: st.session_state.z_auth = False
 if "z_view" not in st.session_state: st.session_state.z_view = "login"
 if "z_email" not in st.session_state: st.session_state.z_email = "candidat@zipngo.com"
 
-# --- PAGE DE CONNEXION / INSCRIPTION ---
+apply_zip_theme()
+
 if not st.session_state.z_auth:
-    _, col, _ = st.columns([1, 1.8, 1])
+    _, col, _ = st.columns([1, 1.2, 1])
     with col:
-        render_zipngo_logo()
+        st.markdown("<h1 style='text-align:center;'>zip<span style='color:#00E5FF;'>ngo</span></h1>", unsafe_allow_html=True)
         
         if st.session_state.z_view == "login":
-            st.text_input("Identifiant (Email)")
-            st.text_input("Mot de passe", type="password")
+            st.selectbox("Choisir votre langue", LANGUAGES)
+            st.text_input("Identifiant Candidat", key="z_u")
+            st.text_input("Mot de passe", type="password", key="z_p")
             if st.button("DÉCOLLER"): 
                 st.session_state.z_auth = True
                 st.rerun()
-            
-            c1, c2 = st.columns(2)
-            c1.button("Créer un compte", on_click=lambda: st.session_state.update({"z_view": "signup"}))
-            c2.button("Mot de passe oublié ?", on_click=lambda: st.session_state.update({"z_view": "forgot"}))
-
-        elif st.session_state.z_view == "signup":
-            st.subheader("📝 Inscription Candidat")
-            st.text_input("Nom & Prénom")
-            st.text_input("Email")
-            st.text_input("Mot de passe", type="password")
-            if st.button("S'INSCRIRE MAINTENANT"):
-                st.success("Compte créé avec succès !")
-                st.session_state.z_view = "login"
-            st.button("← Retour à la connexion", on_click=lambda: st.session_state.update({"z_view": "login"}))
-
+            st.button("Mot de passe perdu ?", on_click=lambda: st.session_state.update({"z_view": "forgot"}))
+        
         elif st.session_state.z_view == "forgot":
-            st.subheader("Récupération")
-            st.text_input("Email de récupération")
-            st.button("Envoyer le lien")
-            st.button("← Retour", on_click=lambda: st.session_state.update({"z_view": "login"}))
-
-# --- PAGE PRINCIPALE (APPRÈS CONNEXION) ---
+            st.subheader("Récupération de compte")
+            st.text_input("Email enregistré")
+            if st.button("Envoyer ma nouvelle clé"): st.info("Instructions envoyées par email.")
+            st.button("Retour", on_click=lambda: st.session_state.update({"z_view": "login"}))
+            
+    st.markdown('<div class="footer-zip">zipngo.zaxx | <a href="#">CGV</a> | Recrutement Global | © 2026</div>', unsafe_allow_html=True)
 else:
     with st.sidebar:
-        render_zipngo_logo(height=160)
-        menu = st.selectbox("Menu", ["🌍 Offres", "📄 Relooking CV & ATS", "📹 Coaching Vidéo", "⚙️ Mon Profil"])
-        if st.button("🚪 Déconnexion"): 
-            st.session_state.z_auth = False
-            st.rerun()
+        st.title("zipngo.zaxx")
+        menu = st.selectbox("Menu Principal", ["🌍 Dispatch Offres", "📄 Relooking CV & ATS", "📹 Entretien Vidéo", "⚙️ Espace Personnel"])
+        if st.button("🚪 Déconnexion"): st.session_state.z_auth = False; st.rerun()
 
-    if menu == "🌍 Offres":
-        st.header("Opportunités mondiales")
-        pays = st.selectbox("Filtrer par Pays", ["Madagascar", "France", "International"])
-        st.table(pd.DataFrame({'Poste': ['Manager', 'Expert IT'], 'Lieu': [pays, 'Remote']}))
+    if menu == "🌍 Dispatch Offres":
+        st.header("Opportunités de Carrière")
+        pays = st.selectbox("Filtrer par Pays", ["Madagascar", "France", "USA", "Monde Entier"])
+        st.table(pd.DataFrame({'Poste': ['Chef de Projet', 'Expert IT'], 'Lieu': [pays, 'Remote']}))
 
     elif menu == "📄 Relooking CV & ATS":
-        st.header("Analyseur ATS")
-        f = st.file_uploader("Chargez votre CV (PDF)", type=["pdf"])
+        st.header("Service Relooking & Scoring ATS")
+        f = st.file_uploader("Uploader votre CV (PDF)", type=["pdf"])
         if f:
-            st.markdown('<div class="ats-panel">📊 **Score ATS : 42/100** <br> Attention : Les mots-clés sont insuffisants.</div>', unsafe_allow_html=True)
-            if st.button("✨ OPTIMISER MON CV"):
-                st.success("Optimisation terminée !")
-                st.markdown('<div class="ats-panel" style="background:#C8E6C9;">✅ **Nouveau Score : 98/100**</div>', unsafe_allow_html=True)
+            st.markdown('<div class="ats-panel">📊 **Score ATS Actuel : 37/100**</div>', unsafe_allow_html=True)
+            if st.button("✨ RELOOKER MON CV"):
+                st.success("Relooking terminé avec succès !")
+                st.markdown('<div class="ats-panel" style="background:#C8E6C9;">✅ **Score ATS Après Relooking : 98/100**</div>', unsafe_allow_html=True)
+                st.download_button("📥 Télécharger le CV Optimisé", "CV_PRO_DATA", "CV_Zipngo_Expert.pdf")
 
-    elif menu == "📹 Coaching Vidéo":
-        st.header("Préparation Entretien")
+    elif menu == "📹 Entretien Vidéo":
+        st.header("Préparation Entretien Vidéo")
         st.video("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        st.info("Conseils pour réussir votre pitch vidéo face aux recruteurs internationaux.")
 
-    elif menu == "⚙️ Mon Profil":
-        st.header("Paramètres")
-        st.session_state.z_email = st.text_input("Email", value=st.session_state.z_email)
-        st.button("Enregistrer les modifications")
+    elif menu == "⚙️ Espace Personnel":
+        st.header("Gestion du Profil")
+        st.session_state.z_email = st.text_input("Changer mon email", value=st.session_state.z_email)
+        if st.button("Sauvegarder l'email"): st.toast("Email mis à jour !")
+        st.text_input("Nouveau mot de passe", type="password")
+        st.button("Mettre à jour mon profil")
 
-st.markdown('<div class="footer-zip">zipngo.zaxx | Propriété de ZAXX Group | © 2026</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer-zip">zipngo.zaxx | <a href="#">CGV</a> | Direction : Liliane RAKOTOBE | ZAXX Group</div>', unsafe_allow_html=True)
