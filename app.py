@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="zipngo.zaxx | Flux Logistique", layout="wide")
+st.set_page_config(page_title="zipngo.zaxx | Recruitment & ATS", layout="wide")
 
 LANGUAGES = [
     "Français", "English (US)", "Malagasy", "Español", "Deutsch", "Italiano", 
@@ -10,99 +10,63 @@ LANGUAGES = [
     "Türkçe", "Nederlands", "Polski", "Svenska", "Tiếng Việt", "Ελληνικά", "Português (BR)"
 ]
 
-# --- DESIGN & FOOTER ---
 def apply_zip_theme():
     st.markdown("""
     <style>
         .stApp { background-color: #FFFFFF; color: #1A237E; }
         [data-testid="stSidebar"] { background-color: #F0F4F8 !important; border-right: 2px solid #00E5FF; }
-        .stButton>button { 
-            background: #1A237E !important; color: #00E5FF !important; 
-            border-radius: 25px; border: 2px solid #00E5FF; font-weight: bold; width: 100%;
-        }
-        .footer-zip { 
-            position: fixed; left: 0; bottom: 0; width: 100%; 
-            background: #1A237E; color: white; text-align: center; 
-            padding: 15px; font-size: 11px; z-index: 999; 
-        }
-        .footer-zip a { color: #00E5FF; text-decoration: none; margin: 0 15px; font-weight: bold; }
-        .flux-card { background: #F8FAFC; padding: 20px; border-radius: 12px; border-left: 10px solid #1A237E; margin-bottom: 15px; }
+        .stButton>button { background: #1A237E !important; color: #00E5FF !important; border-radius: 25px; border: 2px solid #00E5FF; font-weight: bold; width: 100%; }
+        .footer-zip { position: fixed; left: 0; bottom: 0; width: 100%; background: #1A237E; color: white; text-align: center; padding: 15px; font-size: 11px; z-index: 999; }
+        .ats-panel { padding: 20px; border-radius: 15px; background: #E3F2FD; border: 1px solid #00E5FF; margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
-def display_footer_zip():
-    st.markdown("""<div class="footer-zip"><b>zipngo.zaxx</b> - Opérations & Closing | © 2026 ZAXX Group <br>
-    <a href="#">CGV</a> | <a href="#">PROTECTION DES DONNÉES</a> | <a href="#">CONTACT LILIANE RAKOTOBE</a></div>""", unsafe_allow_html=True)
-
-# --- ÉTAT ---
 if "z_auth" not in st.session_state: st.session_state.z_auth = False
-if "z_view" not in st.session_state: st.session_state.z_view = "login"
-if "z_mail" not in st.session_state: st.session_state.z_mail = "admin@zipngo.app"
 
 apply_zip_theme()
 
-# --- VUE : ACCÈS ET INSCRIPTION ---
 if not st.session_state.z_auth:
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
-        # Titre avec .zaxx obligatoire
-        st.markdown("<h1 style='text-align:center; font-size: 50px;'>zip<span style='color:#00E5FF;'>ngo</span><span style='font-size:20px; font-weight:300;'>.zaxx</span></h1>", unsafe_allow_html=True)
-        
-        mode = st.radio("Accès au Flux", ["Connexion", "S'inscrire"], horizontal=True)
-        
-        if mode == "Connexion":
-            if st.session_state.z_view == "login":
-                with st.container(border=True):
-                    st.text_input("Identifiant zipngo", value=st.session_state.z_mail, key="z_l")
-                    st.text_input("Clé d'accès", type="password", key="z_p")
-                    st.selectbox("Language / Langue", LANGUAGES)
-                    if st.button("LANCER LA SESSION"):
-                        st.session_state.z_auth = True
-                        st.rerun()
-                    st.button("Mot de passe oublié ?", on_click=lambda: st.session_state.update({"z_view": "forgot"}))
-            elif st.session_state.z_view == "forgot":
-                st.subheader("Récupération")
-                st.text_input("Email enregistré")
-                if st.button("Récupérer clé"): st.info("Instructions de sécurité envoyées.")
-                st.button("Retour", on_click=lambda: st.session_state.update({"z_view": "login"}))
-        else:
-            with st.container(border=True):
-                st.subheader("Créer un compte Flux")
-                st.text_input("Entité / Nom complet")
-                st.text_input("Email d'accès")
-                st.text_input("Mot de passe souhaité", type="password")
-                st.selectbox("Zone Opérationnelle", ["Europe", "Madagascar", "Asie"])
-                if st.button("DEMANDER L'ADHÉSION"):
-                    st.success("Demande enregistrée. Activation par ZAXX Group imminente.")
-    display_footer_zip()
-
-# --- VUE : DASHBOARD ---
+        st.markdown("<h1 style='text-align:center;'>zip<span style='color:#00E5FF;'>ngo</span></h1>", unsafe_allow_html=True)
+        st.selectbox("Langue / Language", LANGUAGES)
+        st.text_input("Identifiant", key="z_mail")
+        st.text_input("Mot de passe", type="password", key="z_pass")
+        if st.button("DÉCOLLER"): st.session_state.z_auth = True; st.rerun()
+    st.markdown('<div class="footer-zip">zipngo.zaxx | Recrutement Global | © 2026</div>', unsafe_allow_html=True)
 else:
     with st.sidebar:
         st.title("zipngo.zaxx")
-        menu = st.selectbox("Modules", ["📦 Flux Logistique", "💰 Finance Commando", "⚙️ Mon Compte"])
-        if st.button("Déconnexion"):
-            st.session_state.z_auth = False
-            st.rerun()
+        menu = st.selectbox("Menu Principal", ["🌍 Dispatch Offres", "📄 Relooking CV & ATS", "📹 Entretien Vidéo", "⚙️ Profil"])
+        if st.button("Quitter"): st.session_state.z_auth = False; st.rerun()
 
-    if menu == "📦 Flux Logistique":
-        st.header("Gestion des Expéditions")
-        st.markdown('<div class="flux-card">🚚 <b>Avis :</b> 14 colis en attente de validation (Madagascar).</div>', unsafe_allow_html=True)
-        st.progress(65, text="Objectif de livraison mensuel")
-        st.table(pd.DataFrame({'Colis': ['#ZA-01', '#ZA-02'], 'Destination': ['Paris', 'Antananarivo'], 'Statut': ['En route', 'Dédouanement']}))
+    if menu == "🌍 Dispatch Offres":
+        st.header("Offres d'Emploi Mondiales")
+        c1, c2 = st.columns(2)
+        pays = c1.selectbox("Filtrer par pays", ["Madagascar", "France", "USA", "Monde Entier"])
+        remote = c2.checkbox("Remote / Télétravail uniquement")
+        st.info(f"Recherche : {pays} | Remote : {remote}")
+        st.table(pd.DataFrame({'Poste': ['Software Eng', 'Lead Sales'], 'Lieu': [pays, 'Remote'], 'Contrat': ['CDI', 'Freelance']}))
 
-    elif menu == "💰 Finance Commando":
-        st.header("Rémunération")
-        ca = st.number_input("CA Closing généré (€)", min_value=0)
-        st.metric("Commission SuperManager (35%)", f"{ca * 0.35:,.2f} €")
+    elif menu == "📄 Relooking CV & ATS":
+        st.header("Service Relooking & Scoring ATS")
+        st.write("Optimisez votre CV pour les algorithmes de recrutement mondiaux.")
         
-        # Graphique
-        hist = pd.DataFrame({'Mois': ['Mars', 'Avril', 'Mai'], 'Gains': [1200, 3100, 2800]})
-        st.line_chart(hist.set_index('Mois'))
+        cv_file = st.file_uploader("Uploader votre CV (PDF)", type=["pdf"])
+        if cv_file:
+            st.markdown('<div class="ats-panel">⚠️ **Premier test ATS : 41/100** <br> Analyse : Structure non reconnue par les systèmes RH standards.</div>', unsafe_allow_html=True)
+            
+            if st.button("✨ LANCER LE RELOOKING IA"):
+                st.success("Relooking terminé avec succès !")
+                st.markdown('<div class="ats-panel" style="background:#C8E6C9;">✅ **Second test ATS (Après Relooking) : 98/100** <br> Analyse : CV parfaitement optimisé pour le dispatch mondial.</div>', unsafe_allow_html=True)
+                st.download_button("📥 Télécharger mon CV Relooké", "Contenu_CV_Relooke", "CV_Elite_Zipngo.pdf")
 
-    elif menu == "⚙️ Mon Compte":
-        st.header("Profil")
-        st.session_state.z_mail = st.text_input("Email de connexion", value=st.session_state.z_mail)
-        st.button("Mettre à jour")
+    elif menu == "📹 Entretien Vidéo":
+        st.header("Préparation aux Entretiens")
+        st.write("Découvrez comment réussir vos entretiens vidéo pour des postes internationaux.")
+        st.markdown('<div style="border: 2px solid #1A237E; border-radius: 12px; overflow: hidden;">', unsafe_allow_html=True)
+        st.video("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.info("Tutoriel : Maîtriser son image et son discours en vidéo.")
 
-    display_footer_zip()
+    st.markdown('<div class="footer-zip">zipngo.zaxx | Direction : Liliane RAKOTOBE | ZAXX Group</div>', unsafe_allow_html=True)
