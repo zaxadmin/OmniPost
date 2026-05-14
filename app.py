@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="zipngo.zaxx | Recruitment", layout="wide")
+st.set_page_config(page_title="zipngo.zaxx", layout="wide")
 
 LANGUAGES = ["Français", "English (US)", "Malagasy", "Español", "Deutsch"]
 
@@ -11,21 +11,18 @@ def apply_zip_theme():
     <style>
         .stApp { background-color: #FFFFFF; color: #1A237E; }
         [data-testid="stSidebar"] { background-color: #F0F4F8 !important; border-right: 2px solid #00E5FF; }
-        /* Tous les boutons en Bleu Marine */
+        /* Boutons Bleu Marine */
         .stButton>button { 
-            background: #1A237E !important; 
-            color: #00E5FF !important; 
-            border-radius: 25px; 
-            border: 2px solid #00E5FF; 
-            font-weight: bold; 
-            width: 100%; 
+            background: #1A237E !important; color: #00E5FF !important; 
+            border-radius: 25px; border: 2px solid #00E5FF; font-weight: bold; width: 100%; 
         }
-        .footer-zip { text-align: center; padding: 30px; font-size: 12px; background: #f8fafc; border-top: 2px solid #1A237E; margin-top: 50px; }
-        .legal-box-zip { text-align: left; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; margin-bottom: 15px; color: #334155; }
-        .ats-panel { padding: 15px; border-radius: 10px; background: #E3F2FD; border-left: 5px solid #00E5FF; margin: 10px 0; }
+        .footer-zip { text-align: center; padding: 20px; margin-top: 50px; font-weight: 300; color: #94a3b8; }
+        .legal-link-zip { color: #94a3b8; text-decoration: none; font-size: 11px; margin: 0 10px; font-weight: 300; }
+        .legal-content { font-size: 10px; line-height: 1.4; text-align: justify; font-weight: 300; display: none; margin-top: 10px; }
+        #mentions_z:target, #cgv_z:target { display: block; padding: 15px; border: 1px solid #e2e8f0; border-radius: 5px; }
         .orange-thumb { color: #FF9800; font-size: 50px; text-align: center; margin-bottom: 10px; }
-        a { color: #1A237E; text-decoration: none; font-weight: bold; }
-        .mail-link { font-size: 16px; vertical-align: middle; }
+        .mail-icon { font-size: 18px; text-decoration: none !important; vertical-align: middle; }
+        .ats-panel { padding: 15px; border-radius: 10px; background: #E3F2FD; border-left: 5px solid #00E5FF; margin: 10px 0; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -36,63 +33,50 @@ apply_zip_theme()
 if not st.session_state.z_auth:
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
-        # 1. Langues en haut
-        st.selectbox("Choisir la langue / Select Language", LANGUAGES, key="lang_zip")
-        
-        # 2. Pouce Orange et Titre
+        st.selectbox("Langue / Language", LANGUAGES, key="lang_zip")
         st.markdown('<div class="orange-thumb">👍</div>', unsafe_allow_html=True)
         st.markdown("<h1 style='text-align:center; color:#1A237E; font-size: 48px; margin-top:-20px;'>zip<span style='color:#00E5FF;'>ngo</span></h1>", unsafe_allow_html=True)
         
-        st.text_input("Identifiant Candidat")
+        st.text_input("Identifiant")
         st.text_input("Mot de passe", type="password")
         if st.button("DÉCOLLER"): 
             st.session_state.z_auth = True
             st.rerun()
-        st.button("Accès perdu ?")
 else:
     with st.sidebar:
         st.title("zipngo.zaxx")
         st.markdown('<span style="font-size:30px;">👍</span>', unsafe_allow_html=True)
-        menu = st.radio("Navigation", ["🌍 Dispatch Offres", "📄 Relooking & ATS", "📹 Entretien Vidéo", "⚙️ Mon Profil"])
+        menu = st.radio("Navigation", ["🌍 Dispatch Offres", "📄 Relooking & ATS", "📹 Entretien", "⚙️ Profil"])
         if st.button("Déconnexion"): st.session_state.z_auth = False; st.rerun()
 
     if menu == "🌍 Dispatch Offres":
-        st.header("Opportunités de carrière internationales")
-        pays = st.selectbox("Destination cible", ["Madagascar", "France", "Canada", "Remote"])
-        st.table(pd.DataFrame({
-            'Poste': ['Développeur Fullstack', 'Data Analyst', 'Project Manager'],
-            'Société': ['Global Tech', 'Innova Sarl', 'Zaxx-Corp'],
-            'Lieu': [pays, pays, pays]
-        }))
-        
+        st.header("Opportunités Internationales")
+        st.table(pd.DataFrame({'Poste': ['Fullstack Dev', 'Marketing'], 'Lieu': ['Remote', 'Europe']}))
     elif menu == "📄 Relooking & ATS":
-        st.header("Analyseur de CV & Score ATS")
-        f = st.file_uploader("Uploadez votre CV (PDF)", type=["pdf"])
+        st.header("Optimisation CV")
+        f = st.file_uploader("CV (PDF)", type=["pdf"])
         if f:
-            st.markdown('<div class="ats-panel">⚠️ **Premier test ATS : 42/100**<br>Diagnostic : Structure incompatible.</div>', unsafe_allow_html=True)
-            if st.button("✨ RELOOKER MON CV MAINTENANT"):
-                st.success("Refonte IA terminée !")
-                st.markdown('<div class="ats-panel" style="background:#C8E6C9; border-color:#2E7D32;">✅ **Second test ATS : 98/100**<br>Votre CV est prêt pour le dispatch.</div>', unsafe_allow_html=True)
-                st.download_button("📥 Télécharger le CV Optimisé", "DATA", "CV_PRO_ZIPNGO.pdf")
-                
-    elif menu == "📹 Entretien Vidéo":
-        st.header("Coaching Vidéo")
+            st.markdown('<div class="ats-panel">⚠️ **Score ATS : 42/100**</div>', unsafe_allow_html=True)
+            if st.button("✨ RELOOKER MON CV"):
+                st.success("Optimisé !")
+                st.markdown('<div class="ats-panel" style="background:#C8E6C9; border-color:#2E7D32;">✅ **Score ATS : 98/100**</div>', unsafe_allow_html=True)
+    elif menu == "📹 Entretien":
         st.video("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 
-# FOOTER JURIDIQUE
+# PIED DE PAGE ZIPNGO
 st.markdown("""
 <div class="footer-zip">
-    <div class="legal-box-zip">
-        <b>Mentions Légales :</b> zipngo.zaxx est une plateforme de recrutement. 
-        Directrice de publication : Liliane RAKOTOBE. 
-        Conformément à la réglementation sur la protection des données, vous disposez d'un droit d'accès à vos informations.
+    <a href="#mentions_z" class="legal-link-zip">Mentions Légales</a> | 
+    <a href="#cgv_z" class="legal-link-zip">CGV</a>
+    <div id="mentions_z" class="legal-content">
+        <b>Mentions Légales :</b> zipngo.zaxx est édité par Liliane RAKOTOBE. 
+        Les informations recueillies font l’objet d’un traitement destiné à la mise en relation professionnelle.
     </div>
-    <div class="legal-box-zip">
-        <b>CGV :</b> zipngo.zaxx agit en tant que facilitateur de carrière. 
-        Le service de relooking est une aide technique à l'optimisation de profil. 
-        L'utilisation du service implique l'acceptation des conditions de traitement des données.
+    <div id="cgv_z" class="legal-content">
+        <b>CGV :</b> Les données personnelles sont supprimées sur simple demande par mail. 
+        <b>Mise en veille :</b> En cas d'absence d'activité pendant 90 jours, le profil utilisateur sera automatiquement mis en veille. 
     </div>
-    <p>© 2026 zipngo.zaxx | Créatrice : <b>Liliane RAKOTOBE</b> 
-    <a href="mailto:creationsites06@gmail.com" class="mail-link">✉️</a></p>
+    <p style="font-size:12px; margin-top:15px; font-weight: 400;">© 2026 zipngo.zaxx | Créatrice : Liliane RAKOTOBE 
+    <a href="mailto:creationsites06@gmail.com" class="mail-icon">✉️</a></p>
 </div>
 """, unsafe_allow_html=True)
