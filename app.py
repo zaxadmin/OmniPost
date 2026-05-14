@@ -21,7 +21,10 @@ def apply_zip_theme():
     </style>
     """, unsafe_allow_html=True)
 
+# Initialisation des états
 if "z_auth" not in st.session_state: st.session_state.z_auth = False
+if "z_view" not in st.session_state: st.session_state.z_view = "login"
+if "z_email" not in st.session_state: st.session_state.z_email = "candidat@zipngo.com"
 
 apply_zip_theme()
 
@@ -29,44 +32,61 @@ if not st.session_state.z_auth:
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
         st.markdown("<h1 style='text-align:center;'>zip<span style='color:#00E5FF;'>ngo</span></h1>", unsafe_allow_html=True)
-        st.selectbox("Langue / Language", LANGUAGES)
-        st.text_input("Identifiant", key="z_mail")
-        st.text_input("Mot de passe", type="password", key="z_pass")
-        if st.button("DÉCOLLER"): st.session_state.z_auth = True; st.rerun()
+        
+        if st.session_state.z_view == "login":
+            st.selectbox("Langue / Language", LANGUAGES)
+            st.text_input("Identifiant", key="z_u")
+            st.text_input("Mot de passe", type="password", key="z_p")
+            if st.button("DÉCOLLER"): 
+                st.session_state.z_auth = True
+                st.rerun()
+            st.button("Mot de passe oublié ?", key="z_forgot", on_click=lambda: st.session_state.update({"z_view": "forgot"}))
+        
+        elif st.session_state.z_view == "forgot":
+            st.subheader("Récupération de compte")
+            st.text_input("Email enregistré")
+            if st.button("Récupérer mes accès"): 
+                st.info("Un email de récupération vous a été envoyé.")
+            st.button("Retour à la connexion", on_click=lambda: st.session_state.update({"z_view": "login"}))
+            
     st.markdown('<div class="footer-zip">zipngo.zaxx | Recrutement Global | © 2026</div>', unsafe_allow_html=True)
 else:
     with st.sidebar:
         st.title("zipngo.zaxx")
-        menu = st.selectbox("Menu Principal", ["🌍 Dispatch Offres", "📄 Relooking CV & ATS", "📹 Entretien Vidéo", "⚙️ Profil"])
-        if st.button("Quitter"): st.session_state.z_auth = False; st.rerun()
+        menu = st.selectbox("Menu Principal", ["🌍 Dispatch Offres", "📄 Relooking CV & ATS", "📹 Entretien Vidéo", "⚙️ Espace Personnel"])
+        if st.button("🚪 Quitter"): st.session_state.z_auth = False; st.rerun()
 
     if menu == "🌍 Dispatch Offres":
-        st.header("Offres d'Emploi Mondiales")
+        st.header("Opportunités de Carrière")
         c1, c2 = st.columns(2)
-        pays = c1.selectbox("Filtrer par pays", ["Madagascar", "France", "USA", "Monde Entier"])
+        pays = c1.selectbox("Filtrer par Pays", ["Madagascar", "France", "USA", "Monde Entier"])
         remote = c2.checkbox("Remote / Télétravail uniquement")
         st.info(f"Recherche : {pays} | Remote : {remote}")
-        st.table(pd.DataFrame({'Poste': ['Software Eng', 'Lead Sales'], 'Lieu': [pays, 'Remote'], 'Contrat': ['CDI', 'Freelance']}))
+        st.table(pd.DataFrame({'Poste': ['Chef de Projet', 'Développeur Python'], 'Lieu': [pays, 'Remote']}))
 
     elif menu == "📄 Relooking CV & ATS":
-        st.header("Service Relooking & Scoring ATS")
-        st.write("Optimisez votre CV pour les algorithmes de recrutement mondiaux.")
-        
-        cv_file = st.file_uploader("Uploader votre CV (PDF)", type=["pdf"])
-        if cv_file:
-            st.markdown('<div class="ats-panel">⚠️ **Premier test ATS : 41/100** <br> Analyse : Structure non reconnue par les systèmes RH standards.</div>', unsafe_allow_html=True)
-            
+        st.header("Relooking CV & Scoring ATS")
+        st.write("Uploadez votre CV pour maximiser vos chances.")
+        f = st.file_uploader("Déposer CV (PDF)", type=["pdf"])
+        if f:
+            st.markdown('<div class="ats-panel">📊 **Score ATS Initial : 39/100** <br> Analyse : Structure incompatible avec les robots recruteurs.</div>', unsafe_allow_html=True)
             if st.button("✨ LANCER LE RELOOKING IA"):
-                st.success("Relooking terminé avec succès !")
-                st.markdown('<div class="ats-panel" style="background:#C8E6C9;">✅ **Second test ATS (Après Relooking) : 98/100** <br> Analyse : CV parfaitement optimisé pour le dispatch mondial.</div>', unsafe_allow_html=True)
-                st.download_button("📥 Télécharger mon CV Relooké", "Contenu_CV_Relooke", "CV_Elite_Zipngo.pdf")
+                st.success("Relooking terminé !")
+                st.markdown('<div class="ats-panel" style="background:#C8E6C9;">✅ **Nouveau Score ATS : 97/100** <br> Analyse : Parfaitement optimisé pour le dispatch mondial.</div>', unsafe_allow_html=True)
+                st.download_button("📥 Télécharger mon CV Relooké", "Contenu_du_CV", "CV_Elite_Zipngo.pdf")
 
     elif menu == "📹 Entretien Vidéo":
-        st.header("Préparation aux Entretiens")
-        st.write("Découvrez comment réussir vos entretiens vidéo pour des postes internationaux.")
-        st.markdown('<div style="border: 2px solid #1A237E; border-radius: 12px; overflow: hidden;">', unsafe_allow_html=True)
+        st.header("Préparation Entretien")
         st.video("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.info("Tutoriel : Maîtriser son image et son discours en vidéo.")
+        st.info("Coaching : Comment réussir son entretien vidéo pour un poste à l'international.")
+
+    elif menu == "⚙️ Espace Personnel":
+        st.header("Mon Profil Candidat")
+        new_z_email = st.text_input("Changer mon adresse email", value=st.session_state.z_email)
+        if st.button("Mettre à jour l'email"):
+            st.session_state.z_email = new_z_email
+            st.toast("Email mis à jour avec succès !")
+        st.text_input("Changer le mot de passe", type="password")
+        st.button("Enregistrer les modifications")
 
     st.markdown('<div class="footer-zip">zipngo.zaxx | Direction : Liliane RAKOTOBE | ZAXX Group</div>', unsafe_allow_html=True)
