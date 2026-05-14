@@ -10,6 +10,26 @@ LANGUAGES = [
     "Türkçe", "Nederlands", "Polski", "Svenska", "Tiếng Việt", "Ελληνικά", "Português (BR)"
 ]
 
+def render_zipngo_logo(height=180):
+    """Affiche le logo graphique inspiré de logo-zipngo.jpg"""
+    logo_html = f"""
+    <div style="background-color: #1A237E; padding: 20px; text-align: center; border-radius: 15px; font-family: 'Arial Black', sans-serif; margin-bottom: 20px;">
+        <div style="display: flex; align-items: baseline; justify-content: center;">
+            <span style="color: white; font-size: 55px; letter-spacing: -3px;">zipngo</span>
+            <span style="color: #00e5ff; font-size: 45px; margin: 0 5px;">.</span>
+            <div style="background: #ff8c00; padding: 2px 12px; border-radius: 8px; position: relative; margin-left: 5px;">
+                <span style="color: #00e5ff; font-size: 45px; font-weight: 900;">zaxx</span>
+                <span style="position: absolute; top: -32px; right: -5px; font-size: 35px;">👍</span>
+            </div>
+        </div>
+        <hr style="height: 2px; background: white; border: none; margin: 10px 0;">
+        <div style="color: white; font-family: Arial; font-size: 16px; letter-spacing: 7px; text-transform: uppercase;">
+            The power of choice
+        </div>
+    </div>
+    """
+    st.components.v1.html(logo_html, height=height)
+
 def apply_zip_theme():
     st.markdown("""
     <style>
@@ -29,9 +49,10 @@ if "z_email" not in st.session_state: st.session_state.z_email = "candidat@zipng
 apply_zip_theme()
 
 if not st.session_state.z_auth:
-    _, col, _ = st.columns([1, 1.2, 1])
+    _, col, _ = st.columns([1, 1.5, 1])
     with col:
-        st.markdown("<h1 style='text-align:center;'>zip<span style='color:#00E5FF;'>ngo</span></h1>", unsafe_allow_html=True)
+        # LOGO GRAPHIQUE ICI
+        render_zipngo_logo(height=180)
         
         if st.session_state.z_view == "login":
             st.selectbox("Langue / Language", LANGUAGES)
@@ -52,7 +73,8 @@ if not st.session_state.z_auth:
     st.markdown('<div class="footer-zip">zipngo.zaxx | Recrutement Global | © 2026</div>', unsafe_allow_html=True)
 else:
     with st.sidebar:
-        st.title("zipngo.zaxx")
+        # LOGO GRAPHIQUE DANS LA SIDEBAR
+        render_zipngo_logo(height=160)
         menu = st.selectbox("Menu Principal", ["🌍 Dispatch Offres", "📄 Relooking CV & ATS", "📹 Entretien Vidéo", "⚙️ Espace Personnel"])
         if st.button("🚪 Quitter"): st.session_state.z_auth = False; st.rerun()
 
