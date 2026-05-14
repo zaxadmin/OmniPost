@@ -25,6 +25,7 @@ def apply_zip_theme():
         .ats-panel { padding: 15px; border-radius: 10px; background: #E3F2FD; border-left: 5px solid #00E5FF; margin: 10px 0; }
         .orange-thumb { color: #FF9800; font-size: 50px; text-align: center; margin-bottom: 10px; }
         a { color: #1A237E; text-decoration: none; font-weight: bold; }
+        .mail-link { font-size: 16px; vertical-align: middle; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -82,15 +83,16 @@ else:
 st.markdown("""
 <div class="footer-zip">
     <div class="legal-box-zip">
-        <b>Mentions Légales :</b> zipngo.zaxx est une plateforme opérée par <b>ZAXX Group</b>. 
-        Siège social à Antananarivo. Directrice de publication : Liliane RAKOTOBE. 
-        Conformément à la RGPD, vous disposez d'un droit d'accès à vos données.
+        <b>Mentions Légales :</b> zipngo.zaxx est une plateforme de recrutement. 
+        Directrice de publication : Liliane RAKOTOBE. 
+        Conformément à la réglementation sur la protection des données, vous disposez d'un droit d'accès à vos informations.
     </div>
     <div class="legal-box-zip">
-        <b>CGV :</b> zipngo.zaxx agit en tant que facilitateur. ZAXX Group ne garantit pas l'embauche. 
-        Le service de relooking est une aide technique à l'optimisation de profil.
+        <b>CGV :</b> zipngo.zaxx agit en tant que facilitateur de carrière. 
+        Le service de relooking est une aide technique à l'optimisation de profil. 
+        L'utilisation du service implique l'acceptation des conditions de traitement des données.
     </div>
     <p>© 2026 zipngo.zaxx | Créatrice : <b>Liliane RAKOTOBE</b> 
-    <a href="mailto:creationsites06@gmail.com">✉️ creationsites06@gmail.com</a></p>
+    <a href="mailto:creationsites06@gmail.com" class="mail-link">✉️</a></p>
 </div>
 """, unsafe_allow_html=True)
