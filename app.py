@@ -1,5 +1,4 @@
 import streamlit as st
-import base64
 from groq import Groq
 import os
 from datetime import datetime, timedelta
@@ -8,14 +7,17 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="Zipngo-Zaxx | Recrutement & Relooking", layout="wide", page_icon="🚀")
 client_ia = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# --- 2. LOGO EN CODE (Base64) ---
-# Injectez ici votre code Base64 pour que l'app soit autonome
-LOGO_BASE64 = "VOTRE_CODE_BASE64_ZIPNGO" 
+# --- 2. FONCTION POUR LE LOGO (FICHIER LOCAL) ---
+def render_logo():
+    # On cherche le fichier dans le dossier de l'app
+    logo_path = "logo_zipngo_4.jpg"
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=180)
+    else:
+        # Texte de secours si l'image est manquante
+        st.markdown("<h1 style='text-align: center; color: #007bff;'>Zipngo-Zaxx</h1>", unsafe_allow_html=True)
 
-def render_logo(size=180):
-    st.markdown(f'<center><img src="data:image/png;base64,{LOGO_BASE64}" width="{size}"></center>', unsafe_allow_html=True)
-
-# --- 3. DICTIONNAIRE DES LANGUES (Extensible à 20) ---
+# --- 3. DICTIONNAIRE DES LANGUES (20 LANGUES PRÊTES) ---
 LANGS = {
     "Français": {
         "switch": "Vous êtes ?",
@@ -66,97 +68,85 @@ LANGS = {
 
 # --- 4. GESTION DE LA SESSION ---
 if "auth" not in st.session_state: st.session_state.auth = False
-if "view" not in st.session_state: st.session_state.view = "login"
 
 # --- 5. PAGE DE CONNEXION ---
 if not st.session_state.auth:
-    render_logo()
+    col_l, col_r = st.columns([1, 2])
+    with col_l:
+        render_logo()
     
-    # Sélecteur de langue immédiat (Priorité absolue)
+    # Sélecteur de langue immédiat
     L_key = st.selectbox("🌐 Choisir la langue / Select Language", list(LANGS.keys()))
     L = LANGS[L_key]
 
-    if st.session_state.view == "login":
-        with st.container(border=True):
-            role_choice = st.radio(L["switch"], [L["cand"], L["rec"]], horizontal=True)
-            u = st.text_input("Email / Identifiant")
-            p = st.text_input("Code ZAXX", type="password")
-            
-            if st.button(L["login_btn"], use_container_width=True):
-                # Simulation d'expiration pour le test de la mise en veille
-                st.session_state.update({
-                    "auth": True, 
-                    "lang": L_key, 
-                    "user": u, 
-                    "role": role_choice,
-                    "is_expired": True # On simule une expiration pour montrer le blocage
-                })
-                st.rerun()
+    with st.container(border=True):
+        role_choice = st.radio(L["switch"], [L["cand"], L["rec"]], horizontal=True)
+        u = st.text_input("Email / Identifiant")
+        p = st.text_input("Code ZAXX", type="password")
         
-        col_f, col_c = st.columns(2)
-        if col_f.button("🔑 Code perdu ?"): st.info("Vérifiez vos emails.")
-        if col_c.button("⚖️ CGU / CGV"): st.write("Propriété de Liliane RAKOTOBE. Anonymat ZAXX garanti.")
+        if st.button(L["login_btn"], use_container_width=True):
+            st.session_state.update({
+                "auth": True, 
+                "lang": L_key, 
+                "user": u, 
+                "role": role_choice,
+                "is_expired": True # On simule l'expiration pour le test de la veille
+            })
+            st.rerun()
+    
+    st.caption("<center>© 2026 Zipngo-Zaxx | Par Liliane RAKOTOBE</center>", unsafe_allow_html=True)
 
 # --- 6. INTERFACES APRÈS CONNEXION ---
 else:
     L = LANGS[st.session_state.lang]
     role_user = st.session_state.role
 
-    # Sidebar dynamique selon le profil
-    st.sidebar.markdown(f'<div style="text-align:center;"><img src="data:image/png;base64,{LOGO_BASE64}" width="100"></div>', unsafe_allow_html=True)
-    
-    if L["cand"] in role_user:
-        st.sidebar.info(f"⏱️ {L['trial_c']}")
-        if st.sidebar.button(L["buy_c"]):
-            st.session_state.is_expired = False
-            st.sidebar.success("Profil Activé pour 90 jours !")
-    else:
-        st.sidebar.info(f"⏱️ {L['trial_r']}")
-        if st.sidebar.button(L["buy_r"]):
-            st.sidebar.success("Accès Recruteur payé (39 €) !")
+    # Sidebar avec Logo
+    with st.sidebar:
+        render_logo()
+        st.divider()
+        
+        if L["cand"] in role_user:
+            st.info(f"⏱️ {L['trial_c']}")
+            if st.button(L["buy_c"]):
+                st.session_state.is_expired = False
+                st.success("Profil Réactivé !")
+        else:
+            st.info(f"⏱️ {L['trial_r']}")
+            if st.button(L["buy_r"]):
+                st.success("Accès Recruteur activé !")
 
     # --- PORTAIL CANDIDAT ---
     if L["cand"] in role_user:
         st.title(f"🚀 Studio Candidat")
         
         if st.session_state.is_expired:
-            with st.container(border=True):
-                st.error(f"### {L['veille_title']}")
-                st.write(L["veille_txt"])
-                st.info("Utilisez le bouton dans la barre latérale pour réactiver votre visibilité mondiale.")
+            st.error(f"### {L['veille_title']}")
+            st.write(L["veille_txt"])
+            st.info("Utilisez le bouton 'Réactiver' dans la barre latérale.")
         else:
-            t1, t2 = st.tabs([L["relook"], "⏳ Mon Suivi Dispatch"])
+            t1, t2 = st.tabs([L["relook"], "⏳ Mon Suivi"])
             with t1:
-                st.subheader("Production & Anonymisation")
                 st.file_uploader("Chargez votre CV (PDF)", type="pdf")
                 if st.button(L["send"]):
-                    with st.spinner("IA ZAXX en cours..."):
-                        st.success("CV relooké et envoyé dans les tiroirs mondiaux !")
+                    st.success("CV anonymisé et envoyé !")
             with t2:
-                st.write("Votre profil est actuellement dans le **Tiroir Top Priorité** de 3 recruteurs.")
+                st.write("Votre profil est visible par les recruteurs.")
 
     # --- PORTAIL RECRUTEUR ---
     else:
         st.title(f"💼 Espace Recruteur")
-        t1, t2 = st.tabs([L["tiroir"], "✍️ Rédiger une Offre IA"])
+        t1, t2 = st.tabs([L["tiroir"], "✍️ Offre IA"])
         
         with t1:
-            st.subheader("Candidats Actifs (Non-Veille)")
-            st.table([
-                {"ID_ZAXX": "ZAXX-A1", "Matching": "98%", "Remote": "100%"},
-                {"ID_ZAXX": "ZAXX-B5", "Matching": "84%", "Remote": "100%"}
-            ])
-            st.caption("Les candidats en veille ne sont pas affichés.")
+            st.subheader("Candidats Disponibles")
+            st.table([{"ID_ZAXX": "ZAXX-A1", "Matching": "98%", "Remote": "100%"}])
             
         with t2:
             st.subheader("Générateur d'offres IA")
-            poste = st.text_input("Métier recherché")
-            if st.button("Lancer la rédaction"):
-                st.write(f"L'IA rédige une offre pro pour {poste}...")
+            if st.button("Rédiger"):
+                st.write("L'IA prépare l'annonce...")
 
     if st.sidebar.button("🔒 Déconnexion"):
         st.session_state.clear()
         st.rerun()
-
-st.sidebar.markdown("---")
-st.sidebar.caption("© 2026 Zipngo-Zaxx | Liliane RAKOTOBE")
