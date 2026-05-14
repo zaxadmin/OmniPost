@@ -28,6 +28,9 @@ if "z_email" not in st.session_state: st.session_state.z_email = "candidat@zipng
 
 apply_zip_theme()
 
+# FOOTER REUSABLE
+footer_zip_html = '<div class="footer-zip">zipngo.zaxx | <a href="#">CGV</a> | <a href="#">Mentions Légales</a> | Créatrice : Liliane RAKOTOBE</div>'
+
 if not st.session_state.z_auth:
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
@@ -51,7 +54,7 @@ if not st.session_state.z_auth:
                 st.info("Un email de secours a été envoyé.")
             st.button("Retour à la connexion", on_click=lambda: st.session_state.update({"z_view": "login"}))
             
-    st.markdown('<div class="footer-zip">zipngo.zaxx | <a href="#">CGV</a> | Direction : Liliane RAKOTOBE</div>', unsafe_allow_html=True)
+    st.markdown(footer_zip_html, unsafe_allow_html=True)
 else:
     with st.sidebar:
         st.title("zipngo.zaxx")
@@ -59,35 +62,31 @@ else:
         if st.button("Déconnexion"): st.session_state.z_auth = False; st.rerun()
 
     if menu == "🌍 Dispatch Offres":
-        st.header("Opportunités de Carrière Internationales")
+        st.header("Opportunités Internationales")
         c1, c2 = st.columns(2)
         pays = c1.selectbox("Pays cible", ["Madagascar", "France", "USA", "Monde Entier"])
         remote = c2.checkbox("Remote / Télétravail uniquement")
-        st.info(f"Recherche : {pays} | Télétravail : {remote}")
         st.table(pd.DataFrame({'Poste': ['Chef de Projet IT', 'Analyste Business'], 'Lieu': [pays, 'Télétravail']}))
         
     elif menu == "📄 Relooking & ATS":
         st.header("Optimisation de Candidature (ATS)")
-        st.write("Téléchargez votre CV pour passer le test de compatibilité robot (ATS).")
+        st.write("Téléchargez votre CV pour le test de compatibilité.")
         f = st.file_uploader("Fichier CV (PDF)", type=["pdf"])
         if f:
-            st.markdown('<div class="ats-panel">⚠️ **Premier test ATS : 38/100** <br> Diagnostic : Mots-clés manquants et structure illisible par les robots.</div>', unsafe_allow_html=True)
-            if st.button("✨ RELOOKER MON CV MAINTENANT"):
+            st.markdown('<div class="ats-panel">⚠️ **Premier test ATS : 38/100** <br> Diagnostic : Mots-clés manquants.</div>', unsafe_allow_html=True)
+            if st.button("✨ RELOOKER MON CV"):
                 st.success("Optimisation IA terminée !")
-                st.markdown('<div class="ats-panel" style="background:#C8E6C9; border-color:#2E7D32; color:#1B5E20;">✅ **Second test ATS : 97/100** <br> Diagnostic : Votre CV est prêt pour le dispatch mondial.</div>', unsafe_allow_html=True)
+                st.markdown('<div class="ats-panel" style="background:#C8E6C9; border-color:#2E7D32; color:#1B5E20;">✅ **Second test ATS : 97/100** <br> Votre CV est prêt.</div>', unsafe_allow_html=True)
                 st.download_button("📥 Télécharger le CV Optimisé", "DATA_PRO", "CV_Zipngo_Pro.pdf")
             
     elif menu == "📹 Entretien Vidéo":
-        st.header("Préparation Entretien Vidéo")
+        st.header("Préparation Entretien")
         st.video("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-        st.info("Coaching : Maîtrisez votre image et votre pitch pour les recruteurs internationaux.")
         
     elif menu == "⚙️ Mon Profil":
         st.header("Paramètres personnels")
-        st.session_state.z_email = st.text_input("Modifier mon adresse email", value=st.session_state.z_email)
-        if st.button("Enregistrer l'email"): 
-            st.toast("Email mis à jour avec succès !")
+        st.session_state.z_email = st.text_input("Modifier l'email", value=st.session_state.z_email)
+        if st.button("Enregistrer"): st.toast("Email mis à jour !")
         st.text_input("Nouveau mot de passe", type="password")
-        st.button("Sauvegarder les modifications")
 
-    st.markdown('<div class="footer-zip">zipngo.zaxx | <a href="#">CGV</a> | Direction : Liliane RAKOTOBE</div>', unsafe_allow_html=True)
+    st.markdown(footer_zip_html, unsafe_allow_html=True)
