@@ -1,25 +1,26 @@
 import streamlit as st
 import pandas as pd
 
-# --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo.zaxx", layout="wide")
 
-# Dictionnaire de traduction
 T = {
     "Français": {
+        "intro": "Dispatch mondial d'offres et relooking CV optimisé ATS.",
         "user": "Identifiant", "pw": "Mot de passe", "login": "VALIDER",
-        "create": "CRÉER MON COMPTE", "forgot": "Mot de passe oublié ?", "signup_t": "Rejoindre l'aventure",
-        "name": "Prénom & Nom", "submit": "VALIDER MON INSCRIPTION", "back": "Retour"
+        "create": "CRÉER MON COMPTE", "forgot": "Mot de passe oublié ?",
+        "signup_t": "Rejoindre l'aventure", "name": "Prénom & Nom", "submit": "VALIDER MON INSCRIPTION", "back": "Retour"
     },
     "English (US)": {
+        "intro": "Global job dispatch and ATS-optimized CV makeover.",
         "user": "Username", "pw": "Password", "login": "VALIDATE",
-        "create": "CREATE ACCOUNT", "forgot": "Forgot password?", "signup_t": "Join the adventure",
-        "name": "Full Name", "submit": "VALIDATE MY REGISTRATION", "back": "Back"
+        "create": "CREATE ACCOUNT", "forgot": "Forgot password?",
+        "signup_t": "Join the adventure", "name": "Full Name", "submit": "VALIDATE REGISTRATION", "back": "Back"
     },
     "Malagasy": {
+        "intro": "Fandefasana tolotra asa manerantany sy fanamboarana CV.",
         "user": "Anarana", "pw": "Teny miafina", "login": "TSARA",
-        "create": "HANOKATRA KAONTY", "forgot": "Adino ny teny miafina?", "signup_t": "Fidirana",
-        "name": "Anarana feno", "submit": "ALFAY NY FISORATANA", "back": "Hiverina"
+        "create": "HANOKATRA KAONTY", "forgot": "Adino ny teny miafina?",
+        "signup_t": "Fidirana", "name": "Anarana feno", "submit": "ALFAY", "back": "Hiverina"
     }
 }
 
@@ -35,9 +36,10 @@ def apply_zip_theme():
         .footer-zip { text-align: center; padding: 20px; margin-top: 50px; font-weight: 300; color: #94a3b8; }
         .legal-link-zip { color: #94a3b8; text-decoration: none; font-size: 11px; margin: 0 10px; }
         .legal-content { font-size: 10px; line-height: 1.4; text-align: justify; font-weight: 300; display: none; margin-top: 10px; }
-        #mentions_z:target, #cgv_z:target { display: block; padding: 15px; border: 1px solid #e2e8f0; border-radius: 5px; }
+        #mentions_z:target, #cgv_z:target { display: block; padding: 15px; border: 1px solid #e2e8f0; }
         .orange-thumb { color: #FF9800; font-size: 50px; text-align: center; margin-bottom: 10px; }
         .mail-icon { font-size: 18px; text-decoration: none !important; vertical-align: middle; }
+        .ats-panel { padding: 15px; border-radius: 10px; background: #E3F2FD; border-left: 5px solid #00E5FF; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -49,10 +51,11 @@ apply_zip_theme()
 if not st.session_state.z_auth:
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
-        lang = st.selectbox("Langue / Language", list(T.keys()), key="lang_zip")
+        lang = st.selectbox("Langue", list(T.keys()), key="lang_zip")
         text = T[lang]
         st.markdown('<div class="orange-thumb">👍</div>', unsafe_allow_html=True)
         st.markdown("<h1 style='text-align:center; color:#1A237E; font-size: 48px; margin-top:-20px;'>zip<span style='color:#00E5FF;'>ngo</span></h1>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align:center; color:#94a3b8; font-style:italic;'>{text['intro']}</p>", unsafe_allow_html=True)
         
         if st.session_state.z_view == "login":
             st.text_input(text["user"])
@@ -65,19 +68,26 @@ if not st.session_state.z_auth:
             st.subheader(text["signup_t"])
             st.text_input(text["name"])
             st.text_input("Email")
-            if st.button(text["submit"]): st.success("OK"); st.rerun()
+            if st.button(text["submit"]): st.success("Compte créé."); st.session_state.z_view = "login"; st.rerun()
             st.button(text["back"], on_click=lambda: st.session_state.update({"z_view": "login"}))
 else:
     st.sidebar.title("zipngo.zaxx")
+    menu = st.sidebar.radio("Menu", ["🌍 Dispatch", "📄 Relooking CV", "📹 Coaching"])
     if st.sidebar.button("Déconnexion"): st.session_state.z_auth = False; st.rerun()
-    st.header("Opportunités")
-    st.table(pd.DataFrame({'Poste': ['Dev', 'Marketing'], 'Lieu': ['Remote', 'Europe']}))
+    
+    if menu == "📄 Relooking CV":
+        st.header("Analyse ATS")
+        f = st.file_uploader("CV (PDF)", type=["pdf"])
+        if f:
+            st.markdown('<div class="ats-panel">⚠️ **Score ATS : 42/100**</div>', unsafe_allow_html=True)
+            if st.button("✨ OPTIMISER"):
+                st.markdown('<div class="ats-panel" style="background:#C8E6C9;">✅ **Score ATS : 98/100**</div>', unsafe_allow_html=True)
 
 st.markdown("""
 <div class="footer-zip">
     <a href="#mentions_z" class="legal-link-zip">Mentions Légales</a> | <a href="#cgv_z" class="legal-link-zip">CGV</a>
-    <div id="mentions_z" class="legal-content"><b>Mentions :</b> zipngo.zaxx par Liliane RAKOTOBE. Suppression sur simple demande.</div>
-    <div id="cgv_z" class="legal-content"><b>CGV :</b> Mise en veille auto après 90 jours sans activité.</div>
+    <div id="mentions_z" class="legal-content"><b>Mentions :</b> Édité par Liliane RAKOTOBE. Suppression des données sur simple demande par mail.</div>
+    <div id="cgv_z" class="legal-content"><b>CGV :</b> Mise en veille automatique après 90 jours sans activité.</div>
     <p>© 2026 zipngo.zaxx | Créatrice : Liliane RAKOTOBE <a href="mailto:creationsites06@gmail.com" class="mail-icon">✉️</a></p>
 </div>
 """, unsafe_allow_html=True)
