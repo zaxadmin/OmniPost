@@ -22,6 +22,7 @@ def apply_zip_theme():
         .orange-thumb { color: #FF9800; font-size: 50px; text-align: center; margin-bottom: 10px; }
         .mail-icon { font-size: 18px; text-decoration: none !important; vertical-align: middle; }
         .ats-panel { padding: 15px; border-radius: 10px; background: #E3F2FD; border-left: 5px solid #00E5FF; margin: 10px 0; }
+        .info-box { background: #F8FAFC; border: 1px solid #00E5FF; border-radius: 10px; padding: 15px; margin-bottom: 20px; font-size: 14px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -36,6 +37,20 @@ if not st.session_state.z_auth:
         st.selectbox("Langue / Language", LANGUAGES, key="lang_zip")
         st.markdown('<div class="orange-thumb">👍</div>', unsafe_allow_html=True)
         st.markdown("<h1 style='text-align:center; color:#1A237E; font-size: 48px; margin-top:-20px;'>zip<span style='color:#00E5FF;'>ngo</span></h1>", unsafe_allow_html=True)
+        
+        # --- BLOC PRÉSENTATION ZIPNGO ---
+        st.markdown("""
+        <div class="info-box">
+        <p style="text-align:center; font-weight:bold; color:#1A237E; margin-bottom:10px;">
+        La plateforme pivot du recrutement direct, sans abonnement.
+        </p>
+        <ul style="color:#1A237E; padding-left:20px; font-size:13px;">
+            <li><b>Recruteurs :</b> Diffusez vos offres en 1 clic sur Zipngo et vers les sites partenaires.</li>
+            <li><b>Candidats :</b> Outils de relooking CV et mise en relation directe avec les décideurs.</li>
+            <li><b>Liberté :</b> Une solution souveraine pour accélérer les embauches sans intermédiaire imposé.</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
         
         if st.session_state.z_view == "login":
             st.text_input("Identifiant")
@@ -53,6 +68,7 @@ if not st.session_state.z_auth:
             st.text_input("Email")
             if st.button("VALIDER MON INSCRIPTION"): st.success("Bienvenue ! Connectez-vous.")
             st.button("Retour", on_click=lambda: st.session_state.update({"z_view": "login"}))
+
 else:
     with st.sidebar:
         st.title("zipngo.zaxx")
