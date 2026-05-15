@@ -4,7 +4,24 @@ import pandas as pd
 # --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo.zaxx", layout="wide")
 
-LANGUAGES = ["Français", "English (US)", "Malagasy", "Español", "Deutsch"]
+# Dictionnaire de traduction
+T = {
+    "Français": {
+        "user": "Identifiant", "pw": "Mot de passe", "login": "VALIDER",
+        "create": "CRÉER MON COMPTE", "forgot": "Mot de passe oublié ?", "signup_t": "Rejoindre l'aventure",
+        "name": "Prénom & Nom", "submit": "VALIDER MON INSCRIPTION", "back": "Retour"
+    },
+    "English (US)": {
+        "user": "Username", "pw": "Password", "login": "VALIDATE",
+        "create": "CREATE ACCOUNT", "forgot": "Forgot password?", "signup_t": "Join the adventure",
+        "name": "Full Name", "submit": "VALIDATE MY REGISTRATION", "back": "Back"
+    },
+    "Malagasy": {
+        "user": "Anarana", "pw": "Teny miafina", "login": "TSARA",
+        "create": "HANOKATRA KAONTY", "forgot": "Adino ny teny miafina?", "signup_t": "Fidirana",
+        "name": "Anarana feno", "submit": "ALFAY NY FISORATANA", "back": "Hiverina"
+    }
+}
 
 def apply_zip_theme():
     st.markdown("""
@@ -16,13 +33,11 @@ def apply_zip_theme():
             border-radius: 25px; border: 2px solid #00E5FF; font-weight: bold; width: 100%; 
         }
         .footer-zip { text-align: center; padding: 20px; margin-top: 50px; font-weight: 300; color: #94a3b8; }
-        .legal-link-zip { color: #94a3b8; text-decoration: none; font-size: 11px; margin: 0 10px; font-weight: 300; }
+        .legal-link-zip { color: #94a3b8; text-decoration: none; font-size: 11px; margin: 0 10px; }
         .legal-content { font-size: 10px; line-height: 1.4; text-align: justify; font-weight: 300; display: none; margin-top: 10px; }
         #mentions_z:target, #cgv_z:target { display: block; padding: 15px; border: 1px solid #e2e8f0; border-radius: 5px; }
         .orange-thumb { color: #FF9800; font-size: 50px; text-align: center; margin-bottom: 10px; }
         .mail-icon { font-size: 18px; text-decoration: none !important; vertical-align: middle; }
-        .ats-panel { padding: 15px; border-radius: 10px; background: #E3F2FD; border-left: 5px solid #00E5FF; margin: 10px 0; }
-        .info-box { background: #F8FAFC; border: 1px solid #00E5FF; border-radius: 10px; padding: 15px; margin-bottom: 20px; font-size: 14px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -34,75 +49,35 @@ apply_zip_theme()
 if not st.session_state.z_auth:
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
-        st.selectbox("Langue / Language", LANGUAGES, key="lang_zip")
+        lang = st.selectbox("Langue / Language", list(T.keys()), key="lang_zip")
+        text = T[lang]
         st.markdown('<div class="orange-thumb">👍</div>', unsafe_allow_html=True)
         st.markdown("<h1 style='text-align:center; color:#1A237E; font-size: 48px; margin-top:-20px;'>zip<span style='color:#00E5FF;'>ngo</span></h1>", unsafe_allow_html=True)
         
-        # --- BLOC PRÉSENTATION ZIPNGO ---
-        st.markdown("""
-        <div class="info-box">
-        <p style="text-align:center; font-weight:bold; color:#1A237E; margin-bottom:10px;">
-        La plateforme pivot du recrutement direct, sans abonnement.
-        </p>
-        <ul style="color:#1A237E; padding-left:20px; font-size:13px;">
-            <li><b>Recruteurs :</b> Diffusez vos offres en 1 clic sur Zipngo et vers les sites partenaires.</li>
-            <li><b>Candidats :</b> Outils de relooking CV et mise en relation directe avec les décideurs.</li>
-            <li><b>Liberté :</b> Une solution souveraine pour accélérer les embauches sans intermédiaire imposé.</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
         if st.session_state.z_view == "login":
-            st.text_input("Identifiant")
-            st.text_input("Mot de passe", type="password")
-            if st.button("VALIDER"): 
-                st.session_state.z_auth = True
-                st.rerun()
-            if st.button("CRÉER MON COMPTE"):
-                st.session_state.z_view = "signup"
-                st.rerun()
+            st.text_input(text["user"])
+            st.text_input(text["pw"], type="password")
+            if st.button(text["login"]): st.session_state.z_auth = True; st.rerun()
+            if st.button(text["create"]): st.session_state.z_view = "signup"; st.rerun()
+            st.button(text["forgot"], on_click=lambda: st.session_state.update({"z_view": "forgot"}))
         
         elif st.session_state.z_view == "signup":
-            st.subheader("Rejoindre l'aventure")
-            st.text_input("Prénom & Nom")
+            st.subheader(text["signup_t"])
+            st.text_input(text["name"])
             st.text_input("Email")
-            if st.button("VALIDER MON INSCRIPTION"): st.success("Bienvenue ! Connectez-vous.")
-            st.button("Retour", on_click=lambda: st.session_state.update({"z_view": "login"}))
-
+            if st.button(text["submit"]): st.success("OK"); st.rerun()
+            st.button(text["back"], on_click=lambda: st.session_state.update({"z_view": "login"}))
 else:
-    with st.sidebar:
-        st.title("zipngo.zaxx")
-        st.markdown('<span style="font-size:30px;">👍</span>', unsafe_allow_html=True)
-        menu = st.radio("Navigation", ["🌍 Dispatch Offres", "📄 Relooking & ATS", "📹 Entretien", "⚙️ Profil"])
-        if st.button("Déconnexion"): st.session_state.z_auth = False; st.rerun()
-
-    if menu == "🌍 Dispatch Offres":
-        st.header("Opportunités Internationales")
-        st.table(pd.DataFrame({'Poste': ['Fullstack Dev', 'Marketing'], 'Lieu': ['Remote', 'Europe']}))
-    elif menu == "📄 Relooking & ATS":
-        st.header("Optimisation CV")
-        f = st.file_uploader("CV (PDF)", type=["pdf"])
-        if f:
-            st.markdown('<div class="ats-panel">⚠️ **Score ATS : 42/100**</div>', unsafe_allow_html=True)
-            if st.button("✨ RELOOKER MON CV"):
-                st.success("Optimisé !")
-                st.markdown('<div class="ats-panel" style="background:#C8E6C9; border-color:#2E7D32;">✅ **Score ATS : 98/100**</div>', unsafe_allow_html=True)
-    elif menu == "📹 Entretien":
-        st.video("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    st.sidebar.title("zipngo.zaxx")
+    if st.sidebar.button("Déconnexion"): st.session_state.z_auth = False; st.rerun()
+    st.header("Opportunités")
+    st.table(pd.DataFrame({'Poste': ['Dev', 'Marketing'], 'Lieu': ['Remote', 'Europe']}))
 
 st.markdown("""
 <div class="footer-zip">
-    <a href="#mentions_z" class="legal-link-zip">Mentions Légales</a> | 
-    <a href="#cgv_z" class="legal-link-zip">CGV</a>
-    <div id="mentions_z" class="legal-content">
-        <b>Mentions Légales :</b> zipngo.zaxx est édité par Liliane RAKOTOBE. 
-        Suppression des données sur simple demande.
-    </div>
-    <div id="cgv_z" class="legal-content">
-        <b>CGV :</b> Les données personnelles sont supprimées sur simple demande par mail. 
-        <b>Mise en veille :</b> En cas d'absence d'activité pendant 90 jours, le profil utilisateur sera automatiquement mis en veille. 
-    </div>
-    <p style="font-size:12px; margin-top:15px;">© 2026 zipngo.zaxx | Créatrice : Liliane RAKOTOBE 
-    <a href="mailto:creationsites06@gmail.com" class="mail-icon">✉️</a></p>
+    <a href="#mentions_z" class="legal-link-zip">Mentions Légales</a> | <a href="#cgv_z" class="legal-link-zip">CGV</a>
+    <div id="mentions_z" class="legal-content"><b>Mentions :</b> zipngo.zaxx par Liliane RAKOTOBE. Suppression sur simple demande.</div>
+    <div id="cgv_z" class="legal-content"><b>CGV :</b> Mise en veille auto après 90 jours sans activité.</div>
+    <p>© 2026 zipngo.zaxx | Créatrice : Liliane RAKOTOBE <a href="mailto:creationsites06@gmail.com" class="mail-icon">✉️</a></p>
 </div>
 """, unsafe_allow_html=True)
