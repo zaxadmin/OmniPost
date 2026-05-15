@@ -1,26 +1,30 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="zipngo.zaxx", layout="wide")
+# --- CONFIGURATION ---
+st.set_page_config(page_title="zipngo.zaxx | Recruitment", layout="wide")
 
 T = {
     "Français": {
-        "intro": "Dispatch mondial d'offres et relooking CV optimisé ATS.",
-        "user": "Identifiant", "pw": "Mot de passe", "login": "VALIDER",
-        "create": "CRÉER MON COMPTE", "forgot": "Mot de passe oublié ?",
-        "signup_t": "Rejoindre l'aventure", "name": "Prénom & Nom", "submit": "VALIDER MON INSCRIPTION", "back": "Retour"
+        "intro": "La plateforme de dispatch mondial d'offres d'emploi et de relooking CV optimisé ATS.",
+        "desc": "zipngo.zaxx propulse votre carrière à l'international grâce à notre technologie d'analyse de CV et nos outils de coaching vidéo.",
+        "user": "Identifiant Candidat", "pw": "Mot de passe", "login": "VALIDER",
+        "create": "CRÉER MON COMPTE", "forgot": "Mot de passe oublié ?", "signup_t": "Rejoindre l'aventure zipngo",
+        "name": "Prénom & Nom", "email": "Email", "submit": "VALIDER MON INSCRIPTION", "back": "Retour"
     },
     "English (US)": {
-        "intro": "Global job dispatch and ATS-optimized CV makeover.",
-        "user": "Username", "pw": "Password", "login": "VALIDATE",
-        "create": "CREATE ACCOUNT", "forgot": "Forgot password?",
-        "signup_t": "Join the adventure", "name": "Full Name", "submit": "VALIDATE REGISTRATION", "back": "Back"
+        "intro": "The global job dispatch platform and ATS-optimized CV makeover service.",
+        "desc": "zipngo.zaxx boosts your international career with our CV analysis technology and video coaching tools.",
+        "user": "Candidate ID", "pw": "Password", "login": "VALIDATE",
+        "create": "CREATE ACCOUNT", "forgot": "Forgot password?", "signup_t": "Join the zipngo adventure",
+        "name": "Full Name", "email": "Email", "submit": "VALIDATE REGISTRATION", "back": "Back"
     },
     "Malagasy": {
-        "intro": "Fandefasana tolotra asa manerantany sy fanamboarana CV.",
+        "intro": "Fandefasana tolotra asa manerantany sy fanamboarana CV ho matihanina.",
+        "desc": "zipngo.zaxx dia manampy anao hahita asa any ivelany amin'ny alalan'ny teknolojia vaovao.",
         "user": "Anarana", "pw": "Teny miafina", "login": "TSARA",
-        "create": "HANOKATRA KAONTY", "forgot": "Adino ny teny miafina?",
-        "signup_t": "Fidirana", "name": "Anarana feno", "submit": "ALFAY", "back": "Hiverina"
+        "create": "HANOKATRA KAONTY", "forgot": "Adino ny teny miafina?", "signup_t": "Fidirana ato amin'ny zipngo",
+        "name": "Anarana feno", "email": "Email", "submit": "ALFAY NY FISORATANA", "back": "Hiverina"
     }
 }
 
@@ -39,7 +43,7 @@ def apply_zip_theme():
         #mentions_z:target, #cgv_z:target { display: block; padding: 15px; border: 1px solid #e2e8f0; }
         .orange-thumb { color: #FF9800; font-size: 50px; text-align: center; margin-bottom: 10px; }
         .mail-icon { font-size: 18px; text-decoration: none !important; vertical-align: middle; }
-        .ats-panel { padding: 15px; border-radius: 10px; background: #E3F2FD; border-left: 5px solid #00E5FF; }
+        .ats-panel { padding: 15px; border-radius: 10px; background: #E3F2FD; border-left: 5px solid #00E5FF; margin: 10px 0; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -51,11 +55,12 @@ apply_zip_theme()
 if not st.session_state.z_auth:
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
-        lang = st.selectbox("Langue", list(T.keys()), key="lang_zip")
+        lang = st.selectbox("Langue / Language", list(T.keys()), key="lang_zip")
         text = T[lang]
         st.markdown('<div class="orange-thumb">👍</div>', unsafe_allow_html=True)
         st.markdown("<h1 style='text-align:center; color:#1A237E; font-size: 48px; margin-top:-20px;'>zip<span style='color:#00E5FF;'>ngo</span></h1>", unsafe_allow_html=True)
-        st.markdown(f"<p style='text-align:center; color:#94a3b8; font-style:italic;'>{text['intro']}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align:center; font-weight:bold; color:#1A237E;'>{text['intro']}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align:center; color:#94a3b8; font-size:14px;'>{text['desc']}</p>", unsafe_allow_html=True)
         
         if st.session_state.z_view == "login":
             st.text_input(text["user"])
@@ -67,21 +72,23 @@ if not st.session_state.z_auth:
         elif st.session_state.z_view == "signup":
             st.subheader(text["signup_t"])
             st.text_input(text["name"])
-            st.text_input("Email")
-            if st.button(text["submit"]): st.success("Compte créé."); st.session_state.z_view = "login"; st.rerun()
+            st.text_input(text["email"])
+            if st.button(text["submit"]): st.success("Compte créé avec succès."); st.session_state.z_view = "login"; st.rerun()
             st.button(text["back"], on_click=lambda: st.session_state.update({"z_view": "login"}))
 else:
-    st.sidebar.title("zipngo.zaxx")
-    menu = st.sidebar.radio("Menu", ["🌍 Dispatch", "📄 Relooking CV", "📹 Coaching"])
-    if st.sidebar.button("Déconnexion"): st.session_state.z_auth = False; st.rerun()
+    with st.sidebar:
+        st.title("zipngo.zaxx")
+        menu = st.sidebar.radio("Navigation", ["🌍 Dispatch Offres", "📄 Relooking & ATS", "📹 Entretien", "⚙️ Profil"])
+        if st.sidebar.button("Déconnexion"): st.session_state.z_auth = False; st.rerun()
     
-    if menu == "📄 Relooking CV":
-        st.header("Analyse ATS")
-        f = st.file_uploader("CV (PDF)", type=["pdf"])
+    if menu == "📄 Relooking & ATS":
+        st.header("Optimisation CV & Score ATS")
+        f = st.file_uploader("Uploadez votre CV (PDF)", type=["pdf"])
         if f:
-            st.markdown('<div class="ats-panel">⚠️ **Score ATS : 42/100**</div>', unsafe_allow_html=True)
-            if st.button("✨ OPTIMISER"):
-                st.markdown('<div class="ats-panel" style="background:#C8E6C9;">✅ **Score ATS : 98/100**</div>', unsafe_allow_html=True)
+            st.markdown('<div class="ats-panel">⚠️ **Score ATS actuel : 42/100**</div>', unsafe_allow_html=True)
+            if st.button("✨ RELOOKER MON CV"):
+                st.success("Optimisation terminée !")
+                st.markdown('<div class="ats-panel" style="background:#C8E6C9; border-color:#2E7D32;">✅ **Nouveau Score ATS : 98/100**</div>', unsafe_allow_html=True)
 
 st.markdown("""
 <div class="footer-zip">
