@@ -11,7 +11,6 @@ def apply_zip_theme():
     <style>
         .stApp { background-color: #FFFFFF; color: #1A237E; }
         [data-testid="stSidebar"] { background-color: #F0F4F8 !important; border-right: 2px solid #00E5FF; }
-        /* Boutons Bleu Marine */
         .stButton>button { 
             background: #1A237E !important; color: #00E5FF !important; 
             border-radius: 25px; border: 2px solid #00E5FF; font-weight: bold; width: 100%; 
@@ -27,6 +26,7 @@ def apply_zip_theme():
     """, unsafe_allow_html=True)
 
 if "z_auth" not in st.session_state: st.session_state.z_auth = False
+if "z_view" not in st.session_state: st.session_state.z_view = "login"
 
 apply_zip_theme()
 
@@ -37,11 +37,22 @@ if not st.session_state.z_auth:
         st.markdown('<div class="orange-thumb">👍</div>', unsafe_allow_html=True)
         st.markdown("<h1 style='text-align:center; color:#1A237E; font-size: 48px; margin-top:-20px;'>zip<span style='color:#00E5FF;'>ngo</span></h1>", unsafe_allow_html=True)
         
-        st.text_input("Identifiant")
-        st.text_input("Mot de passe", type="password")
-        if st.button("DÉCOLLER"): 
-            st.session_state.z_auth = True
-            st.rerun()
+        if st.session_state.z_view == "login":
+            st.text_input("Identifiant")
+            st.text_input("Mot de passe", type="password")
+            if st.button("VALIDER"): 
+                st.session_state.z_auth = True
+                st.rerun()
+            if st.button("CRÉER MON COMPTE"):
+                st.session_state.z_view = "signup"
+                st.rerun()
+        
+        elif st.session_state.z_view == "signup":
+            st.subheader("Rejoindre l'aventure")
+            st.text_input("Prénom & Nom")
+            st.text_input("Email")
+            if st.button("VALIDER MON INSCRIPTION"): st.success("Bienvenue ! Connectez-vous.")
+            st.button("Retour", on_click=lambda: st.session_state.update({"z_view": "login"}))
 else:
     with st.sidebar:
         st.title("zipngo.zaxx")
@@ -63,20 +74,19 @@ else:
     elif menu == "📹 Entretien":
         st.video("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 
-# PIED DE PAGE ZIPNGO
 st.markdown("""
 <div class="footer-zip">
     <a href="#mentions_z" class="legal-link-zip">Mentions Légales</a> | 
     <a href="#cgv_z" class="legal-link-zip">CGV</a>
     <div id="mentions_z" class="legal-content">
         <b>Mentions Légales :</b> zipngo.zaxx est édité par Liliane RAKOTOBE. 
-        Les informations recueillies font l’objet d’un traitement destiné à la mise en relation professionnelle.
+        Suppression des données sur simple demande.
     </div>
     <div id="cgv_z" class="legal-content">
         <b>CGV :</b> Les données personnelles sont supprimées sur simple demande par mail. 
         <b>Mise en veille :</b> En cas d'absence d'activité pendant 90 jours, le profil utilisateur sera automatiquement mis en veille. 
     </div>
-    <p style="font-size:12px; margin-top:15px; font-weight: 400;">© 2026 zipngo.zaxx | Créatrice : Liliane RAKOTOBE 
+    <p style="font-size:12px; margin-top:15px;">© 2026 zipngo.zaxx | Créatrice : Liliane RAKOTOBE 
     <a href="mailto:creationsites06@gmail.com" class="mail-icon">✉️</a></p>
 </div>
 """, unsafe_allow_html=True)
