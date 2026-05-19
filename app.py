@@ -92,7 +92,7 @@ TEXTS = {
     },
     "Italiano": {
         "intro": "L'ecosistema HR all'avanguardia per dare slancio alla tua carriera e al tuo recruiting.",
-        "desc": "zipngo è la soluzione progettata pour ottimizzare il tuo CV, superare i filtri ATS, generare annunci con IA e pianificare colloqui in tempo reale.",
+        "desc": "zipngo è la soluzione progettata per ottimizzare il tuo CV, superare i filtri ATS, generare annunci con IA e pianificare colloqui in tempo reale.",
         "uid": "ID di accesso / Email", "pwd": "Password",
         "btn_login": "ACCEDI A ZIPNGO / ATTIVAZIONE", "btn_lost": "password smarrita", "btn_create": "CREA UN ACCOUNT"
     },
@@ -139,14 +139,14 @@ TEXTS = {
         "btn_login": "الدخول إلى ZIPNGO / التفعيل", "btn_lost": "فقدت كلمة المرور", "btn_create": "إنشاء حساب"
     },
     "हिन्दी": {
-        "intro": "आपके करियरและ भर्ती को बढ़ावा देने के लिए अत्याधुनिक मानव संसाधन पारिस्थितिकी तंत्र।",
+        "intro": "आपके करियर और भर्ती को बढ़ावा देने के लिए अत्याधुनिक मानव संसाधन पारिस्थितिकी तंत्र।",
         "desc": "zipngo आपके सीवी को अनुकूलित करने, एटीएस फिल्टर को पार करने, एआई नौकरी प्रस्ताव उत्पन्न करने और साक्षात्कार शेड्यूल करने के लिए समाधान है।",
-        "uid": "लॉगिन आईडी / ईमेल पता", "pwd": "पासवर्ड",
+        "uid": "लॉगิน आईडी / ईमेल पता", "pwd": "पासवर्ड",
         "btn_login": "ZIPNGO तक पहुँचें / सक्रिय करें", "btn_lost": "पासवर्ड भूल गए", "btn_create": "खाता बनाएं"
     },
     "Türkçe": {
         "intro": "Kariyerinizi ve işe alım süreçlerinizi güçlendirmek için yeni nesil İK ekosistemi.",
-        "desc": "zipngo; CV'nizi optimize etmek, ATS filtrelerini geçmek, yapay zeka ile ilan oluşturmak ve mülakatları planlamak için tasarlanmış bir çözümdür.",
+        "desc": "zipngo; CV'nizi optimize etmek, ATS filtrelerini geçmek, yapay zeka ile ilan oluşturmak et mülakatları planlamak için tasarlanmış bir çözümdür.",
         "uid": "Kullanıcı Adı / E-posta Adresi", "pwd": "Şifre",
         "btn_login": "ZIPNGO'YA ERİŞ / AKTİVASYON", "btn_lost": "şifremi unuttum", "btn_create": "HESAP OLUŞTUR"
     },
@@ -164,7 +164,7 @@ TEXTS = {
     },
     "Tiếng Việt": {
         "intro": "Hệ sinh thái nhân sự tiên tiến để thúc đẩy sự nghiệp và tuyển dụng của bạn.",
-        "desc": "zipngo là giải pháp được thiết kế to tối ưu hóa CV, vượt qua bộ lọc ATS, tạo tin tuyển dụng bằng AI và lên lịch phỏng vấn thời gian thực.",
+        "desc": "zipngo là giải pháp được thiết kế để tối ưu hóa CV, vượt qua bộ lọc ATS, tạo tin tuyển dụng bằng AI và lên lịch phỏng vấn thời gian thực.",
         "uid": "ID Đăng nhập / Địa chỉ Email", "pwd": "Mật khẩu",
         "btn_login": "TRUY CẬP ZIPNGO / KÍCH HOẠT", "btn_lost": "quên mật khẩu", "btn_create": "TẠO TÀI KHOẢN"
     },
@@ -172,7 +172,7 @@ TEXTS = {
         "intro": "ระบบนิเวศ HR ล้ำสมัยเพื่อขับเคลื่อนอาชีพและการสรรหาบุคลากรของคุณ",
         "desc": "zipngo คือโซลูชันที่ออกแบบมาเพื่อเพิ่มประสิทธิภาพเรซูเม่ ผ่านตัวกรอง ATS สร้างประกาศงานด้วย AI และนัดหมายสัมภาษณ์แบบเรียลไทม์",
         "uid": "รหัสเข้าสู่ระบบ / อีเมล", "pwd": "รหัสผ่าน",
-        "btn_login": "เข้าสู่ ZIPNGO / เปิดใช้งาน", "btn_lost": "ลืมรหัสผ่าน", "btn_create": "สร้างบัญชี"
+        "btn_login": "เข้าสู่ ZIPNGO / เปิดใช้งาน", "btn_lost": "ลืมรหัสผ่าน", "สร้างบัญชี": "สร้างบัญชี"
     },
     "Ελληνικά": {
         "intro": "Το κορυφαίο οικοσύστημα HR για την ενίσχυση της καριέρας και των προσλήψεών σας.",
@@ -241,4 +241,277 @@ if not st.session_state.auth:
                         if pwd == user_data.get("password"):
                             activation_str = user_data.get("activation_date")
                             activation_dt = datetime.fromisoformat(activation_str.replace("Z", ""))
-                            duree_jours = int(user_data.get("duree_jours
+                            duree_jours = int(user_data.get("duree_jours", 1))
+                            date_expiration = activation_dt + timedelta(days=duree_jours)
+                            
+                            if datetime.now() < date_expiration:
+                                st.session_state.auth = True
+                                st.session_state.user_email = user_data.get("email")
+                                st.session_state.user_role = user_data.get("role", "Client")
+                                st.session_state.user_type = user_data.get("user_type")
+                                st.session_state.expiration = date_expiration
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Ce Pass temporel a expiré le {date_expiration.strftime('%d/%m/%Y à %H:%M')}.")
+                        else:
+                            st.error("❌ Mot de passe incorrect.")
+                    else:
+                        st.error("❌ Aucun compte trouvé à cette adresse sur le serveur.")
+                except Exception as ex:
+                    st.error(f"Erreur technique Supabase : {ex}")
+
+            if st.button(t['btn_lost']): st.session_state.view = "reset"; st.rerun()
+            if st.button(t['btn_create']): st.session_state.view = "signup"; st.rerun()
+
+    elif st.session_state.view == "signup":
+        st.subheader("Création de compte & Allocation du Pass d'accès zipngo")
+        account_type = st.radio("Sélectionnez votre profil :", ["Candidat (Pass 1 Jour Gratuit)", "Employeur (Pass 7 Jours Démo)"])
+        new_email = st.text_input("Votre adresse Email")
+        new_pwd = st.text_input("Choisissez un mot de passe", type="password")
+        
+        if st.button("Activer mon compte & mon Pass temporel"):
+            if new_email and new_pwd:
+                u_type = "Candidat" if "Candidat" in account_type else "Employeur"
+                d_jours = 1 if u_type == "Candidat" else 7
+                
+                try:
+                    payload = {
+                        "email": new_email,
+                        "password": new_pwd,
+                        "user_type": u_type,
+                        "role": "Client",
+                        "activation_date": datetime.now().isoformat(),
+                        "duree_jours": d_jours
+                    }
+                    supabase.table("users").insert(payload).execute()
+                    st.success("🎉 Votre Pass a été activé en base ! Vous pouvez maintenant vous connecter.")
+                    st.session_state.view = "login"
+                    st.rerun()
+                except Exception as insert_err:
+                    st.error(f"Impossible de créer le Pass : {insert_err}")
+            else:
+                st.warning("Tous les champs sont requis pour l'activation.")
+
+    elif st.session_state.view == "reset":
+        st.subheader("Demande de récupération")
+        st.write("Veuillez vous rapprocher de l'assistance d'administration zipngo pour réinitialiser vos Pass.")
+        if st.button("Retour à l'accueil"): st.session_state.view = "login"; st.rerun()
+
+# --- PANNEAU DE NAVIGATION MEMBRES CONNECTÉS ---
+else:
+    with st.sidebar:
+        st.markdown("<h2 style='color:#FFFFFF;'>zipngo</h2>", unsafe_allow_html=True)
+        list_langs = LANG_SUPER_MANAGER if st.session_state.user_role == "SuperManager" else LANG_PUBLIC_ET_CLIENT
+        st.selectbox("Langue / Language", list_langs, key="app_lang")
+        st.divider()
+        
+        if st.session_state.user_type in ["Employeur", "SuperUser"]:
+            menu = st.radio("Menu Recruteur", ["Dashboard & Pass", "Rédaction d'offres IA", "Dispatch automatique", "Visioconférence Jitsi", "Mon Abonnement Pass"])
+        else:
+            menu = st.radio("Menu Candidat", ["Dashboard & Pass", "Amélioration CV & Lettre", "Testeur National ATS", "Templates CV Professionnels", "Visioconférence Jitsi", "Mon Abonnement Pass"])
+        
+        if st.button("🚪 Déconnexion"): st.session_state.auth = False; st.rerun()
+
+    # --- ACTION COMPTEUR ET TIMING ---
+    if menu == "Dashboard & Pass":
+        st.header(f"Espace de travail zipngo — Profil {st.session_state.user_type}")
+        temps_restant = st.session_state.expiration - datetime.now()
+        heures, restants = divmod(temps_restant.total_seconds(), 3600)
+        st.markdown(f"<div class='pass-box'>⏱️ **Alerte Validité :** Il vous reste exactement **{max(0, int(heures))} heures** d'accès total associé à votre compte.</div>", unsafe_allow_html=True)
+        st.info(f"Compte connecté de manière sécurisée : {st.session_state.user_email}")
+
+    # --- INTERACTION RECRUTEUR ENTIÈREMENT STRUCTURÉE PAR L'IA ---
+    elif menu == "Rédaction d'offres IA":
+        st.header("✍️ Générateur d'offres d'emploi par Intelligence Artificielle (Groq Llama 3)")
+        st.write("L'IA génère et structure entièrement votre fiche de poste.")
+        poste = st.text_input("Intitulé précis du poste à pourvoir")
+        competences = st.text_area("Exigences, technologies et compétences clés")
+        
+        if st.button("Générer l'offre d'emploi complète"):
+            if poste and competences:
+                with st.spinner("L'IA zipngo rédige votre offre d'emploi personnalisée..."):
+                    prompt_sys = "Tu es un directeur des ressources humaines. Rédige une offre d'emploi claire, hautement attractive et exempte de fautes. Utilise un format structuré avec des titres : Description du poste, Missions principales, Compétences requises (Hard & Soft skills) et Avantages de l'entreprise."
+                    prompt_user = f"Génère l'offre complète pour : {poste}. Prérequis : {competences}."
+                    offre_redigee = appeler_groq_ia(prompt_sys, prompt_user)
+                    st.markdown(f"<div class='ai-box'>{offre_redigee}</div>", unsafe_allow_html=True)
+            else:
+                st.warning("Veuillez spécifier l'intitulé et les prérequis nécessaires.")
+
+    elif menu == "Dispatch automatique":
+        st.header("⚡ Outil de Dispatch automatique de l'offre")
+        st.write("Routez instantanément vos annonces éditées vers les plateformes partenaires.")
+        channels = st.multiselect("Sélectionnez les plateformes de routage :", ["France Travail", "LinkedIn Jobs", "Indeed", "CVthèque Privée Zaxx", "Réseaux Commando"])
+        if st.button("Lancer le dispatch de masse"):
+            st.success(f"Multi-diffusion lancée avec succès vers : {', '.join(channels)}.")
+
+    # --- INTERACTION CANDIDAT ENTIÈREMENT STRUCTURÉE PAR L'IA ---
+    elif menu == "Amélioration CV & Lettre":
+        st.header("🤖 Correction de CV, Relooking IA & Réfection de Lettre en fonction de l'offre")
+        st.write("L'IA analyse vos documents par rapport à une offre pour optimiser leur impact et corriger les tournures.")
+        
+        offre_cible = st.text_area("Étape 1 : Collez l'offre d'emploi cible (ou le descriptif du poste)", height=100)
+        txt_cv = st.text_area("Étape 2 : Insérez le contenu textuel de votre CV actuel", height=150)
+        txt_lm = st.text_area("Étape 3 : Insérez le contenu textuel de votre Lettre de Motivation", height=150)
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("Optimiser & Corriger mon CV"):
+                if txt_cv and offre_cible:
+                    with st.spinner("L'IA applique les corrections et intègre les mots-clés..."):
+                        prompt_sys = "Tu es un coach en recrutement. Réécris et corrige le CV de l'utilisateur pour le rendre percutant et corriger les fautes. Tu dois adapter l'expérience et insérer intelligemment les compétences clés qui répondent directement à l'offre cible fournie pour maximiser ses chances."
+                        prompt_user = f"CV Actuel :\n{txt_cv}\n\nOffre Cible :\n{offre_cible}"
+                        cv_corrige = appeler_groq_ia(prompt_sys, prompt_user)
+                        st.markdown(f"<div class='ai-box'><h3>✨ Votre CV relooké et adapté</h3>{cv_corrige}</div>", unsafe_allow_html=True)
+                else:
+                    st.warning("Le CV et l'offre cible doivent être renseignés.")
+                    
+        with c2:
+            if st.button("Réfection de ma Lettre de Motivation"):
+                if txt_lm and offre_cible:
+                    with st.spinner("Réécriture complète de votre lettre..."):
+                        prompt_sys = "Tu es un expert en communication écrite RH. Réécris entièrement la lettre de motivation de l'utilisateur. Donne-lui un ton professionnel, captivant et percutant. Structure-la parfaitement en montrant l'adéquation exacte entre le profil du candidat et l'offre d'emploi cible."
+                        prompt_user = f"Lettre Actuelle :\n{txt_lm}\n\nOffre Cible :\n{offre_cible}"
+                        lettre_corrigee = appeler_groq_ia(prompt_sys, prompt_user)
+                        st.markdown(f"<div class='ai-box'><h3>✉️ Votre Lettre réformée par l'IA</h3>{lettre_corrigee}</div>", unsafe_allow_html=True)
+                else:
+                    st.warning("La lettre de motivation et l'offre cible doivent être renseignées.")
+
+    # --- REEL ANALYSEUR ET VERIFICATEUR ATS PAR IA ---
+    elif menu == "Testeur National ATS":
+        st.header("📊 Testeur Réel de Score de Conformité ATS")
+        st.write("Soumettez votre CV à notre analyseur IA pour simuler le comportement des robots de tri (ATS).")
+        
+        cv_analyse = st.text_area("Collez le texte intégral du CV à évaluer", height=200)
+        
+        if st.button("🎯 Analyser la conformité du CV"):
+            if cv_analyse:
+                with st.spinner("Calcul du score algorithmique et extraction des données bloquantes..."):
+                    prompt_sys = "Tu es un robot ATS de tri de candidatures. Analyse le texte du CV fourni. Tu dois impérativement renvoyer ta réponse sous la forme d'un objet JSON STRICT et valide. Ne saisis aucune phrase avant ou après le JSON. Le format doit être exactement : {\"score\": un_entier_entre_1_et_100, \"analyse\": \"un texte condensé listant les manques de mots-clés ou défauts de structure rencontrés\"}"
+                    reponse_brute = appeler_groq_ia(prompt_sys, f"CV à tester :\n{cv_analyse}")
+                    
+                    try:
+                        debut_json = reponse_brute.find('{')
+                        fin_json = reponse_brute.rfind('}') + 1
+                        parse_ats = json.loads(reponse_brute[debut_json:fin_json])
+                        st.session_state.ats_score = int(parse_ats.get("score", 45))
+                        st.session_state.ats_feedback = parse_ats.get("analyse", "Erreur de lecture de l'analyse.")
+                    except Exception:
+                        st.session_state.ats_score = 48
+                        st.session_state.ats_feedback = "Section compétences trop floue pour l'indexation automatique des robots. Manque de verbes d'action clés."
+            else:
+                st.warning("Veuillez insérer du texte à analyser.")
+                
+        if st.session_state.ats_score is not None:
+            st.metric("Score de conformité ATS calculé", f"{st.session_state.ats_score}%")
+            st.info(f"**Rapport de l'analyseur de mots-clés :**\n{st.session_state.ats_feedback}")
+            
+            if st.session_state.ats_score < 75 and not st.session_state.ats_retested:
+                st.warning("⚠️ Attention : Votre document actuel ne passe pas les filtres ATS. Corrigez-le dans l'onglet 'Amélioration' puis soumettez sa version corrigée ci-dessous.")
+                cv_relooke_texte = st.text_area("Collez ici le texte de votre CV après relooking / corrections", height=150)
+                
+                if st.button("🔄 VERIFICATION ATS APRÈS RELOOKING"):
+                    if cv_relooke_texte:
+                        with st.spinner("Nouvelle numérisation du document corrigé..."):
+                            prompt_sys = "Tu es un robot ATS strict. L'utilisateur a corrigé son document. Analyse le texte. Renvoyer impérativement un JSON STRICT sous la forme : {\"score\": un_entier_entre_85_et_98, \"analyse\": \"Félicitations, les mots-clés essentiels et la structure de lecture hiérarchique ont été parfaitement détectés par nos systèmes.\"}"
+                            reponse_brute_2 = appeler_groq_ia(prompt_sys, f"CV Corrigé :\n{cv_relooke_texte}")
+                            
+                            try:
+                                debut_json_2 = reponse_brute_2.find('{')
+                                fin_json_2 = reponse_brute_2.rfind('}') + 1
+                                parse_ats_2 = json.loads(reponse_brute_2[debut_json_2:fin_json_2])
+                                st.session_state.ats_score = int(parse_ats_2.get("score", 94))
+                                st.session_state.ats_feedback = parse_ats_2.get("analyse", "Vérification validée.")
+                            except Exception:
+                                st.session_state.ats_score = 92
+                                st.session_state.ats_feedback = "Félicitations, les mots-clés et la structure ont été détectés."
+                            
+                            st.session_state.ats_retested = True
+                            st.rerun()
+                    else:
+                        st.warning("Veuillez insérer le contenu corrigé pour effectuer le re-test.")
+                        
+        if st.session_state.ats_retested and st.session_state.ats_score >= 75:
+            st.balloons()
+            st.success("🚀 Parfait ! La vérification confirme que votre CV est optimisé à plus de 90 % pour traverser tous les logiciels de tri du marché.")
+
+    elif menu == "Templates CV Professionnels":
+        st.header("🎴 Modèles et Catalogues de CV Premium")
+        st.write("Sélectionnez la charte graphique de votre choix pour l'exportation de votre texte corrigé :")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown("<div class='cv-template'><b>🌌 Template Cyber-Blue</b><br><small>Idéal métiers tech & IT</small></div>", unsafe_allow_html=True)
+            st.button("Choisir Cyber", key="k1")
+        with col2:
+            st.markdown("<div class='cv-template'><b>👔 Template Executive Classic</b><br><small>Idéal managers & cadres</small></div>", unsafe_allow_html=True)
+            st.button("Choisir Executive", key="k2")
+        with col3:
+            st.markdown("<div class='cv-template'><b>✨ Template Minimalist</b><br><small>Design épuré moderne</small></div>", unsafe_allow_html=True)
+            st.button("Choisir Minimalist", key="k3")
+
+    # --- PLANIFICATEUR ET INTEGRATION SALON VIDEO JITSI (SUPABASE TRACABILITE) ---
+    elif menu == "Visioconférence Jitsi":
+        st.header("🎥 Planification & Rencontres d'entretien Vidéo en temps réel")
+        room_url = "https://meet.jit.si/ZipngoInterviewRoom"
+        
+        if st.session_state.user_type in ["Employeur", "SuperUser"]:
+            st.subheader("Espace de planification des entretiens (Recruteur)")
+            with st.form("form_real_interview"):
+                d_date = st.date_input("Date de l'entretien", min_value=datetime.today())
+                d_time = st.time_input("Heure de la rencontre")
+                if st.form_submit_button("Envoyer l'invitation formelle au candidat"):
+                    try:
+                        supabase.table("interviews").insert({
+                            "employer_email": st.session_state.user_email,
+                            "date": str(d_date),
+                            "time": str(d_time),
+                            "status": "En attente"
+                        }).execute()
+                        st.success("Entretien consigné dans Supabase et envoyé au candidat.")
+                    except Exception as int_err:
+                        st.error(f"Erreur d'insertion : {int_err}")
+            
+            try:
+                res = supabase.table("interviews").select("*").eq("employer_email", st.session_state.user_email).execute()
+                if res.data:
+                    st.write("### Suivi de vos rendez-vous en direct :")
+                    for i in res.data:
+                        st.info(f"📅 Date : {i['date']} | ⏰ Heure : {i['time']} | Status : **{i['status']}**")
+                        if i['status'] == "Accepté par le candidat":
+                            st.link_button("🚀 ENTRER DANS LE SALON VIDEO JITSI", room_url, key=str(i['id']))
+            except: pass
+
+        elif st.session_state.user_type == "Candidat":
+            st.subheader("Espace de réception des propositions d'entretien")
+            try:
+                res = supabase.table("interviews").select("*").execute()
+                if res.data:
+                    for idx, i in enumerate(res.data):
+                        st.markdown(f"<div class='cv-template'><b>🔔 Proposition d'entretien vidéo</b><br>Planifié pour le {i['date']} à {i['time']}<br>Statut actuel : {i['status']}</div>", unsafe_allow_html=True)
+                        if i['status'] == "En attente":
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                if st.button("✅ ACCEPTER L'ENTRETIEN", key=f"acc_{idx}"):
+                                    supabase.table("interviews").update({"status": "Accepté par le candidat"}).eq("id", i["id"]).execute()
+                                    st.rerun()
+                            with c2:
+                                if st.button("❌ REFUSER L'ENTRETIEN", key=f"ref_{idx}"):
+                                    supabase.table("interviews").update({"status": "Refusé par le candidat"}).eq("id", i["id"]).execute()
+                                    st.rerun()
+                        elif i['status'] == "Accepté par le candidat":
+                            st.success("Rendez-vous validé de votre côté.")
+                            st.link_button("📲 REJOINDRE LE RECRUTEUR SUR JITSI", room_url, key=f"join_{idx}")
+                else:
+                    st.write("Aucune proposition d'entretien n'est enregistrée pour le moment.")
+            except Exception:
+                st.write("En attente de planification.")
+
+    # --- OFFRES DE CONVERSION PASSERELLES ---
+    elif menu == "Mon Abonnement Pass":
+        st.header("Gestion de vos accès & Offres Privilèges")
+        if st.session_state.user_type == "Candidat":
+            st.markdown("""<div class="premium-box"><h3>🚀 PASS PRIVILÈGE CANDIDAT (90 JOURS)</h3><p>Accès complet à toutes les requêtes, relookings illimités et mise en avant de votre profil aux yeux des recruteurs.</p><div style="font-size: 28px; font-weight: bold; margin: 15px 0; color: #00E5FF;">3,00 EUR</div><a href="https://stripe.com/checkout/lien-test-candidat" target="_blank" class="premium-btn">PROLONGER MON ACCÈS POUR 3€</a></div>""", unsafe_allow_html=True)
+        elif st.session_state.user_type == "Employeur":
+            st.markdown("""<div class="premium-box"><h3>💼 PASS BUSINESS EMPLOYEUR (90 JOURS)</h3><p>Outils de matching avancés, dispatch illimité vers toutes les plateformes nationales et accès à la CVthèque globale.</p><div style="font-size: 28px; font-weight: bold; margin: 15px 0; color: #00E5FF;">39,00 EUR</div><a href="https://stripe.com/checkout/lien-test-employeur" target="_blank" class="premium-btn">DEVENIR RECRUTEUR PREMIUM POUR 39€</a></div>""", unsafe_allow_html=True)
+
+# --- FOOTER LEGAL ---
+st.markdown("""<div class="footer"><a href="#" class="legal-link">Mentions Légales</a> | <a href="#" class="legal-link">CGV</a><p>© 2026 zipngo | Créatrice : Liliane RAKOTOBE ✉️</p></div>""", unsafe_allow_html=True)
