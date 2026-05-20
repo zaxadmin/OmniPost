@@ -2,7 +2,7 @@ streamlit
 supabase
 google-generativeai
 streamlit-javascript
-fpdf
+pypdf
 pandas
 tornado==6.3.3
 groq
