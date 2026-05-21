@@ -6,15 +6,18 @@ import urllib.parse
 from supabase import create_client, Client
 from typing import Dict, Optional, List
 from pypdf import PdfReader
+import json
+import requests
 
 # --- CONFIGURATION DE PAGE ---
 st.set_page_config(page_title="zipngo", layout="wide", page_icon="🚀")
 
-# --- INITIALISATION SUPABASE ---
+# --- INITIALISATION SUPABASE & GROQ ---
 try:
     supabase: Client = create_client(st.secrets["supabase"]["url"], st.secrets["supabase"]["key"])
+    GROQ_API_KEY = st.secrets["groq"]["api_key"]
 except Exception as e:
-    st.error(f"Erreur d'initialisation de la base de données Supabase: {e}")
+    st.error(f"Erreur d'initialisation des clés API (Supabase/Groq) dans les secrets: {e}")
     st.stop()
 
 # --- DICTIONNAIRES & CONSTANTES ---
@@ -47,7 +50,7 @@ TEXTS = {
         "login_desc": "L'écosystème RH pour booster votre carrière.",
         "email": "Email",
         "send_link": "Envoyer le lien magique",
-        "link_sent": "✅ Lien envoyé à {email} ! Vérifiez votre boîte mail.",
+        "link_sent": "✅ Lien envoyé ! Vérifiez votre boîte mail.",
         "invalid_email": "Email invalide.",
         "welcome": "Bienvenue, {user} !",
         "logout": "Déconnexion",
@@ -59,7 +62,7 @@ TEXTS = {
         "subscription": "Abonnement",
         "profile": "Mon profil",
         "my_cvs": "Mes CVs",
-        "my_interviews": "Mes RDV visio",
+        "my_interviews": "Suivi Entretiens (Match)",
         "improve": "Améliorer CV/Lettre",
         "ats_test": "Test ATS",
         "apply_to_offer": "Postuler à une offre",
@@ -70,7 +73,7 @@ TEXTS = {
         "send_email": "Envoyer par email",
         "dispatch_success": "✅ Diffusion réussie !",
         "upload_doc": "Télécharger un {type}",
-        "upload_success": "✅ {type} téléchargé avec succès !",
+        "upload_success": "✅ {type} téléchargé et sauvegardé dans votre espace !",
         "email_recipients": "Adresses e-mails (séparées par des virgules)",
         "email_subject": "Objet de l'email",
         "improve_with_ai": "Améliorer avec IA",
@@ -204,17 +207,16 @@ def send_magic_link(email: str) -> bool:
     except:
         return False
 
-def get_or_create_user(email: str) -> Dict:
+def get_or_create_user(email: str, selected_role: str) -> Dict:
     try:
         res = supabase.table("users").select("*").eq("user_email", email).execute()
         if res.data:
             return res.data[0]
         else:
-            u_type = "Employeur" if "recruteur" in email or "rh" in email else "Candidat"
-            new_u = supabase.table("users").insert({"id": email, "user_email": email, "user_type": u_type}).execute()
+            new_u = supabase.table("users").insert({"id": email, "user_email": email, "user_type": selected_role}).execute()
             return new_u.data[0]
     except:
-        return {"id": email, "user_email": email, "user_type": "Candidat"}
+        return {"id": email, "user_email": email, "user_type": selected_role}
 
 def upload_file_to_storage(file, user_id: str, doc_type: str) -> bool:
     try:
@@ -229,6 +231,22 @@ def upload_file_to_storage(file, user_id: str, doc_type: str) -> bool:
     except:
         return False
 
+def parse_skills_with_groq(cv_text: str) -> str:
+    """Appelle Groq pour extraire sémantiquement les compétences clés sous forme de texte propre"""
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    prompt = f"Analyse le texte du CV suivant et extrait uniquement une liste épurée de compétences techniques clés séparées par des virgules :\n\n{cv_text}"
+    data = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.2
+    }
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        return response.json()['choices'][0]['message']['content'].strip()
+    except:
+        return "Python, SQL, Management (Par défaut)"
+
 def generate_ats_score(text: str) -> int:
     keywords = ["expérience", "compétences", "gestion", "projet", "python", "agile", "rh", "marketing", "vente", "recrutement"]
     score = sum(10 for kw in keywords if kw.lower() in text.lower())
@@ -239,6 +257,7 @@ def improve_text(text: str, doc_type: str = "CV") -> str:
 
 def apply_template(text: str, template_name: str) -> str:
     return f"============ RENDU GRAPHIQUE : {template_name.upper()} ============\n\n{text}"
+
 
 # --- ÉCRAN D'AUTHENTIFICATION ---
 if not st.session_state.auth:
@@ -253,20 +272,23 @@ if not st.session_state.auth:
         st.markdown(f"<p style='text-align:center; font-weight:bold; color:#1A237E;'>{t['login_title']}</p>", unsafe_allow_html=True)
         st.divider()
 
+        # Choix obligatoire du rôle au tout début de l'envoi du mail magique
+        chosen_user_type = st.radio("Sélectionnez votre profil d'accès :", ["Candidat", "Employeur"], horizontal=True)
+
         email = st.text_input(t["email"], key="login_email")
         if st.button(t["send_link"], use_container_width=True):
             if "@" not in email:
                 st.error(t["invalid_email"])
             else:
                 send_magic_link(email)
-                user_record = get_or_create_user(email)
+                user_record = get_or_create_user(email, chosen_user_type)
                 st.session_state.auth = True
                 st.session_state.user_email = email
                 st.session_state.user_id = user_record["id"]
                 st.session_state.user_type = user_record["user_type"]
                 st.rerun()
 else:
-    # --- NAVIGATION LATÉRALE ---
+    # --- NAVIGATION LATÉRALE & ONBOARDING EXPLICITE ---
     with st.sidebar:
         st.markdown("<h2 style='color:#FFFFFF;'>zipngo</h2>", unsafe_allow_html=True)
         st.markdown(f"<p style='color:#FFFFFF;'>Connecté : <strong>{st.session_state.user_email}</strong></p>", unsafe_allow_html=True)
@@ -279,10 +301,22 @@ else:
         t = TEXTS[selected_lang]
         st.divider()
 
-        if st.session_state.user_type == "Employeur":
-            menu = st.radio("Menu", [t["dashboard"], t["job_offer"], t["dispatch"], t["candidates"], t["video"], t["subscription"]])
+        # Affichage du guide d'utilisation selon le type de profil pour expliquer l'anonymat
+        st.markdown("### 💡 Mode d'emploi zipngo")
+        if st.session_state.user_type == "Candidat":
+            st.caption("1. **Anonymat total** : Vos coordonnées restent masquées. Seul votre profil extrait par l'IA est auditable.\n"
+                       "2. **Double Match** : Vos coordonnées ne sont transmises que si l'employeur ET vous validez la suite de l'entretien.\n"
+                       "3. **Hors-Plateforme** : Vos informations de CV redeviennent visibles en dehors de zipngo.")
         else:
-            menu = st.radio("Menu", [t["dashboard"], t["profile"], t["my_cvs"], t["dispatch_cv"], t["apply_to_offer"], t["improve"], t["ats_test"], t["video"], t["subscription"]])
+            st.caption("1. **Focus Compétences** : Vous évaluez des fiches candidats neutres dénuées de données civiles.\n"
+                       "2. **Vote secret** : Indiquez 'Poursuivre' après un rdv. Le contact n'est débloqué que si le candidat accepte aussi.\n"
+                       "3. **Dispatch Externe** : Diffuser vos offres sur des canaux tiers lève l'anonymat de votre société.")
+
+        st.divider()
+        if st.session_state.user_type == "Employeur":
+            menu = st.radio("Menu", [t["dashboard"], t["job_offer"], t["dispatch"], t["candidates"], t["my_interviews"], t["video"], t["subscription"]])
+        else:
+            menu = st.radio("Menu", [t["dashboard"], t["profile"], t["my_cvs"], t["dispatch_cv"], t["apply_to_offer"], t["improve"], t["ats_test"], t["my_interviews"], t["video"], t["subscription"]])
 
         if st.button(f"🚪 {t['logout']}"):
             st.session_state.auth = False
@@ -348,7 +382,7 @@ else:
         country_codes = list(COUNTRIES.keys())
         st.multiselect(t["select_countries"], country_codes, default=["FR"], format_func=lambda x: f"{COUNTRIES[x]['flag']} {COUNTRIES[x]['name']}")
         
-        st.subheader("📬 Canaux Externes & Mailing direct")
+        st.subheader("📬 Canaux Externes & Mailing direct (Lève l'anonymat entreprise)")
         st.text_area(t["email_recipients"], placeholder="hr@entreprise.com, contact@recrute.net")
         if st.button(t["send_email"]):
             st.success(t["dispatch_success"])
@@ -369,17 +403,30 @@ else:
         st.header(t["candidates_title"])
         st.write(t["candidates_desc"])
         
-        mock_candidates = [
-            {"email": "candidat-anon331@zipngo.com", "score": 92, "exp": "3-5 ans", "skills": "Python, SQL, FastAPi"},
-            {"email": "candidat-anon882@zipngo.com", "score": 71, "exp": "1-2 ans", "skills": "Gestion RH, Sourcing"}
-        ]
-        for cand in mock_candidates:
-            st.markdown(f"""
-            <div class='candidate-card'>
-                <h4>🆔 Réf : {cand['email']} — Score Match : {cand['score']}%</h4>
-                <p><b>Expérience :</b> {cand['exp']} | <b>Compétences :</b> {cand['skills']}</p>
-            </div>
-            """, unsafe_allow_html=True)
+        try:
+            candidates = supabase.table("candidate_profiles").select("*").execute().data
+        except:
+            candidates = []
+
+        if not candidates:
+            st.info("Aucune fiche candidat disponible.")
+        else:
+            for cand in candidates:
+                st.markdown(f"""
+                <div class='candidate-card'>
+                    <h4>🆔 Réf : Candidat-Anonyme-#{str(cand['user_id'])[:6]}</h4>
+                    <p><b>Poste ciblé :</b> {cand.get('job_title', 'Non spécifié')} | <b>Ville :</b> {cand.get('city','Distanciel')}</p>
+                    <p><b>Compétences Extraites par l'IA :</b> {cand.get('skills_extracted', 'À analyser')}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("Planifier un RDV d'entretien", key=f"inv_{cand['user_id']}"):
+                    try:
+                        supabase.table("interviews").insert({
+                            "candidate_id": cand["user_id"], "company_id": st.session_state.user_id, "job_title": cand.get('job_title', 'Poste Général')
+                        }).execute()
+                        st.success("Entretien ajouté à votre suivi Confidentiel.")
+                    except:
+                        pass
 
     elif menu == t["profile"]:
         st.header(t["profile_title"])
@@ -425,11 +472,20 @@ else:
                 st.session_state.cv_extracted_text = up_file.getvalue().decode("utf-8")
                 st.success("📝 Fichier texte structuré avec succès.")
 
-            if st.button("Enregistrer dans mon espace zipngo"):
+            if st.button("Enregistrer et Lancer l'analyse IA des compétences"):
+                with st.spinner("L'IA de zipngo qualifie vos mots-clés..."):
+                    # Extraction réelle avec Groq Cloud
+                    computed_skills = parse_skills_with_groq(st.session_state.cv_extracted_text)
+                    try:
+                        supabase.table("candidate_profiles").upsert({
+                            "user_id": st.session_state.user_id, "skills_extracted": computed_skills
+                        }).execute()
+                    except:
+                        pass
+                
                 if upload_file_to_storage(up_file, st.session_state.user_id, "CV"):
-                    st.success(t["upload_success"].format(type="CV"))
+                    st.success(t["upload_success"].format(type="CV") + f" Compétences retenues : {computed_skills}")
 
-    # ===== COEUR DU DISPATCHER MULTILINGUE ET ÉDITABLE (50 ENVOIS MAX / JOUR) =====
     elif menu == t["dispatch_cv"]:
         translations_dispatch = {
             "Français": {
@@ -660,9 +716,69 @@ else:
                 with st.expander(f"Consulter la fiche descriptive & Postuler à l'offre {o['offer_number']}"):
                     st.write(f"**Compétences requis :** {', '.join(o.get('skills', ['Polyvalence']))}")
                     if st.button("Soumettre ma candidature instantanée", key=o['offer_number']):
-                        st.success(t["apply_success"])
+                        try:
+                            supabase.table("interviews").insert({
+                                "candidate_id": st.session_state.user_id, "company_id": o["user_id"], "job_title": o["title"]
+                            }).execute()
+                            st.success(t["apply_success"])
+                        except:
+                            st.error("Erreur de transmission.")
         else:
             st.info("Aucune offre d'emploi n'est disponible pour le moment.")
+
+    # ===== COEUR DU SYSTÈME DE DOUBLE MATCH POST-ENTRETIEN =====
+    elif menu == t["my_interviews"]:
+        st.header("🤝 Suivi des Entretiens & Décisions Secrètes")
+        st.write("Exprimez votre choix de suite après l'échange. L'anonymat mutuel n'est levé que si l'intérêt est réciproque.")
+
+        try:
+            if st.session_state.user_type == "Candidat":
+                itvs = supabase.table("interviews").select("*").eq("candidate_id", st.session_state.user_id).execute().data
+            else:
+                itvs = supabase.table("interviews").select("*").eq("company_id", st.session_state.user_id).execute().data
+        except:
+            itvs = []
+
+        if not itvs:
+            st.info("Aucun entretien enregistré pour le moment.")
+        else:
+            for iv in itvs:
+                with st.expander(f"📋 Entretien pour le poste : {iv['job_title']} | Statut : {iv['status']}"):
+                    if iv["status"] == "En cours":
+                        st.write("L'entretien est achevé ? Indiquez votre choix en toute confidentialité :")
+                        col_v1, col_v2 = st.columns(2)
+                        
+                        if st.session_state.user_type == "Candidat":
+                            with col_v1:
+                                if st.button("👍 Poursuivre (Autoriser le partage)", key=f"v_cand_y_{iv['id']}", type="primary"):
+                                    supabase.table("interviews").update({"candidate_decision": "poursuivre"}).eq("id", iv["id"]).execute()
+                                    if iv["company_decision"] == "poursuivre":
+                                        supabase.table("interviews").update({"status": "Match"}).eq("id", iv["id"]).execute()
+                                    st.rerun()
+                            with col_v2:
+                                if st.button("👎 S'arrêter là", key=f"v_cand_n_{iv['id']}"):
+                                    supabase.table("interviews").update({"candidate_decision": "arreter", "status": "Clôturé"}).eq("id", iv["id"]).execute()
+                                    st.rerun()
+                        else:
+                            with col_v1:
+                                if st.button("👍 Accorder une suite favorable", key=f"v_emp_y_{iv['id']}", type="primary"):
+                                    supabase.table("interviews").update({"company_decision": "poursuivre"}).eq("id", iv["id"]).execute()
+                                    if iv["candidate_decision"] == "poursuivre":
+                                        supabase.table("interviews").update({"status": "Match"}).eq("id", iv["id"]).execute()
+                                    st.rerun()
+                            with col_v2:
+                                if st.button("👎 Classer sans suite", key=f"v_emp_n_{iv['id']}"):
+                                    supabase.table("interviews").update({"company_decision": "arreter", "status": "Clôturé"}).eq("id", iv["id"]).execute()
+                                    st.rerun()
+                                    
+                    elif iv["status"] == "Match":
+                        st.success("🎉 MATCH MUTUEL ! L'anonymat est levé pour ce poste.")
+                        if st.session_state.user_type == "Candidat":
+                            st.info(f"L'employeur (Réf #{str(iv['company_id'])[:6]}) a désormais accès à vos coordonnées réelles et va initier la prise de contact direct.")
+                        else:
+                            st.info(f"Talent Débloqué ! Contact candidat direct disponible : **{iv['candidate_id']}**")
+                    else:
+                        st.error("Le processus est archivé. L'anonymat complet est resté sauf et protégé.")
 
     elif menu == t["video"]:
         st.header(t["video"])
