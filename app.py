@@ -20,6 +20,16 @@ except Exception as e:
     st.error(f"Erreur d'initialisation des clés API (Supabase/Groq) dans les secrets: {e}")
     st.stop()
 
+# --- FONCTION D'AIDE : SAUVEGARDE GÉNÉRIQUE ---
+def save_data(table_name: str, data: Dict) -> bool:
+    """Fonction générique pour sauvegarder des données dans Supabase."""
+    try:
+        supabase.table(table_name).upsert(data).execute()
+        return True
+    except Exception as e:
+        st.error(f"Erreur lors de la sauvegarde dans {table_name}: {e}")
+        return False
+
 # --- DICTIONNAIRES & CONSTANTES ---
 LANGUAGES = {
     "Français": {"flag": "🇫🇷", "country": "FR"},
@@ -48,6 +58,7 @@ TEXTS = {
     "Français": {
         "login_title": "Bienvenue sur zipngo",
         "login_desc": "L'écosystème RH pour booster votre carrière.",
+        "slogan": "La rencontre intelligente entre vos ambitions et les opportunités.",
         "email": "Email",
         "send_link": "Envoyer le lien magique",
         "link_sent": "✅ Lien envoyé à {email} ! Vérifiez votre boîte mail.",
@@ -269,7 +280,7 @@ if not st.session_state.auth:
         t = TEXTS[selected_lang]
 
         st.markdown("<h1 style='text-align:center; font-size: 52px; margin-bottom:0;'><span style='color:#1A237E;'>zip</span><span style='color:#00E5FF;'>ngo</span></h1>", unsafe_allow_html=True)
-        st.markdown(f"<p style='text-align:center; font-weight:bold; color:#1A237E;'>{t['login_title']}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align:center; font-weight:bold; color:#1A237E; font-size: 18px;'>{t['slogan']}</p>", unsafe_allow_html=True)
         st.divider()
 
         chosen_user_type = st.radio("Sélectionnez votre profil d'accès :", ["Candidat", "Employeur"], horizontal=True)
@@ -768,7 +779,6 @@ else:
                     else:
                         st.error("Le processus est archivé. L'anonymat complet est resté sauf et protégé.")
 
-    # ===== INTEGRATION DU MODULE DE VISIO & TIPS RE-STYLISÉ =====
     elif menu == t["video"]:
         st.header(t["video"])
         
