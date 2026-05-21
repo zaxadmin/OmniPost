@@ -487,7 +487,6 @@ else:
                 if upload_file_to_storage(up_file, st.session_state.user_id, "CV"):
                     st.success(t["upload_success"].format(type="CV") + f" Compétences extraites : {computed_skills}")
 
-    # ===== BLOC PROPULSION, SCRAPING ET RESTRICTION PAYWALL TEMPORAIRE =====
     elif menu == t["dispatch_cv"]:
         translations_dispatch = {
             "Français": {
@@ -716,7 +715,6 @@ else:
         else:
             st.info("Aucune offre d'emploi n'est disponible pour le moment.")
 
-    # ===== DOUBLE MATCH POST-ENTRETIEN =====
     elif menu == t["my_interviews"]:
         st.header("🤝 Suivi des Entretiens & Décisions Secrètes")
         st.write("Exprimez votre choix de suite après l'échange. L'anonymat mutuel n'est levé que si l'intérêt est réciproque.")
@@ -770,12 +768,47 @@ else:
                     else:
                         st.error("Le processus est archivé. L'anonymat complet est resté sauf et protégé.")
 
+    # ===== INTEGRATION DU MODULE DE VISIO & TIPS RE-STYLISÉ =====
     elif menu == t["video"]:
         st.header(t["video"])
-        st.markdown("<div class='candidate-card'><b>Salon d'entretien crypté de bout en bout (Actif)</b><br>Infrastructure OpenSource Jitsi Meet intégrée.</div>", unsafe_allow_html=True)
-        st.link_button(t["join"], "https://meet.jit.si/ZipngoSecureInterviewRoom")
+        
+        col_room, col_tips = st.columns([1.2, 1])
+        
+        with col_room:
+            st.markdown("""
+            <div class='candidate-card' style='border-left-color: #00E5FF; padding: 20px;'>
+                <h3 style='margin-top:0; color:#1A237E;'>🎥 Votre Salon d'Entretien Sécurisé</h3>
+                <p>Votre salon virtuel est prêt. L'infrastructure est cryptée de bout en bout pour garantir la confidentialité de vos échanges.</p>
+                <p style='font-size: 13px; color: #64748B;'>💡 <i>Conseil : Connectez-vous 5 minutes avant l'heure du rendez-vous.</i></p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.link_button("🚀 REJOINDRE L'ENTRETIEN VIDÉO", "https://meet.jit.si/ZipngoSecureInterviewRoom", use_container_width=True)
 
-    # ===== ONGLER CONFIGURATION DES ACCÈS LIMITÉS (SANS RECONDUCTION) =====
+        with col_tips:
+            st.markdown("### ⚡ Coach Vocal & Posture : Réussir sa visio")
+            st.write("En distanciel, 80% de l'impact passe par la voix et le cadrage. Voici les clés pour faire la différence :")
+            
+            with st.expander("🗣️ 1. L'Intonation & Le Rythme de la voix"):
+                st.markdown("""
+                * **Le piège du monocorde :** Derrière un écran, la voix perd naturellement en relief. Forcez-vous à sourire en parlant, cela s'entend immédiatement dans l'intonation (voix plus chaleureuse).
+                * **Le débit de parole :** Ralentissez de 10% par rapport à une conversation normale. Le stress fait accélérer, ce qui nuit à la clarté si la connexion internet a une légère latence.
+                * **Marquez des pauses :** Une pause de 2 secondes après une question montre que vous réfléchissez et structurez votre réponse. Ne meublez pas le silence par des *"Euh..."*.
+                """)
+                
+            with st.expander("👁️ 2. Le Regard & Le Cadrage (L'effet Présence)"):
+                st.markdown("""
+                * **Regardez l'objectif, pas l'écran !** Pour donner l'impression au recruteur que vous le regardez dans les yeux, fixez votre webcam lorsque vous parlez, et non sa vidéo.
+                * **La règle des tiers :** Votre visage doit occuper le tiers supérieur de l'écran. Cadrez-vous de la poitrine jusqu'au-dessus de la tête. 
+                * **Hauteur des yeux :** Surélevez votre ordinateur (avec des livres si besoin) pour que la caméra soit pile à hauteur de vos yeux. Évitez l'effet "contre-plongée" (caméra vers le menton).
+                """)
+                
+            with st.expander("💡 3. Éclairage & Environnement"):
+                st.markdown("""
+                * **La lumière face à vous :** Ne vous mettez jamais dos à une fenêtre (effet silhouette/contre-jour). Placez la source de lumière principale face à vous ou sur le côté.
+                * **Arrière-plan neutre :** Un fond épuré évite au recruteur de se distraire. Si ce n'est pas possible, rangez un maximum le champ de vision de la caméra.
+                """)
+
     elif menu == t["subscription"]:
         st.header("🎟️ Gestion de vos accès & Pass Privilèges")
         
