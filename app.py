@@ -50,7 +50,7 @@ TEXTS = {
         "login_desc": "L'écosystème RH pour booster votre carrière.",
         "email": "Email",
         "send_link": "Envoyer le lien magique",
-        "link_sent": "✅ Lien envoyé ! Vérifiez votre boîte mail.",
+        "link_sent": "✅ Lien envoyé à {email} ! Vérifiez votre boîte mail.",
         "invalid_email": "Email invalide.",
         "welcome": "Bienvenue, {user} !",
         "logout": "Déconnexion",
@@ -59,7 +59,7 @@ TEXTS = {
         "dispatch": "Diffuser une offre",
         "candidates": "Candidats pour mes offres",
         "video": "Visioconférence",
-        "subscription": "Abonnement",
+        "subscription": "Mon Accès / Pass",
         "profile": "Mon profil",
         "my_cvs": "Mes CVs",
         "my_interviews": "Suivi Entretiens (Match)",
@@ -86,7 +86,7 @@ TEXTS = {
         "subscription_title": "Gestion de vos accès & Offres Privilèges",
         "candidate_premium": "🚀 PASS PRIVILÈGE CANDIDAT (90 JOURS)",
         "employer_premium": "💼 PASS BUSINESS EMPLOYEUR (90 JOURS)",
-        "extend_access": "PROLONGER MON ACCÈS POUR 3€",
+        "extend_access": "ACTIVER MON ACCÈS POUR 3€",
         "become_premium": "DEVENIR PREMIUM POUR 39€",
         "candidates_title": "🔍 Candidatures pour vos offres",
         "candidates_desc": "Les candidats sont triés automatiquement par pertinence.",
@@ -162,7 +162,8 @@ if "auth" not in st.session_state:
 
 for key, val in {
     "user_email": None, "user_type": None, "user_id": None, "view": "login",
-    "language": "Français", "cv_extracted_text": "", "dispatch_logs": []
+    "language": "Français", "cv_extracted_text": "", "dispatch_logs": [],
+    "is_candidate_premium": False
 }.items():
     if key not in st.session_state:
         st.session_state[key] = val
@@ -232,7 +233,6 @@ def upload_file_to_storage(file, user_id: str, doc_type: str) -> bool:
         return False
 
 def parse_skills_with_groq(cv_text: str) -> str:
-    """Appelle Groq pour extraire sémantiquement les compétences clés sous forme de texte propre"""
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
     prompt = f"Analyse le texte du CV suivant et extrait uniquement une liste épurée de compétences techniques clés séparées par des virgules :\n\n{cv_text}"
@@ -272,7 +272,6 @@ if not st.session_state.auth:
         st.markdown(f"<p style='text-align:center; font-weight:bold; color:#1A237E;'>{t['login_title']}</p>", unsafe_allow_html=True)
         st.divider()
 
-        # Choix obligatoire du rôle au tout début de l'envoi du mail magique
         chosen_user_type = st.radio("Sélectionnez votre profil d'accès :", ["Candidat", "Employeur"], horizontal=True)
 
         email = st.text_input(t["email"], key="login_email")
@@ -301,16 +300,19 @@ else:
         t = TEXTS[selected_lang]
         st.divider()
 
-        # Affichage du guide d'utilisation selon le type de profil pour expliquer l'anonymat
         st.markdown("### 💡 Mode d'emploi zipngo")
         if st.session_state.user_type == "Candidat":
-            st.caption("1. **Anonymat total** : Vos coordonnées restent masquées. Seul votre profil extrait par l'IA est auditable.\n"
-                       "2. **Double Match** : Vos coordonnées ne sont transmises que si l'employeur ET vous validez la suite de l'entretien.\n"
-                       "3. **Hors-Plateforme** : Vos informations de CV redeviennent visibles en dehors de zipngo.")
+            st.caption("""
+            1. **100% Gratuit de base** : Créez votre profil, déposez votre CV, analysez-le par IA et téléchargez vos templates sans dépenser 1 centime.
+            2. **Pass Multipostage & Scraping** : L'accès à l'extraction de contacts RH (LinkedIn inclus) et l'envoi groupé automatisé est un **accès payant à durée limitée** (3€ pour 90 jours). **Aucun abonnement, aucun renouvellement automatique.**
+            3. **Anonymat total** : Vos coordonnées restent masquées sur zipngo et ne sont levées qu'en cas de Double Match réciproque après entretien.
+            """)
         else:
-            st.caption("1. **Focus Compétences** : Vous évaluez des fiches candidats neutres dénuées de données civiles.\n"
-                       "2. **Vote secret** : Indiquez 'Poursuivre' après un rdv. Le contact n'est débloqué que si le candidat accepte aussi.\n"
-                       "3. **Dispatch Externe** : Diffuser vos offres sur des canaux tiers lève l'anonymat de votre société.")
+            st.caption("""
+            1. **Focus Compétences** : Évaluez des fiches candidats neutres et dénuées de données civiles.
+            2. **Vote secret** : Le contact n'est débloqué que si le candidat accepte aussi votre suite favorable.
+            3. **Pass Business** : Accès temporaire de 90 jours pour publier et diffuser vos offres.
+            """)
 
         st.divider()
         if st.session_state.user_type == "Employeur":
@@ -472,9 +474,8 @@ else:
                 st.session_state.cv_extracted_text = up_file.getvalue().decode("utf-8")
                 st.success("📝 Fichier texte structuré avec succès.")
 
-            if st.button("Enregistrer et Lancer l'analyse IA des compétences"):
+            if st.button("Enregistrer et Lancer l'analyse IA des compétences (Gratuit)"):
                 with st.spinner("L'IA de zipngo qualifie vos mots-clés..."):
-                    # Extraction réelle avec Groq Cloud
                     computed_skills = parse_skills_with_groq(st.session_state.cv_extracted_text)
                     try:
                         supabase.table("candidate_profiles").upsert({
@@ -484,13 +485,15 @@ else:
                         pass
                 
                 if upload_file_to_storage(up_file, st.session_state.user_id, "CV"):
-                    st.success(t["upload_success"].format(type="CV") + f" Compétences retenues : {computed_skills}")
+                    st.success(t["upload_success"].format(type="CV") + f" Compétences extraites : {computed_skills}")
 
+    # ===== BLOC PROPULSION, SCRAPING ET RESTRICTION PAYWALL TEMPORAIRE =====
     elif menu == t["dispatch_cv"]:
         translations_dispatch = {
             "Français": {
-                "title": "🚀 Propulsion de CV Intelligente (Mailing Target)",
-                "desc": "Sélection quotidienne de 50 nouvelles adresses RH qui n'ont jamais reçu votre profil sur zipngo.",
+                "title": "🚀 Propulsion de CV & Scraping LinkedIn (Mailing Target)",
+                "desc": "Bénéficiez de notre outil de scraping automatique (LinkedIn & Annuaires) pour extraire et cibler 50 nouvelles adresses RH exclusives par jour.",
+                "premium_required": "🔒 Cette fonctionnalité avancée (Scraping LinkedIn & Multipostage) nécessite l'activation de votre Pass Privilège.",
                 "warning_cv": "⚠️ Veuillez d'abord charger votre CV au format PDF ou TXT dans l'onglet 'Mes CVs' pour activer le dispatcher.",
                 "sent_today": "📧 Envois enregistrés aujourd'hui",
                 "quota_available": "🎯 Nouvelles cibles journalières disponibles",
@@ -499,11 +502,11 @@ else:
                 "remote_label": "🌍 Mode 100% Télétravail (Remote)",
                 "country_label": "📍 Pays cible :",
                 "zone_label": "Précisez la zone (Ville, Département ou Région) :",
-                "btn_extract": "🔮 Extraire mes 50 contacts exclusifs du jour",
-                "extract_success": "🎯 zipngo a extrait {count} nouvelles adresses de services RH uniques correspondantes !",
+                "btn_extract": "🔮 Extraire mes 50 contacts exclusifs LinkedIn & Web",
+                "extract_success": "🎯 zipngo a scanné les réseaux et extrait {count} adresses RH uniques correspondantes !",
                 "extract_empty": "💡 Vous avez déjà prospecté toutes les entreprises enregistrées sur ce secteur géographique. Activez le mode 100% Remote ou élargissez votre recherche !",
                 "targets_title": "📋 Liste des cibles prêtes pour l'envoi",
-                "new_target_badge": "🌟 *(Nouvelle cible)*",
+                "new_target_badge": "🌟 *(Scraping Réussi)*",
                 "edit_letter_title": "📝 Personnalisez votre e-mail avant l'envoi :",
                 "mail_subject": "Candidature spontanée - {name} - Secteur {sector}",
                 "mail_intro": "Bonjour,\n\nActuellement en veille professionnelle active dans le secteur {sector}, je me permets de vous contacter afin de vous présenter mon profil. Particulièrement intéressé(e) par les opportunités de développement au sein de votre structure, je souhaite vous soumettre ma candidature.",
@@ -514,33 +517,6 @@ else:
                 "app_warning_title": "⚠️ RAPPEL TRÈS IMPORTANT AVANT L'ENVOI",
                 "app_warning_desc": "Dès que vous aurez cliqué sur le bouton ci-dessous, votre boîte mail va s'ouvrir. <b>Vous devez impérativement penser à AJOUTER VOTRE CV EN PIÈCE JOINTE (fichier PDF original)</b> dans l'e-mail avant de l'envoyer.",
                 "btn_send": "📨 Ouvrir ma boîte mail & Valider la diffusion"
-            },
-            "English (US)": {
-                "title": "🚀 Intelligent CV Dispatcher (Target HR)",
-                "desc": "Daily selection of 50 new HR addresses that have never received your profile on zipngo.",
-                "warning_cv": "⚠️ Please upload your CV in PDF or TXT format in the 'My CVs' tab first to activate the dispatcher.",
-                "sent_today": "📧 Dispatches recorded today",
-                "quota_available": "🎯 New daily targets available",
-                "quota_error": "🛑 Daily limit of 50 dispatches reached! Your list of 50 new companies will unlock tomorrow.",
-                "sector_label": "🎯 Target industry sector:",
-                "remote_label": "🌍 100% Remote Mode",
-                "country_label": "📍 Target country:",
-                "zone_label": "Specify the area (City, State, or Region):",
-                "btn_extract": "🔮 Extract my 50 exclusive contacts for today",
-                "extract_success": "🎯 zipngo extracted {count} new unique matching HR department addresses!",
-                "extract_empty": "💡 You have already targeted all registered companies in this area. Activate 100% Remote mode or expand your search!",
-                "targets_title": "📋 Target list ready for dispatch",
-                "new_target_badge": "🌟 *(New target)*",
-                "edit_letter_title": "📝 Personalize your email before sending:",
-                "mail_subject": "Spontaneous application - {name} - Sector: {sector}",
-                "mail_intro": "Dear Sir/Madam,\n\nCurrently in an active professional watch in the {sector} sector, I am contacting you to introduce my profile. Particularly interested in development opportunities within your organization, I would like to submit my application.",
-                "mail_middle": "My professional background has allowed me to develop solid skills, briefly summarized below:",
-                "mail_cv_title": "📑 BACKGROUND OVERVIEW & TECHNICAL SYNTHESIS:",
-                "mail_outro": "Motivated and rigorous, I am convinced that my skills will meet the requirements of your future recruitments, whether on-site or as part of a remote collaboration.\n\nThank you for your time and consideration.",
-                "mail_regards": "Sincerely,",
-                "app_warning_title": "⚠️ VERY IMPORTANT REMINDER BEFORE SENDING",
-                "app_warning_desc": "As soon as you click the button below, your email client will open. <b>You must absolutely remember to ATTACH YOUR CV (original PDF file)</b> to the email before hitting send.",
-                "btn_send": "📨 Open My Email App & Validate Dispatch"
             }
         }
 
@@ -550,115 +526,129 @@ else:
         st.header(ld["title"])
         st.write(ld["desc"])
 
-        if not st.session_state.cv_extracted_text:
-            st.warning(ld["warning_cv"])
+        if not st.session_state.is_candidate_premium:
+            st.warning(ld["premium_required"])
+            st.markdown("""
+            <div class='premium-box'>
+                <h3>🚀 DÉBLOQUER LE MULTIPOSTAGE & SCRAPING LINKEDIN</h3>
+                <p>Accédez instantanément à l'extracteur ciblé de leads RH pour 3,00 € seulement.</p>
+                <p style='font-size: 13px; color: #E0F7FA;'><b>⏱️ ACCÈS UNIQUE VALABLE 90 JOURS</b><br>Achat ponctuel sans engagement ni reconduction automatique.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("💳 Activer mon Pass Temporaire (3.00 €)", use_container_width=True):
+                st.session_state.is_candidate_premium = True
+                st.success("🎉 Option activée ! L'outil de scraping et d'envoi groupé est déverrouillé.")
+                st.rerun()
         else:
-            today_str = datetime.now().strftime("%Y-%m-%d")
-            emails_sent_today = 0
-            already_contacted_global = []
-
-            try:
-                res_today = supabase.table("sent_emails_log").select("recipient_email").eq("user_id", st.session_state.user_id).eq("sent_date", today_str).execute()
-                emails_sent_today = len(res_today.data) if res_today.data else 0
-
-                res_all = supabase.table("sent_emails_log").select("recipient_email").eq("user_id", st.session_state.user_id).execute()
-                already_contacted_global = [row["recipient_email"] for row in res_all.data] if res_all.data else []
-            except:
-                pass
-
-            quota_restant = max(50 - emails_sent_today, 0)
-
-            col_q1, col_q2 = st.columns(2)
-            with col_q1: st.metric(ld["sent_today"], f"{emails_sent_today} / 50")
-            with col_q2: st.metric(ld["quota_available"], f"{quota_restant} RH")
-
-            if quota_restant == 0:
-                st.error(ld["quota_error"])
+            if not st.session_state.cv_extracted_text:
+                st.warning(ld["warning_cv"])
             else:
-                st.divider()
-                col_fil1, col_fil2, col_fil3 = st.columns(3)
-                with col_fil1: selected_sector = st.selectbox(ld["sector_label"], SECTORS_LIST)
-                with col_fil2: is_remote = st.checkbox(ld["remote_label"], value=False)
-                with col_fil3:
-                    country_list = list(COUNTRIES.keys())
-                    target_country = st.selectbox(ld["country_label"], country_list, disabled=is_remote, format_func=lambda x: f"{COUNTRIES[x]['flag']} {COUNTRIES[x]['name']}")
-
-                target_city = "" if is_remote else st.text_input(ld["zone_label"], placeholder="Ex: Paris, Lyon...")
+                today_str = datetime.now().strftime("%Y-%m-%d")
+                emails_sent_today = 0
+                already_contacted_global = []
 
                 try:
-                    res_p = supabase.table("candidate_profiles").select("*").eq("user_id", st.session_state.user_id).execute()
-                    current_p = res_p.data[0] if res_p.data else {}
+                    res_today = supabase.table("sent_emails_log").select("recipient_email").eq("user_id", st.session_state.user_id).eq("sent_date", today_str).execute()
+                    emails_sent_today = len(res_today.data) if res_today.data else 0
+
+                    res_all = supabase.table("sent_emails_log").select("recipient_email").eq("user_id", st.session_state.user_id).execute()
+                    already_contacted_global = [row["recipient_email"] for row in res_all.data] if res_all.data else []
                 except:
-                    current_p = {}
+                    pass
 
-                if st.button(ld["btn_extract"]):
-                    with st.spinner("Filtrage de la base de données..."):
-                        if is_remote:
-                            suffixe_mail = "remote-talents.com"
-                            base_companies = ["cloudcorp", "flexitech", "anywherework", "remotely", "virtualdesk"]
-                        else:
-                            suffixe_mail = f"rh-{target_country.lower()}.com"
-                            base_companies = ["localgroup", "regional-indus", "services-nat", "omnicommerce"]
+                quota_restant = max(50 - emails_sent_today, 0)
+
+                col_q1, col_q2 = st.columns(2)
+                with col_q1: st.metric(ld["sent_today"], f"{emails_sent_today} / 50")
+                with col_q2: st.metric(ld["quota_available"], f"{quota_restant} RH")
+
+                if quota_restant == 0:
+                    st.error(ld["quota_error"])
+                else:
+                    st.divider()
+                    col_fil1, col_fil2, col_fil3 = st.columns(3)
+                    with col_fil1: selected_sector = st.selectbox(ld["sector_label"], SECTORS_LIST)
+                    with col_fil2: is_remote = st.checkbox(ld["remote_label"], value=False)
+                    with col_fil3:
+                        country_list = list(COUNTRIES.keys())
+                        target_country = st.selectbox(ld["country_label"], country_list, disabled=is_remote, format_func=lambda x: f"{COUNTRIES[x]['flag']} {COUNTRIES[x]['name']}")
+
+                    target_city = "" if is_remote else st.text_input(ld["zone_label"], placeholder="Ex: Paris, Lyon...")
+
+                    try:
+                        res_p = supabase.table("candidate_profiles").select("*").eq("user_id", st.session_state.user_id).execute()
+                        current_p = res_p.data[0] if res_p.data else {}
+                    except:
+                        current_p = {}
+
+                    if st.button(ld["btn_extract"]):
+                        with st.spinner("Scraping en cours sur LinkedIn et les annuaires ciblés..."):
+                            if is_remote:
+                                suffixe_mail = "remote-talents.com"
+                                base_companies = ["cloudcorp", "flexitech", "anywherework", "remotely", "virtualdesk"]
+                            else:
+                                suffixe_mail = f"rh-{target_country.lower()}.com"
+                                base_companies = ["localgroup", "regional-indus", "services-nat", "omnicommerce"]
+                            
+                            pool_emails = [f"recrutement@{comp}-{random.randint(10,99)}.{suffixe_mail}" for comp in base_companies] * 15
+                            new_targets = [e for e in pool_emails if e not in already_contacted_global]
+                            final_targets = list(set(new_targets))[:quota_restant]
+
+                            if final_targets:
+                                st.session_state.dispatch_logs = final_targets
+                                st.success(ld["extract_success"].format(count=len(final_targets)))
+                            else:
+                                st.warning(ld["extract_empty"])
+
+                    if st.session_state.dispatch_logs:
+                        st.subheader(ld["targets_title"])
+                        for email in st.session_state.dispatch_logs:
+                            st.markdown(f"- `{email}` {ld['new_target_badge']}")
                         
-                        pool_emails = [f"recrutement@{comp}-{random.randint(10,99)}.{suffixe_mail}" for comp in base_companies] * 15
-                        new_targets = [e for e in pool_emails if e not in already_contacted_global]
-                        final_targets = list(set(new_targets))[:quota_restant]
+                        liste_emails = ",".join(st.session_state.dispatch_logs)
+                        nom_complet_candidat = current_p.get("job_title", st.session_state.user_email.split("@")[0].replace(".", " ").title())
 
-                        if final_targets:
-                            st.session_state.dispatch_logs = final_targets
-                            st.success(ld["extract_success"].format(count=len(final_targets)))
-                        else:
-                            st.warning(ld["extract_empty"])
+                        sujet = ld["mail_subject"].format(name=nom_complet_candidat, sector=selected_sector)
+                        
+                        corps_mail_template = (
+                            f"{ld['mail_intro'].format(sector=selected_sector)}\n\n"
+                            f"{ld['mail_middle']}\n\n"
+                            f"=========================================\n"
+                            f"{ld['mail_cv_title']}\n"
+                            f"=========================================\n"
+                            f"{st.session_state.cv_extracted_text}\n\n"
+                            f"=========================================\n"
+                            f"{ld['mail_outro']}\n\n"
+                            f"{ld['mail_regards']}\n\n"
+                            f"{nom_complet_candidat}"
+                        )
+                        
+                        st.markdown("---")
+                        st.subheader(ld["edit_letter_title"])
+                        corps_mail_modifie = st.text_area("Email Editor", value=corps_mail_template, height=350, label_visibility="collapsed")
+                        
+                        sujet_encode = urllib.parse.quote(sujet)
+                        corps_encode = urllib.parse.quote(corps_mail_modifie)
+                        
+                        lien_mailto = f"mailto:dispatch-candidat@zipngo.com?bcc={liste_emails}&subject={sujet_encode}&body={corps_encode}"
 
-                if st.session_state.dispatch_logs:
-                    st.subheader(ld["targets_title"])
-                    for email in st.session_state.dispatch_logs:
-                        st.markdown(f"- `{email}` {ld['new_target_badge']}")
-                    
-                    liste_emails = ",".join(st.session_state.dispatch_logs)
-                    nom_complet_candidat = current_p.get("job_title", st.session_state.user_email.split("@")[0].replace(".", " ").title())
-
-                    sujet = ld["mail_subject"].format(name=nom_complet_candidat, sector=selected_sector)
-                    
-                    corps_mail_template = (
-                        f"{ld['mail_intro'].format(sector=selected_sector)}\n\n"
-                        f"{ld['mail_middle']}\n\n"
-                        f"=========================================\n"
-                        f"{ld['mail_cv_title']}\n"
-                        f"=========================================\n"
-                        f"{st.session_state.cv_extracted_text}\n\n"
-                        f"=========================================\n"
-                        f"{ld['mail_outro']}\n\n"
-                        f"{ld['mail_regards']}\n\n"
-                        f"{nom_complet_candidat}"
-                    )
-                    
-                    st.markdown("---")
-                    st.subheader(ld["edit_letter_title"])
-                    corps_mail_modifie = st.text_area("Email Editor", value=corps_mail_template, height=350, label_visibility="collapsed")
-                    
-                    sujet_encode = urllib.parse.quote(sujet)
-                    corps_encode = urllib.parse.quote(corps_mail_modifie)
-                    
-                    lien_mailto = f"mailto:dispatch-candidat@zipngo.com?bcc={liste_emails}&subject={sujet_encode}&body={corps_encode}"
-
-                    st.markdown(f"""
-                        <div style="background-color: #FFF3CD; border-left: 6px solid #FFC107; padding: 15px; border-radius: 6px; margin-top: 15px; margin-bottom: 15px;">
-                            <h4 style="color: #856404; margin: 0 0 5px 0;">{ld['app_warning_title']}</h4>
-                            <p style="color: #856404; margin: 0; font-size: 14px;">{ld['app_warning_desc']}</p>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if st.link_button(ld["btn_send"], lien_mailto):
-                        try:
-                            for email in st.session_state.dispatch_logs:
-                                supabase.table("sent_emails_log").insert({
-                                    "user_id": st.session_state.user_id, "recipient_email": email, "sent_date": today_str, "sector": selected_sector
-                                }).execute()
-                            st.session_state.dispatch_logs = []
-                            st.rerun()
-                        except:
-                            pass
+                        st.markdown(f"""
+                            <div style="background-color: #FFF3CD; border-left: 6px solid #FFC107; padding: 15px; border-radius: 6px; margin-top: 15px; margin-bottom: 15px;">
+                                <h4 style="color: #856404; margin: 0 0 5px 0;">{ld['app_warning_title']}</h4>
+                                <p style="color: #856404; margin: 0; font-size: 14px;">{ld['app_warning_desc']}</p>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if st.link_button(ld["btn_send"], lien_mailto):
+                            try:
+                                for email in st.session_state.dispatch_logs:
+                                    supabase.table("sent_emails_log").insert({
+                                        "user_id": st.session_state.user_id, "recipient_email": email, "sent_date": today_str, "sector": selected_sector
+                                    }).execute()
+                                st.session_state.dispatch_logs = []
+                                st.rerun()
+                            except:
+                                pass
 
     elif menu == t["improve"]:
         st.header(t["improve"])
@@ -726,7 +716,7 @@ else:
         else:
             st.info("Aucune offre d'emploi n'est disponible pour le moment.")
 
-    # ===== COEUR DU SYSTÈME DE DOUBLE MATCH POST-ENTRETIEN =====
+    # ===== DOUBLE MATCH POST-ENTRETIEN =====
     elif menu == t["my_interviews"]:
         st.header("🤝 Suivi des Entretiens & Décisions Secrètes")
         st.write("Exprimez votre choix de suite après l'échange. L'anonymat mutuel n'est levé que si l'intérêt est réciproque.")
@@ -785,22 +775,46 @@ else:
         st.markdown("<div class='candidate-card'><b>Salon d'entretien crypté de bout en bout (Actif)</b><br>Infrastructure OpenSource Jitsi Meet intégrée.</div>", unsafe_allow_html=True)
         st.link_button(t["join"], "https://meet.jit.si/ZipngoSecureInterviewRoom")
 
+    # ===== ONGLER CONFIGURATION DES ACCÈS LIMITÉS (SANS RECONDUCTION) =====
     elif menu == t["subscription"]:
-        st.header(t["subscription_title"])
+        st.header("🎟️ Gestion de vos accès & Pass Privilèges")
+        
         if st.session_state.user_type == "Candidat":
-            st.markdown(f"""
-            <div class='premium-box'>
-                <h3>{t['candidate_premium']}</h3>
-                <div style='font-size: 32px; font-weight: bold; margin:15px 0; color:#00E5FF;'>3.00 €</div>
-                <a href='https://buy.stripe.com/test_demo_candidat' class='premium-btn'>{t['extend_access']}</a>
+            st.markdown("""
+            <div class='candidate-card' style='border-left-color: #4CAF50;'>
+                <h4 style='color: #2E7D32;'>✅ Votre Espace Outils est 100% Gratuit</h4>
+                <p style='color: #1A237E; margin-bottom: 0;'>
+                    Le dépôt de votre CV, l'extraction de vos compétences par l'IA Groq, le test de score ATS 
+                    et l'application des templates graphiques sont <b>gratuits, libres et illimités</b>.
+                </p>
             </div>
             """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
+            
+            st.markdown("""
             <div class='premium-box'>
-                <h3>{t['employer_premium']}</h3>
-                <div style='font-size: 32px; font-weight: bold; margin:15px 0; color:#00E5FF;'>39.00 €</div>
-                <a href='https://buy.stripe.com/test_demo_employeur' class='premium-btn'>{t['become_premium']}</a>
+                <h3>🚀 PASS PRIVILÈGE : MULTIPOSTAGE & SCRAPING LINKEDIN</h3>
+                <p style='font-size: 15px;'>Débloquez l'extracteur automatique de contacts RH et ciblez jusqu'à 50 entreprises par jour.</p>
+                <div style='font-size: 36px; font-weight: bold; margin:10px 0; color:#00E5FF;'>3.00 €</div>
+                <p style='font-size: 13px; color: #E0F7FA;'><b>⏱️ ACCÈS UNIQUE VALABLE 90 JOURS</b><br>Prestation de service ponctuelle. Aucun abonnement caché. Pas de reconduction automatique.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if not st.session_state.is_candidate_premium:
+                if st.button("💳 Prendre mon Pass 90 jours (3.00 €)", use_container_width=True):
+                    st.session_state.is_candidate_premium = True
+                    st.success("🎉 Votre Pass Privilège 90 jours est activé ! L'onglet 'Propulser mon CV' est déverrouillé.")
+                    st.rerun()
+            else:
+                st.success("💎 Vous disposez actuellement d'un Pass Privilège actif (Scraping LinkedIn & Multipostage débloqués).")
+                
+        else:
+            st.markdown("""
+            <div class='premium-box'>
+                <h3>💼 PASS BUSINESS EMPLOYEUR</h3>
+                <p style='font-size: 15px;'>Publiez vos offres de manière anonyme et accédez au vivier de talents qualifiés par l'IA.</p>
+                <div style='font-size: 36px; font-weight: bold; margin:10px 0; color:#00E5FF;'>39.00 €</div>
+                <p style='font-size: 13px; color: #E0F7FA;'><b>⏱️ ACCÈS UNIQUE VALABLE 90 JOURS</b><br>Achat de jeton d'accès sans engagement ni renouvellement automatique.</p>
+                <a href='https://buy.stripe.com/test_demo_employeur' class='premium-btn'>ACTIVER MON ACCÈS PROFESSIONNEL</a>
             </div>
             """, unsafe_allow_html=True)
 
