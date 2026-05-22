@@ -9,7 +9,7 @@ import json
 import os
 
 # --- CONFIGURATION DE PAGE ---
-st.set_page_config(page_title="zipngo", layout="wide", page_icon="🚀")
+st.set_page_config(page_title="zipngo", layout="wide", page_icon="🍊")
 
 # --- INITIALISATION DES APIS (SECRETS) ---
 try:
@@ -52,9 +52,12 @@ for lang in ["Español", "Deutsch", "Italiano", "Português", "Nederlands", "Р�
 if "lang" not in st.session_state:
     st.session_state.lang = "Français"
 
-selected_lang = st.sidebar.selectbox("🌐 Language / Langue", list(LANGUAGES.keys()), index=list(LANGUAGES.keys()).index(st.session_state.lang))
-st.session_state.lang = selected_lang
-t = LANGUAGES[st.session_state.lang]
+# --- BARRE DE SÉLECTION DE LA LANGUE TOUT EN HAUT ---
+col_logo, col_lang = st.columns([5, 1])
+with col_lang:
+    selected_lang = st.selectbox("🌐", list(LANGUAGES.keys()), index=list(LANGUAGES.keys()).index(st.session_state.lang), label_visibility="collapsed")
+    st.session_state.lang = selected_lang
+    t = LANGUAGES[st.session_state.lang]
 
 # --- FONCTIONS REELLES IA ---
 def appeler_groq_ia(prompt: str, system_instruction: str) -> str:
@@ -83,7 +86,6 @@ def calculer_score_matching_ia(cv_text: str, offre_text: str) -> int:
 
 # --- LOGIQUE MISE À JOUR AUTOMATIQUE ENTREPRISES (7 JOURS) ---
 def synchroniser_nouvelles_entreprises():
-    """Vérifie et charge les nouvelles entreprises toutes les 24h x 7 si nécessaire"""
     mises_a_jour_anciennes = supabase.table("app_settings").select("*").eq("key", "last_company_scraping").execute().data
     devoir_scrapar = False
     maintenant = datetime.now()
@@ -96,19 +98,13 @@ def synchroniser_nouvelles_entreprises():
             devoir_scrapar = True
             
     if devoir_scrapar:
-        # Simulation d'extraction web ou appel API externe des plateformes cibles
-        # On compare avec le CSV de référence existant (ou base de données)
         entreprises_existantes = [emp["company_name"] for emp in supabase.table("users").select("company_name").eq("user_type", "Employeur").execute().data if emp.get("company_name")]
-        
-        # Exemple de découverte de nouvelles structures non listées
         nouvelles_entreprises_decouvertes = ["Tech Innov Corp", "Avenir Digital", "Global RH 2026"]
         
         for ent in nouvelles_entreprises_decouvertes:
             if ent not in entreprises_existantes:
-                # Injection automatique dans le système interne d'offres ou d'entreprises cibles
                 pass
                 
-        # Sauvegarde du timestamp actuel de synchronisation
         nouveau_timestamp = {"key": "last_company_scraping", "value": maintenant.isoformat()}
         if not mises_a_jour_anciennes:
             supabase.table("app_settings").insert(nouveau_timestamp).execute()
@@ -118,7 +114,7 @@ def synchroniser_nouvelles_entreprises():
 try:
     synchroniser_nouvelles_entreprises()
 except:
-    pass # Protection transparente en cas d'absence initiale de la table système app_settings
+    pass
 
 # --- CAPTURE DU LIEN MAGIQUE DANS L'URL ---
 if "auth" not in st.session_state: st.session_state.auth = False
@@ -155,24 +151,44 @@ st.markdown("""
     .gold-rule { background-color: #E6FFFA; border-left: 4px solid #319795; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
     .candidate-card { padding: 15px; background-color: #FFFFFF; border-left: 4px solid #00E5FF; border-radius: 6px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .info-rules { background-color: #EBF8FF; border-left: 4px solid #3182CE; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
+    .marketing-box { background: linear-gradient(135deg, #1A237E, #2A36B1); color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .marketing-box h3 { color: #00E5FF !important; margin-top: 0; }
+    .marketing-grid { display: flex; justify-content: space-around; gap: 15px; margin-top: 20px; flex-wrap: wrap; }
+    .marketing-item { background: rgba(255,255,255,0.1); padding: 12px 20px; border-radius: 8px; font-size: 14px; flex: 1; min-width: 200px; }
     .custom-footer { text-align: center; color: #64748B; padding-top: 30px; font-size: 13px; line-height: 1.8; }
-    .custom-footer a { color: #1A237E !important; text-decoration: none; font-weight: 600; margin: 0 10px; }
-    .custom-footer a:hover { color: #00E5FF !important; text-decoration: underline; }
+    .custom-footer button { background: none !important; border: none !important; padding: 0 !important; color: #1A237E !important; text-decoration: none; cursor: pointer; font-weight: 600; font-size: 13px; }
+    .custom-footer button:hover { color: #00E5FF !important; text-decoration: underline; }
 </style>
 """, unsafe_allow_html=True)
 
 # --- EXECUTION FLUX D'APPLICATION ---
 if not st.session_state.auth:
-    _, col, _ = st.columns([1, 1.5, 1])
+    _, col, _ = st.columns([0.5, 2.0, 0.5])
     with col:
-        st.markdown("<h1 style='text-align:center;'><span style='color:#1A237E;'>zip</span><span style='color:#00E5FF;'>ngo</span></h1>", unsafe_allow_html=True)
-        st.markdown(f"<p style='text-align:center; font-weight:bold;'>{t['welcome']}</p>", unsafe_allow_html=True)
-        st.divider()
+        # Titre avec le Pouce Orange à côté
+        st.markdown("<h1 style='text-align:center; font-size: 50px; margin-bottom: 5px;'><span style='color:#1A237E;'>zip</span><span style='color:#00E5FF;'>ngo</span> <span style='font-size: 40px;'>🍊</span></h1>", unsafe_allow_html=True)
+        
+        # Bloc marketing d'engagement (Candidats + Employeurs)
+        st.markdown("""
+        <div class='marketing-box'>
+            <h3>Le point de rencontre parfait. Zéro perte de temps. Anonymat absolu.</h3>
+            <p style='font-size: 16px; opacity: 0.95;'>
+                Que vous soyez un <b>Candidat</b> à la recherche du poste idéal ou un <b>Employeur</b> en quête du talent rare, 
+                Zipngo transforme votre manière de recruter. Concentrez-vous uniquement sur les compétences.
+            </p>
+            <div class='marketing-grid'>
+                <div class='marketing-item'>🔒 <b>Anonymat Total des 2 Côtés</b><br><small>Identités masquées jusqu'à la fin de l'entretien vidéo.</small></div>
+                <div class='marketing-item'>⚡ <b>Gain de Temps Record</b><br><small>Matching intelligent via IA. Plus aucun tri de CV inutile.</small></div>
+                <div class='marketing-item'>🍊 <b>Double Validation</b><br><small>Mise en relation uniquement en cas d'intérêt mutuel.</small></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown(f"<p style='text-align:center; font-weight:bold; color:#1A237E; font-size:18px;'>{t['welcome']}</p>", unsafe_allow_html=True)
 
         role = st.radio("Je souhaite m'inscrire ou me connecter en tant que :", [t["role_cand"], t["role_emp"]], horizontal=True)
         email = st.text_input("Adresse e-mail :").strip().lower()
 
-        # Bloc dynamique basé sur le choix du rôle pour l'Employeur
         company_name, siret, phone, manager_name = "", "", "", ""
         if role == t["role_emp"]:
             st.markdown("### 🏢 Informations obligatoires Entreprise")
@@ -189,7 +205,6 @@ if not st.session_state.auth:
             db_role = "Candidat" if role == t["role_cand"] else "Employeur"
             res = supabase.table("users").select("*").eq("user_email", email).execute()
             
-            # Vérification des champs requis si c'est un nouvel employeur
             if len(res.data) == 0 and db_role == "Employeur":
                 if not (company_name and siret and phone and manager_name):
                     st.error("❌ Tous les champs entreprise marqués d'un astérisque (*) sont obligatoires pour l'inscription d'un Employeur.")
@@ -198,7 +213,6 @@ if not st.session_state.auth:
                     st.error("❌ Le numéro de SIRET doit comporter exactement 14 chiffres.")
                     st.stop()
 
-            # Enregistrement ou mise à jour de la table d'accès
             if len(res.data) == 0:
                 expiration_base = (datetime.now() + timedelta(days=90)).isoformat()
                 user_data = {
@@ -219,7 +233,6 @@ if not st.session_state.auth:
                     st.error(f"Cette adresse e-mail est déjà rattachée à un espace {res.data[0]['user_type']}.")
                     st.stop()
 
-            # Déclenchement du Magic Link
             try:
                 supabase.auth.signInWithOtp({"email": email})
                 st.success("✨ Un lien magique vient de vous être envoyé ! Ouvrez votre boîte de réception pour vous connecter instantanément.")
@@ -231,7 +244,7 @@ else:
     is_pass_valide = date_exp > datetime.now()
 
     with st.sidebar:
-        st.markdown("<h2 style='color:white;'>zipngo</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='color:white;'>zipngo 🍊</h2>", unsafe_allow_html=True)
         st.write(f"Espace : **{user_db['user_type']}**")
         st.write(f"`{st.session_state.user_email}`")
         if user_db['user_type'] == "Employeur":
@@ -280,7 +293,7 @@ else:
             """, unsafe_allow_html=True)
 
     # ==========================================
-    # LOGIQUE : MON PROFIL CANDIDAT & ATS (DÉPÔT OBLIGATOIRE)
+    # LOGIQUE : MON PROFIL CANDIDAT & ATS
     # ==========================================
     elif menu == t["profile"]:
         st.header(t["profile"])
@@ -308,36 +321,30 @@ else:
                     st.rerun()
 
     # ==========================================
-    # LOGIQUE : PROPULSION CV (DÉDUPLICATION DES E-MAILS)
+    # LOGIQUE : PROPULSION CV (ANTI-DOUBLON)
     # ==========================================
     elif menu == t["propulsion"]:
         st.header(t["propulsion"])
         st.markdown(f"<div class='gold-rule'>{t['anonymity_alert']}</div>", unsafe_allow_html=True)
-        
         st.subheader("📬 Entreprises cibles trouvées pour votre profil")
         
-        # 1. Extraction de la liste globale des e-mails d'entreprises disponibles
         toutes_entreprises = supabase.table("users").select("id", "company_name", "user_email").eq("user_type", "Employeur").execute().data
-        
-        # 2. Récupération des e-mails déjà traités/envoyés par ce candidat spécifique
         emails_deja_propulses = [
             p["recipient_email"] for p in supabase.table("propulsion_history").select("recipient_email").eq("candidat_id", st.session_state.user_id).execute().data
         ]
         
-        # 3. Filtrage strict : Exclure tous les e-mails déjà contactés par le passé
         entreprises_filtrées = [emp for emp in toutes_entreprises if emp["user_email"] not in emails_deja_propulses]
         
         if not entreprises_filtrées:
             st.info("✨ Bravo ! Vous avez optimisé et envoyé votre profil à l'ensemble des entreprises cibles disponibles. Aucune nouvelle adresse pour le moment.")
         else:
             st.write(f"Filtrage actif : **{len(entreprises_filtrées)}** nouvelles opportunités uniques trouvées.")
-            for emp in entreprises_filtrées[:5]: # Affichage par lots de 5
+            for emp in entreprises_filtrées[:5]:
                 col_ent, col_act = st.columns([3, 1])
                 with col_ent:
                     st.markdown(f"🏢 **{emp['company_name']}** — *Nouveau contact unique dédupliqué*")
                 with col_act:
                     if st.button(f"Propulser mon profil", key=f"prop_{emp['id']}"):
-                        # Enregistrement immédiat dans l'historique pour verrouiller l'e-mail définitivement
                         supabase.table("propulsion_history").insert({
                             "candidat_id": st.session_state.user_id,
                             "recipient_email": emp["user_email"],
@@ -396,7 +403,7 @@ else:
                 """, unsafe_allow_html=True)
 
     # ==========================================
-    # AUTRES STRUCTURES ET ONGLETS RECIPIENTS
+    # AUTRES STRUCTURES
     # ==========================================
     elif menu == t["broadcast"]:
         st.header(t["broadcast"])
@@ -423,15 +430,84 @@ else:
             - **Téléphone :** {user_db.get('phone')}
             - **Responsable :** {user_db.get('manager_name')}
             """)
+            
+        if st.session_state.user_email == "creationsites06@gmail.com":
+            st.divider()
+            st.subheader("🛠️ Espace Administrateur : Extraction des données")
+            data_entreprises = supabase.table("users").select("*").eq("user_type", "Employeur").execute().data
+            if data_entreprises:
+                df = pd.DataFrame(data_entreprises)
+                csv_data = df.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📥 Télécharger le CSV complet des Entreprises (Base de données)",
+                    data=csv_data,
+                    file_name=f"entreprises_zipngo_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            else:
+                st.info("Aucune entreprise enregistrée dans la base de données pour le moment.")
+
+# --- INJECTION ET LOGIQUE DIALOGUE POUR CGV & MENTIONS LEGALES ---
+@st.dialog("Conditions Générales de Vente (CGV)")
+def afficher_cgv():
+    st.markdown("""
+    ### CONDITIONS GÉNÉRALES DE VENTE & D'UTILISATION (CGV/CGU)
+    **En vigueur au 23 mai 2026**
+    
+    ---
+    #### 1. Objet de la plateforme
+    L'application **zipngo** est un service de matching technologique et d'optimisation de processus RH propulsé par l'Intelligence Artificielle. Elle met en relation de manière anonymisée des profils Candidats et des structures Employeurs.
+    
+    #### 2. Principe Fondamental de l'Anonymat
+    Zipngo garantit un **anonymat total, bilatéral et strict** (nom, prénom, coordonnées, raison sociale, e-mail) tout au long du processus initial de sélection et pendant l'intégralité de l'entretien vidéo synchrone natif. La levée de l'anonymat ne s'effectue qu'après validation conjointe post-entretien (Principe du Double Pouce Orange).
+    
+    #### 3. Conditions Financières et Abonnements
+    * **Espace Candidat :** L'accès aux fonctionnalités de base et le dépôt du CV sont entièrement gratuits pour une période d'essai initiale de 3 mois.
+    * **Espace Employeur :** L'accès à la création et la diffusion d'offres nécessite l'achat d'un Pass d'accès (90 jours). À l'expiration du Pass, la publication est suspendue mais le tiroir d'archivage historique reste accessible gratuitement à vie.
+    
+    #### 4. Responsabilités
+    L'éditeur ne saurait être tenu responsable des déclarations inexactes faites par les utilisateurs (SIRET erronés, faux diplômes). Zipngo fournit un outil algorithmique d'aide à la décision mais ne garantit pas la conclusion définitive d'un contrat de travail.
+    """)
+
+@st.dialog("Mentions Légales & RGPD")
+def afficher_mentions_legales():
+    st.markdown("""
+    ### MENTIONS LÉGALES & PROTECTION DES DONNÉES
+    **En vigueur au 23 mai 2026**
+    
+    ---
+    #### 1. Édition du site
+    L'application **zipngo** et l'intégralité de ses modules algorithmiques sont la propriété exclusive de :
+    * **Créatrice & Développeuse :** Liliane RAKOTOBE
+    * **Contact Électronique :** creationsites06@gmail.com
+    
+    
+  
+ #### 2. Traitement des Données Personnelles (RGPD)
+    Conformément aux directives européennes en vigueur, vous disposez d'un droit d'accès, de rectification et de suppression des données vous concernant. 
+    * **Données collectées :** E-mail d'authentification, contenu textuel extrait du CV, informations d'identification d'entreprise (SIRET, Responsable, Téléphone).
+    * **Finalité :** Exécution stricte de la mise en relation par matching affinitaire. Vos données ne sont jamais vendues, cédées ou louées à des tiers commerciaux.
+    * **Conservation :** Les historiques d'échanges et tiroirs d'archivage restent conservés jusqu'à ce que l'utilisateur demande explicitement la suppression définitive de son compte.
+    """)
 
 # --- FOOTER ---
-st.markdown("""
-<div class='custom-footer'>
-    <hr>
-    © 2026 zipngo | App Creator : <b>Liliane RAKOTOBE</b> 
-    <a href="mailto:creationsites06@gmail.com" title="Contacter l'administrateur">✉️</a>
-    <br>
-    <a href="#" onclick="alert('Conditions Générales de Vente (CGV) de la plateforme')">CGV</a> | 
-    <a href="#" onclick="alert('Mentions Légales et Gestion des Données')">Mentions Légales</a>
-</div>
-""", unsafe_allow_html=True)
+st.markdown("<hr>", unsafe_allow_html=True)
+footer_col1, footer_col2, footer_col3 = st.columns([1, 2, 1])
+
+with footer_col2:
+    st.markdown("""
+    <div style='text-align: center; color: #64748B; font-size: 13px;'>
+        © 2026 zipngo | App Creator : <b>Liliane RAKOTOBE</b> 
+        <a href="mailto:creationsites06@gmail.com" style="text-decoration:none;">✉️</a>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Boutons d'action natifs Streamlit stylisés en ligne pour ouvrir les modales légitimes
+    btn_col1, btn_col2 = st.columns(2)
+    with btn_col1:
+        if st.button("⚖️ Conditions Générales (CGV)", use_container_width=True, key="btn_cgv_footer"):
+            afficher_cgv()
+    with btn_col2:
+        if st.button("🔒 Mentions Légales & RGPD", use_container_width=True, key="btn_ml_footer"):
+            afficher_mentions_legales()
