@@ -32,14 +32,11 @@ def traiter_blacklist():
 
 traiter_blacklist()
 
-# --- DIALOGUES CGV ET MENTIONS ---
+# --- NOUVEAUX DIALOGUES (CGV / MENTIONS) ---
 @st.dialog("⚖️ Conditions Générales de Vente")
-def afficher_cgv():
-    st.write("Zipngo connecte talents et entreprises digitales sur 20 pays. Pour les postes 100% remote, les conditions sont définies entre le talent et l'entreprise digitale.")
-
+def afficher_cgv(): st.write("Zipngo permet la diffusion locale ou 100% Remote sans frontières. Les conditions sont régies par le contrat propre à chaque employeur.")
 @st.dialog("🔒 Mentions Légales")
-def afficher_mentions_legales():
-    st.write("Éditeur : Liliane RAKOTOBE. Contact : contact@zipngo.app. Plateforme globale de recrutement digital.")
+def afficher_mentions_legales(): st.write("Éditeur : Liliane RAKOTOBE. Contact : contact@zipngo.app")
 
 # --- DICTIONNAIRE DE LANGUES ---
 LANGUAGES = {
@@ -51,7 +48,8 @@ LANGUAGES = {
         "submit_cv_req": "Action obligatoire pour activer votre inscription", "cv_desc": "L'inscription est gratuite pour 3 mois, mais vous devez obligatoirement déposer votre CV pour le matching automatique.",
         "premium_active": "Option Premium active : Optimisations ATS illimitées.", "premium_info": "🎁 Version Gratuite : Il vous reste {} / 5 réfections de CV.",
         "anonymity_alert": "📢 NOTE CONCERNANT L'ANONYMAT SUR LE DISPATCH : L'envoi s'exécutant via votre messagerie personnelle, votre e-mail réel sera visible.",
-        "gold_rule_title": "✨ RÈGLE D'OR DE PUBLICATION AUTOMATIQUE :", "gold_rule_desc": "Toute offre enregistrée est immédiatement intégrée au flux interne de l'application."
+        "gold_rule_title": "✨ RÈGLE D'OR DE PUBLICATION AUTOMATIQUE :", "gold_rule_desc": "Toute offre enregistrée est immédiatement intégrée au flux interne de l'application.",
+        "global_banner": "🌍 Recrutement 100% Remote & Digital sans frontières"
     },
     "English": {
         "rules": "Rules of the game 📜", "profile": "My Profile & ATS 👤", "propulsion": "CV Propulsion 🚀",
@@ -61,7 +59,8 @@ LANGUAGES = {
         "submit_cv_req": "Mandatory action to activate registration", "cv_desc": "Registration is free for 3 months, but you must upload your CV for automatic matching.",
         "premium_active": "Premium Option Active: Unlimited ATS optimizations.", "premium_info": "🎁 Free Version: You have {} / 5 CV updates left.",
         "anonymity_alert": "📢 ANONYMITY NOTICE ON DISPATCH: Sending via your personal email means your real address will be visible.",
-        "gold_rule_title": "✨ GOLDEN RULE OF AUTOMATIC PUBLICATION:", "gold_rule_desc": "Any registered offer is immediately integrated into the internal application flow."
+        "gold_rule_title": "✨ GOLDEN RULE OF AUTOMATIC PUBLICATION:", "gold_rule_desc": "Any registered offer is immediately integrated into the internal application flow.",
+        "global_banner": "🌍 100% Remote & Digital Recruitment without borders"
     }
 }
 
@@ -164,6 +163,11 @@ st.markdown("""
     .info-rules { background-color: #EBF8FF; border-left: 4px solid #3182CE; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
     .marketing-box { background: linear-gradient(135deg, #1A237E, #2A36B1); color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     .marketing-box h3 { color: #00E5FF !important; margin-top: 0; }
+    .marketing-grid { display: flex; justify-content: space-around; gap: 15px; margin-top: 20px; flex-wrap: wrap; }
+    .marketing-item { background: rgba(255,255,255,0.1); padding: 12px 20px; border-radius: 8px; font-size: 14px; flex: 1; min-width: 200px; }
+    .custom-footer { text-align: center; color: #64748B; padding-top: 30px; font-size: 13px; line-height: 1.8; }
+    .custom-footer button { background: none !important; border: none !important; padding: 0 !important; color: #1A237E !important; text-decoration: none; cursor: pointer; font-weight: 600; font-size: 13px; }
+    .custom-footer button:hover { color: #00E5FF !important; text-decoration: underline; }
     .global-banner { background: #00E5FF; color: #1A237E; padding: 15px; border-radius: 8px; font-weight: bold; text-align: center; margin-bottom: 20px; }
 </style>
 """, unsafe_allow_html=True)
@@ -173,13 +177,10 @@ if not st.session_state.auth:
     _, col, _ = st.columns([0.5, 2.0, 0.5])
     with col:
         st.markdown("<h1 style='text-align:center; font-size: 50px; margin-bottom: 5px;'><span style='color:#1A237E;'>zip</span><span style='color:#00E5FF;'>ngo</span> <span style='font-size: 40px;'>👍</span></h1>", unsafe_allow_html=True)
-        st.markdown("<div class='global-banner'>🌍 20 Pays | Recrutement 100% Remote & Digital sans frontières</div>", unsafe_allow_html=True)
-        st.markdown("""<div class='marketing-box'><h3>Le point de rencontre parfait. Zéro perte de temps. Anonymat absolu.</h3><p>Que vous soyez un <b>Candidat</b> ou un <b>Employeur</b>, Zipngo transforme votre vision du recrutement.</p></div>""", unsafe_allow_html=True)
-        
+        st.markdown(f"<div class='global-banner'>{t['global_banner']}</div>", unsafe_allow_html=True)
+        st.markdown("""<div class='marketing-box'><h3>Le point de rencontre parfait. Zéro perte de temps. Anonymat absolu.</h3><p>Que vous soyez un <b>Candidat</b> ou un <b>Employeur</b>, Zipngo transforme votre manière de recruter.</p></div>""", unsafe_allow_html=True)
         role = st.radio("Connexion en tant que :", [t["role_cand"], t["role_emp"]], horizontal=True)
-        pays = st.selectbox("Sélectionnez votre pays :", ["France", "Belgique", "Suisse", "Canada", "Allemagne", "Espagne", "Italie", "Portugal", "Pays-Bas", "Royaume-Uni", "USA", "Brésil", "Japon", "Chine", "Maroc", "Tunisie", "Sénégal", "Côte d'Ivoire", "Vietnam", "Indonésie"])
         email = st.text_input("E-mail :").strip().lower()
-        
         if st.button("🚀 Recevoir mon Lien Magique"):
             if email:
                 supabase.auth.signInWithOtp({"email": email})
@@ -187,7 +188,6 @@ if not st.session_state.auth:
 else:
     user_db = supabase.table("users").select("*").eq("id", st.session_state.user_id).execute().data[0]
     with st.sidebar:
-        st.info("🌍 20 Pays | 100% Remote")
         if st.session_state.user_type == "Candidat":
             menu = st.radio("Navigation", [t["rules"], t["profile"], t["propulsion"], t["matches"], t["archive"], t["account"]])
         else:
@@ -201,10 +201,10 @@ else:
         matchs = supabase.table("matches_interviews").select("*").eq(champ_filtre, st.session_state.user_id).execute().data
         for m in matchs:
             is_confirmed = m.get("thumb_candidat") and m.get("thumb_employeur")
-            st.subheader(f"💼 {m.get('job_title', 'Poste en Remote')}")
+            st.subheader(f"💼 {m.get('job_title', 'Poste')}")
             if is_confirmed:
                 st.success("🤝 Match Confirmé !")
-                st.link_button("🎥 Lancer l'entretien (Remote)", f"https://meet.jit.si/zipngo-entretien-{m['id']}")
+                st.link_button("🎥 Lancer l'entretien", f"https://meet.jit.si/zipngo-entretien-{m['id']}")
             else:
                 mon_pouce = "thumb_candidat" if st.session_state.user_type == "Candidat" else "thumb_employeur"
                 if not m.get(mon_pouce):
@@ -217,19 +217,20 @@ else:
         st.header(t["account"])
         st.write(f"E-mail : `{st.session_state.user_email}`")
 
-# --- FOOTER (Intégration Blacklist, CGV, Mentions) ---
+# --- FOOTER ---
 st.markdown("<hr>", unsafe_allow_html=True)
 footer_col1, footer_col2, footer_col3 = st.columns([1, 2, 1])
 with footer_col2:
-    email_user = st.session_state.get("user_email", "creationsites06@gmail.com")
+    email_user = st.session_state.get("user_email", "contact@zipngo.app")
     st.markdown(f"""
     <div style='text-align: center; color: #64748B; font-size: 13px;'>
-        © 2026 zipngo | 20 Pays | 100% Remote Global<br>
+        © 2026 zipngo | App Creator : <b>Liliane RAKOTOBE</b> 
+        <a href="mailto:contact@zipngo.app" style="text-decoration:none;">✉️</a><br>
         <a href="/?blacklist=true&email={email_user}" style="color:red; text-decoration:none;">🚫 Se désinscrire (Blacklist)</a>
     </div>
     """, unsafe_allow_html=True)
-    b1, b2 = st.columns(2)
-    with b1:
+    c1, c2 = st.columns(2)
+    with c1:
         if st.button("⚖️ CGV", use_container_width=True): afficher_cgv()
-    with b2:
+    with c2:
         if st.button("🔒 Mentions", use_container_width=True): afficher_mentions_legales()
