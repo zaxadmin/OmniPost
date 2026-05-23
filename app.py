@@ -174,7 +174,7 @@ if not st.session_state.auth:
     with col:
         st.markdown("<h1 style='text-align:center; font-size: 50px; margin-bottom: 5px;'><span style='color:#1A237E;'>zip</span><span style='color:#00E5FF;'>ngo</span> <span style='font-size: 40px;'>👍</span></h1>", unsafe_allow_html=True)
         st.markdown("<div class='global-banner'>🌍 20 Pays | Recrutement 100% Remote & Digital sans frontières</div>", unsafe_allow_html=True)
-        st.markdown("""<div class='marketing-box'><h3>Le point de rencontre parfait. Zéro perte de temps. Anonymat absolu.</h3><p>Que vous soyez un <b>Candidat</b> ou un <b>Employeur</b>, Zipngo transforme votre manière de recruter.</p></div>""", unsafe_allow_html=True)
+        st.markdown("""<div class='marketing-box'><h3>Le point de rencontre parfait. Zéro perte de temps. Anonymat absolu.</h3><p>Que vous soyez un <b>Candidat</b> ou un <b>Employeur</b>, Zipngo transforme votre vision du recrutement.</p></div>""", unsafe_allow_html=True)
         
         role = st.radio("Connexion en tant que :", [t["role_cand"], t["role_emp"]], horizontal=True)
         pays = st.selectbox("Sélectionnez votre pays :", ["France", "Belgique", "Suisse", "Canada", "Allemagne", "Espagne", "Italie", "Portugal", "Pays-Bas", "Royaume-Uni", "USA", "Brésil", "Japon", "Chine", "Maroc", "Tunisie", "Sénégal", "Côte d'Ivoire", "Vietnam", "Indonésie"])
@@ -221,7 +221,7 @@ else:
 st.markdown("<hr>", unsafe_allow_html=True)
 footer_col1, footer_col2, footer_col3 = st.columns([1, 2, 1])
 with footer_col2:
-    email_user = st.session_state.get("user_email", "contact@zipngo.app")
+    email_user = st.session_state.get("user_email", "creationsites06@gmail.com")
     st.markdown(f"""
     <div style='text-align: center; color: #64748B; font-size: 13px;'>
         © 2026 zipngo | 20 Pays | 100% Remote Global<br>
