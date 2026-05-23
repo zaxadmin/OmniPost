@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
@@ -9,7 +10,7 @@ import json
 import os
 
 # --- CONFIGURATION DE PAGE ---
-st.set_page_config(page_title="zipngo", layout="wide", page_icon="🍊")
+st.set_page_config(page_title="zipngo", layout="wide", page_icon="👍")
 
 # --- INITIALISATION DES APIS (SECRETS) ---
 try:
@@ -166,7 +167,7 @@ if not st.session_state.auth:
     _, col, _ = st.columns([0.5, 2.0, 0.5])
     with col:
         # Titre avec le Pouce Orange à côté
-        st.markdown("<h1 style='text-align:center; font-size: 50px; margin-bottom: 5px;'><span style='color:#1A237E;'>zip</span><span style='color:#00E5FF;'>ngo</span> <span style='font-size: 40px;'>🍊</span></h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align:center; font-size: 50px; margin-bottom: 5px;'><span style='color:#1A237E;'>zip</span><span style='color:#00E5FF;'>ngo</span> <span style='font-size: 40px;'>👍</span></h1>", unsafe_allow_html=True)
         
         # Bloc marketing d'engagement (Candidats + Employeurs)
         st.markdown("""
@@ -179,7 +180,7 @@ if not st.session_state.auth:
             <div class='marketing-grid'>
                 <div class='marketing-item'>🔒 <b>Anonymat Total des 2 Côtés</b><br><small>Identités masquées jusqu'à la fin de l'entretien vidéo.</small></div>
                 <div class='marketing-item'>⚡ <b>Gain de Temps Record</b><br><small>Matching intelligent via IA. Plus aucun tri de CV inutile.</small></div>
-                <div class='marketing-item'>🍊 <b>Double Validation</b><br><small>Mise en relation uniquement en cas d'intérêt mutuel.</small></div>
+                <div class='marketing-item'>👍 <b>Double Validation</b><br><small>Mise en relation uniquement en cas d'intérêt mutuel.</small></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -244,7 +245,7 @@ else:
     is_pass_valide = date_exp > datetime.now()
 
     with st.sidebar:
-        st.markdown("<h2 style='color:white;'>zipngo 🍊</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='color:white;'>zipngo 👍</h2>", unsafe_allow_html=True)
         st.write(f"Espace : **{user_db['user_type']}**")
         st.write(f"`{st.session_state.user_email}`")
         if user_db['user_type'] == "Employeur":
@@ -280,7 +281,7 @@ else:
         with col1:
             st.markdown("""
             <div class='info-rules'>
-                <h4>🍊 Système du Double Pouce Orange</h4>
+                <h4>👍 Système du Double Pouce Orange</h4>
                 <p>Vos données restent anonymisées. Le contact n'est partagé que si le candidat et le recruteur activent réciproquement leur intérêt.</p>
             </div>
             """, unsafe_allow_html=True)
