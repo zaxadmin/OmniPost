@@ -8,3 +8,4 @@ tornado==6.3.3
 groq
 pdfplumber
 fpdf
+PyPDF2
