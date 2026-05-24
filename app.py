@@ -1,4 +1,5 @@
 import streamlit as st
+import datetime
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo", layout="wide", page_icon="👍")
@@ -37,25 +38,25 @@ LANGUAGES = {
     "Tiếng Việt": {"label": "Hồ sơ & ATS", "welcome": "Chào mừng", "dash": "Bảng điều khiển", "prop": "Thúc đẩy", "match": "Phỏng vấn", "off": "Việc làm", "acc": "Tài khoản"}
 }
 
-# --- SÉLECTEUR LANGUE (Haut) ---
+# --- SÉLECTEUR LANGUE ---
 col1, _ = st.columns([1, 10])
 with col1:
     if "lang" not in st.session_state: st.session_state.lang = "Français"
     st.session_state.lang = st.selectbox("🌐", list(LANGUAGES.keys()))
 t = LANGUAGES[st.session_state.lang]
 
-# --- TITRE ---
 st.title("zipngo 👍")
 
 # --- AUTH & SESSION ---
-if "auth" not in st.session_state: st.session_state.update({"auth": False, "premium": False, "user_type": "Candidat"})
+if "auth" not in st.session_state: 
+    st.session_state.update({"auth": False, "premium": False, "user_type": "Candidat", "created_at": datetime.date.today()})
 
 if not st.session_state.auth:
     st.markdown(f"""
     <div style='background:#f8f9fa; padding:20px; border-radius:15px; border-left: 5px solid #007BFF;'>
     <h3>{t['welcome']}</h3>
     <p><b>L'application qui révolutionne le recrutement.</b><br>
-    Votre identité reste confidentielle jusqu'à ce que vous décidiez de vous dévoiler. <br><br>
+    Votre identité reste confidentielle jusqu'à ce que vous décidiez de vous dévoiler.<br><br>
     🚀 <i>Testez gratuitement notre période d'essai. Le Premium débloque des opportunités illimitées.</i></p>
     </div>
     """, unsafe_allow_html=True)
@@ -67,13 +68,18 @@ if not st.session_state.auth:
         st.rerun()
 
 else:
+    # --- MISE EN VEILLE (3 MOIS) ---
+    delta = datetime.date.today() - st.session_state.created_at
+    is_active = st.session_state.premium or delta.days <= 90
+
     with st.sidebar:
-        if st.session_state.get("premium"): st.success("✨ Premium Actif")
+        if not is_active: st.error("⚠️ Compte en veille (Période d'essai dépassée)")
+        elif st.session_state.get("premium"): st.success("✨ Premium Actif")
         else: st.warning("⚠️ Période d'essai (Standard)")
         menu = st.radio("Navigation", [t["dash"], t["label"], t["prop"], t["match"], t["off"], t["acc"]])
         if st.button("🚪 Déconnexion"): st.session_state.auth = False; st.rerun()
 
-    # --- DASHBOARD + GUIDE ---
+    # --- DASHBOARD ---
     if menu == t["dash"]:
         st.header(t["dash"])
         if st.session_state.user_type == "Candidat":
@@ -81,7 +87,7 @@ else:
         else:
             st.info("📖 **Guide de l'Employeur :** Diffusez anonymement, validez les matchs pour lever l'anonymat, et planifiez vos rencontres.")
     
-    # --- PROFIL & IA ---
+    # --- PROFIL & ATS ---
     elif menu == t["label"]:
         st.header(t["label"])
         st.file_uploader("Déposer mon CV")
@@ -93,10 +99,9 @@ else:
         st.header(t["prop"])
         if st.button("🚀 Propulser ma candidature"): st.success("Candidature transmise. Identité protégée.")
 
-    # --- MATCHS & ENTRETIEN (LEVER DE VOILE) ---
+    # --- ENTRETIENS ---
     elif menu == t["match"]:
         st.header(t["match"])
-        st.subheader("Planification et Visio")
         col1, col2 = st.columns(2)
         with col1: date = st.date_input("Date proposée")
         with col2: heure = st.time_input("Heure proposée")
@@ -105,18 +110,21 @@ else:
         st.write("🎥 **Entretien Vidéo sécurisé :**")
         st.link_button("Rejoindre la salle", "https://meet.jit.si/zipngo", type="primary")
 
-    # --- DIFFUSION OFFRES (REMOTE) ---
+    # --- DIFFUSION ---
     elif menu == t["off"]:
         st.header(t["off"])
         is_remote = st.checkbox("🌍 Offre en Remote (Lève les restrictions de pays)")
-        if st.button("📢 Diffuser mon offre"): 
-            st.balloons()
-            st.success("Offre diffusée !")
+        if st.button("📢 Diffuser mon offre"): st.balloons(); st.success("Offre diffusée !")
 
-    # --- COMPTE ---
+    # --- MON COMPTE ---
     elif menu == t["acc"]:
         st.header(t["acc"])
-        st.write("Statut : Anonymat actif | Période d'essai en cours.")
+        st.write("Statut : Anonymat actif.")
+        with st.expander("⚖️ Mentions Légales"):
+            st.write("zipngo est une plateforme de mise en relation. Nous ne sommes pas responsables de la véracité des informations des utilisateurs.")
+        with st.expander("📜 CGV"):
+            st.write("Accès Premium pour usage illimité. Mise en veille automatique après 90 jours pour les comptes standards.")
+        st.link_button("📧 Support & Suppression", "mailto:creationsites06@gmail.com")
 
 st.markdown("---")
 st.markdown("© 2026 zipngo | Liliane RAKOTOBE")
