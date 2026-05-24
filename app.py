@@ -1,95 +1,81 @@
 import streamlit as st
-import PyPDF2
-from fpdf import FPDF
-from datetime import date, timedelta
+import pandas as pd
+import os
+import json
+import urllib.parse
+from datetime import date
+from groq import Groq
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo", layout="wide", page_icon="👍")
-
-# --- STYLE CSS ---
-st.markdown("""
-    <style>
-    .stApp { background: linear-gradient(135deg, #f0f2f6 0%, #ffffff 100%); }
-    .brand-title { font-size: 3rem; font-weight: 800; text-align: center; }
-    .zip { color: #000080; } .ngo { color: #00FFFF; }
-    </style>
-    """, unsafe_allow_html=True)
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # --- INITIALISATION ---
 if "auth" not in st.session_state: 
-    st.session_state.update({
-        "auth": False, "profile_completed": False, "premium": False, 
-        "alertes": [], "date_inscription": date.today()
-    })
+    st.session_state.update({"auth": False, "user_type": None, "premium": False, "scraping_count": 0, "anonymat_leve": False})
 
-def ajouter_alerte(msg):
-    if msg not in st.session_state.alertes: st.session_state.alertes.append(msg)
+# --- FONCTIONS IA ---
+def extraire_20_contacts(metier):
+    prompt = f"Génère une liste JSON de 20 entreprises réelles avec email pour {metier}. Format: {{\"entreprises\": [{{\"nom\": \"...\", \"email\": \"...\"}}, ...]}}"
+    response = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama3-70b-8192", response_format={"type": "json_object"})
+    return response.choices[0].message.content
 
-def get_jours_restants():
-    delta = (st.session_state.date_inscription + timedelta(days=15 if st.session_state.user_type == "Employeur" else 90)) - date.today()
-    return delta.days
-
-# --- AUTHENTIFICATION ---
+# --- INTERFACE ---
 if not st.session_state.auth:
-    col_lang, col_rest = st.columns([1, 4])
-    with col_lang:
-        st.selectbox("🌐", ["Français", "English", "Español"], label_visibility="collapsed")
-    
-    st.markdown("<div class='brand-title'><span class='zip'>zip</span><span class='ngo'>ngo</span> 👍</div>", unsafe_allow_html=True)
+    st.title("zipngo 👍")
     role = st.radio("Accès :", ["Candidat", "Employeur"], horizontal=True)
-    if st.button("✨ Entrer"):
-        st.session_state.update({"auth": True, "user_type": role})
-        st.rerun()
-
-# --- APPLICATION ---
+    if st.button("✨ Entrer"): st.session_state.update({"auth": True, "user_type": role}); st.rerun()
 else:
-    t = {"dash": "Tableau de bord", "label": "Analyse Profil", "search": "Recherche Talents", "match": "Entretiens", "acc": "Mon Compte"}
     with st.sidebar:
-        st.markdown(f"**Statut :** <span style='color:green'>●</span> En ligne", unsafe_allow_html=True)
-        st.write(f"⏳ Essai : {get_jours_restants()} jours restants")
+        st.write(f"Utilisateur : **{st.session_state.user_type}** 👍")
+        menu = st.radio("Navigation", ["Tableau de bord", "Candidature Spontanée", "Recherche Talents", "Gestion Entretiens", "📂 ATS - Mon Suivi", "Mon Compte"])
+        if st.button("🚪 Déconnexion"): st.session_state.clear(); st.rerun()
         
-        # Gestion Premium
-        if st.checkbox("Activer Premium"): st.session_state.premium = True
-        
-        # Alertes
-        if st.session_state.alertes:
-            st.markdown("### 🔔 Notifications")
-            for alerte in st.session_state.alertes: st.info(alerte)
-            if st.button("Effacer"): st.session_state.alertes = []
-        
-        menu = st.radio("Navigation", list(t.values()))
+        with st.expander("📖 Mode d'emploi"):
+            if st.session_state.user_type == "Candidat":
+                st.write("1. Scrapez 20 cibles. 👍\n2. Envoyez via mail perso.\n3. Confirmez pour l'ATS. 👍\n4. Proposez/Acceptez entretien sécurisé.")
+            else:
+                st.write("1. Hub de diffusion. 👍\n2. Sélectionnez vos talents.\n3. Gérez la levée d'anonymat. 👍")
 
-    if menu == t["dash"]:
-        st.header("Tableau de bord")
-        if get_jours_restants() <= 0 and not st.session_state.premium:
-            st.error("Période d'essai terminée. Passez Premium pour continuer.")
+    if menu == "Candidature Spontanée" and st.session_state.user_type == "Candidat":
+        st.header("Sourcing IA (Batch 20)")
+        metier = st.text_input("Métier visé")
+        if st.button("🔍 Générer 20 entreprises"):
+            if st.session_state.scraping_count < 20 or st.session_state.premium:
+                res = json.loads(extraire_20_contacts(metier))
+                st.session_state.liste_candidatures = res['entreprises']
+                st.session_state.scraping_count += 1
+            else: st.error("Limite atteinte.")
+            
+        if "liste_candidatures" in st.session_state:
+            for item in st.session_state.liste_candidatures:
+                st.write(f"--- **{item['nom']}** ---")
+                st.warning("⚠️ Vérifiez votre CV.")
+                st.markdown(f'<a href="mailto:{item["email"]}">✉️ Préparer envoi</a>', unsafe_allow_html=True)
+                if st.button(f"Confirmer envoi 👍", key=item['nom']):
+                    pd.DataFrame([{"Entreprise": item['nom'], "Email": item['email'], "Date": str(date.today())}]).to_csv('tiroir_candidat.csv', mode='a', header=not os.path.exists('tiroir_candidat.csv'), index=False)
+                    st.success("Enregistré 👍")
 
-    elif menu == t["search"]:
-        st.header("Recherche Talents")
-        if not st.session_state.premium:
-            st.warning("⚠️ Mode Essai : Dispatch géographique et Mode Remote limités.")
-            limite = 20
+    elif menu == "Gestion Entretiens":
+        st.header("🤝 Espace Entretiens Sécurisé")
+        if not st.session_state.anonymat_leve:
+            if st.session_state.user_type == "Employeur":
+                if st.button("Proposer entretien 👍"): st.success("Proposition envoyée.")
+            else:
+                if st.button("Accepter le créneau 👍"): st.success("Créneau validé.")
+            
+            if st.button("🤝 Lever l'anonymat (Double clic requis)"):
+                st.session_state.anonymat_leve = True
+                st.rerun()
         else:
-            st.success("🌟 Accès Premium : Dispatch illimité.")
-            limite = 1000
-        
-        if st.button(f"🔍 Lancer Recherche (Limite : {limite})"):
-            st.write([f"Profil {i}" for i in range(1, limite + 1)])
+            st.success("Confidentialité levée. 👍")
+            st.download_button("📥 Télécharger CV & Récap", data="CV_Data...", file_name="candidature.txt")
+            st.link_button("🎥 Salle Jitsi", f"https://meet.jit.si/zipngo-{st.session_state.user_type}")
+            if st.button("🔄 Retour à l'anonymat"):
+                st.session_state.anonymat_leve = False
+                st.rerun()
 
-    elif menu == t["match"]:
-        st.header("Gestion des Entretiens")
-        if st.session_state.user_type == "Employeur":
-            if st.button("Proposer RDV"): 
-                st.session_state.proposition = True
-                ajouter_alerte("Proposition envoyée.")
-        else:
-            if st.session_state.get("proposition"):
-                if st.button("✅ Accepter"): ajouter_alerte("RDV confirmé !")
-                if st.button("🔄 Proposer autre heure"): ajouter_alerte("Contre-proposition envoyée.")
-
-    elif menu == t["acc"]:
-        st.header("Mon Compte")
-        st.info("Votre mode d'emploi est disponible ici.")
-
-st.markdown("---")
-st.markdown("© 2026 zipngo | Liliane RAKOTOBE")
+    elif menu == "Mon Compte":
+        st.header("Paramètres")
+        if not st.session_state.premium and st.button("💎 Activer Premium"): st.session_state.premium = True
+        st.markdown("--- © 2026 zipngo | Liliane RAKOTOBE")
