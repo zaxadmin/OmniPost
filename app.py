@@ -39,7 +39,7 @@ if "auth" not in st.session_state:
 
 # --- PAGE DE CONNEXION ---
 if not st.session_state.auth:
-    st.markdown("### Bienvenue. L'application qui révolutionne le recrutement.")
+    st.markdown("### Bienvenue dans l'application qui révolutionne le recrutement.")
     role = st.radio("Accès :", ["Candidat", "Employeur"], horizontal=True)
     if st.button("✨ Entrer dans l'application"):
         st.session_state.update({"auth": True, "user_type": role})
