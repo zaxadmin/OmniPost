@@ -62,7 +62,7 @@ if "auth" not in st.session_state:
 # --- NAVIGATION ---
 if not st.session_state.auth:
     st.markdown("### Bienvenue sur zipngo.")
-    st.write("Plateforme de mise en relation confidentielle. Connectez-vous pour commencer.")
+    st.write("Plateforme de mise en relation professionnelle qui place les compétences et la confidentialité au premier plan")
     role = st.radio("Accès :", ["Candidat", "Employeur"], horizontal=True)
     if st.button("✨ Entrer"):
         st.session_state.update({"auth": True, "user_type": role})
