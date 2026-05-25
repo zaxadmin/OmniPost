@@ -1,60 +1,83 @@
 import streamlit as st
+import json
 from groq import Groq
 from supabase import create_client
-import json
-from datetime import date
-import io
+import urllib.parse
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="zipngo", layout="wide")
-client_groq = Groq(api_key=st.secrets["GROQ_API_KEY"])
+st.set_page_config(page_title="zipngo | ATS International", layout="wide")
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
-# --- SESSION ---
-if "auth" not in st.session_state:
-    st.session_state.update({"auth": False, "is_premium": False})
+# --- FONCTIONS SYSTÈME ---
+def traduire(texte, langue):
+    res = client.chat.completions.create(messages=[{"role": "user", "content": f"Traduis en {langue} : {texte}"}], model="llama3-8b-8192")
+    return res.choices[0].message.content
 
-# --- UI HAUT DE PAGE ---
-col_lang, col_rest = st.columns([1, 5])
-with col_lang:
-    st.session_state["langue"] = st.selectbox("🌐", ["Français", "English", "Malagasy", "Español", "Deutsch"], label_visibility="collapsed")
+def moteur_ia_simple(prompt):
+    res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama3-8b-8192")
+    return res.choices[0].message.content
 
-if not st.session_state.auth:
-    st.markdown('# zip<span style="color:#1E90FF;">ngo</span> 👍', unsafe_allow_html=True)
-    st.write("Bienvenue sur zipngo, l'assistant intelligent pour propulser votre carrière ou vos recrutements.")
-    role = st.radio("Accès :", ["Candidat", "Employeur"], horizontal=True)
-    if st.button("✨ Entrer"): st.session_state.update({"auth": True, "user_type": role}); st.rerun()
-else:
-    # Bouton Premium discret à droite
-    if not st.session_state["is_premium"]:
-        st.sidebar.link_button("💎 Passer Premium", "https://buy.stripe.com/votre_lien")
+# --- TEXTES & MODES D'EMPLOI ---
+TEXTES = {
+    "presentation": "Zipngo est une plateforme de recrutement révolutionnaire qui utilise l'IA pour connecter les talents mondiaux avec les entreprises.",
+    "candidat_emploi": "MODE D'EMPLOI CANDIDAT : 1. Testez votre CV avec notre simulateur ATS. 2. Lancez une prospection ciblée. 3. Candidatez en 1 clic (Anonymat levé uniquement lors de l'envoi).",
+    "employeur_emploi": "MODE D'EMPLOI EMPLOYEUR : 1. Publiez vos offres avec options internationales. 2. Recevez des candidats triés par score d'IA. 3. Utilisez le système de 'Pouce' pour déverrouiller uniquement les profils qui vous intéressent.",
+    "cgv": "En utilisant Zipngo, vous acceptez le traitement de vos données par IA et notre politique de confidentialité."
+}
 
-    menu = st.sidebar.radio("Navigation", ["Dashboard", "Prospection", "Entretien"])
+# --- NAVIGATION ---
+langues = ["Français", "English", "Malagasy", "Español", "Deutsch", "Português", "Italiano", "Nederlands", "Polski", "Русский", "العربية", "中文", "日本語", "한국어", "Türkçe", "हिन्दी", "Tiếng Việt", "ไทย", "Ελληνικά", "Magyar"]
+langue = st.sidebar.selectbox("Langue", langues)
 
-    if menu == "Dashboard" and st.session_state.user_type == "Candidat":
-        st.header("🚀 Espace Candidat")
-        st.checkbox("💻 Profil ouvert au Remote", key="remote_status")
-        cv_file = st.file_uploader("Upload votre CV (PDF/TXT)")
-        job_target = st.text_input("Intitulé du poste visé :")
-        if st.button("Optimiser CV"):
-            contenu = "Texte du CV extrait..." # Ajoutez une logique PyPDF2 ici
-            res = client_groq.chat.completions.create(messages=[{"role":"user", "content": f"Optimise ce CV pour {job_target} en {st.session_state['langue']}"}], model="llama3-8b-8192").choices[0].message.content
-            st.text_area("CV Amélioré :", res)
-            st.download_button("Télécharger CV", res, file_name="cv_zipngo.txt")
+# --- CONTACT CRÉATRICE (ENVELOPPE) ---
+st.sidebar.markdown("---")
+st.sidebar.markdown(f"📧 [Contact Créatrice](mailto:creationsites06@gmail.com)")
+st.sidebar.markdown("---")
 
-    elif menu == "Prospection":
-        st.header("🔍 Prospection IA")
-        secteur = st.text_input("Secteur d'activité :")
-        if st.button("Générer 20 entreprises"):
-            # L'IA génère les cibles
-            data = client_groq.chat.completions.create(messages=[{"role":"user", "content": f"Liste 20 entreprises en {secteur} avec nom, gérant, ville, pays, email, tel en JSON."}], model="llama3-8b-8192").choices[0].message.content
-            st.session_state["leads"] = json.loads(data)
-        
-        if "leads" in st.session_state:
-            st.table(st.session_state["leads"])
-            emails = [l['email'] for l in st.session_state["leads"]]
-            bcc = ",".join(emails[1:])
-            mailto = f"mailto:{emails[0]}?bcc={bcc}&subject=Candidature&body=Bonjour, veuillez trouver mon CV ci-joint."
-            st.markdown(f'[📩 Candidater (Ouvrir messagerie)]({mailto})')
+menu = st.sidebar.radio("Navigation", ["Accueil", "Connexion", "Espace Candidat", "Espace Employeur", "CGV"])
 
-    # ... (Ajouter ici le reste de la logique Entretien)
+# --- LOGIQUE APP ---
+if menu == "Accueil":
+    st.title("Zipngo")
+    st.write(traduire(TEXTES["presentation"], langue))
+
+elif menu == "Espace Candidat":
+    st.header(traduire("Espace Candidat", langue))
+    st.info(traduire(TEXTES["candidat_emploi"], langue)) # Mode d'emploi affiché
+    
+    secteur = st.text_input(traduire("Secteur d'activité", langue))
+    if st.button(traduire("Rechercher", langue)):
+        st.session_state.cibles = [{"nom": "Entreprise A", "email": "contact@a.com"}, {"nom": "Entreprise B", "email": "contact@b.com"}]
+    
+    if "cibles" in st.session_state:
+        emails = [c['email'] for c in st.session_state.cibles]
+        lien = f"mailto:{emails[0]}?bcc={','.join(emails[1:])}&subject=Candidature"
+        if st.button(traduire("CANDIDATER (Anonymat levé)", langue)):
+            st.markdown(f'<a href="{lien}">{traduire("Ouvrir ma messagerie", langue)}</a>', unsafe_allow_html=True)
+
+elif menu == "Espace Employeur":
+    st.header(traduire("Espace Employeur", langue))
+    st.info(traduire(TEXTES["employeur_emploi"], langue)) # Mode d'emploi affiché
+    
+    pays = st.selectbox(traduire("Pays de destination", langue), ["France", "USA", "UK", "Canada", "Madagascar", "Autre"])
+    is_remote = st.checkbox(traduire("Poste en 100% Remote", langue))
+    if pays:
+        reco = moteur_ia_simple(f"Suggère 3 sites d'emploi pour recruter en {pays}")
+        st.info(f"{traduire('Sites recommandés', langue)} : {reco}")
+        if is_remote: st.success(traduire("Mode REMOTE activé : diffusion globale.", langue))
+    
+    candidats = [{"id": 1, "nom": "Jean", "score": 95}]
+    for c in candidats:
+        st.write(f"{c['nom']} - Score: {c['score']}%")
+        col1, col2 = st.columns(2)
+        if col1.button("👍", key=f"up_{c['id']}"): st.success(traduire("Profil déverrouillé.", langue))
+        if col2.button("👎", key=f"down_{c['id']}"): st.error(traduire("Candidature écartée.", langue))
+
+elif menu == "CGV":
+    st.write(traduire(TEXTES["cgv"], langue))
+
+elif menu == "Connexion":
+    st.header(traduire("Connexion / Création", langue))
+    if st.text_input("Email"):
+        if st.button(traduire("Envoyer Magik Link", langue)): st.info("Lien envoyé !")
