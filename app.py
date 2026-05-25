@@ -1,88 +1,89 @@
 import streamlit as st
-import requests
-from bs4 import BeautifulSoup
 from groq import Groq
 from supabase import create_client
 import streamlit.components.v1 as components
+import json
 from datetime import date
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo | .zaxx.app", layout="wide")
+
 client_groq = Groq(api_key=st.secrets["GROQ_API_KEY"])
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
-# --- INITIALISATION SESSION ---
+# --- ÉTAT SESSION ---
 if "auth" not in st.session_state:
     st.session_state.update({
         "auth": False, "cgv_validee": False, "bienvenue_vue": False, 
-        "profil_complet": False, "user_type": None, "user_email": None,
-        "entretiens": []
+        "user_type": None, "user_email": None, "entretiens": [], "is_premium": False
     })
 
-# --- FONCTIONS IA & LOGIQUE ---
+# --- EN-TÊTE GLOBAL (Langue & Remote) ---
+col1, col2 = st.columns([1, 6])
+with col1:
+    liste_langues = ["Français", "English", "Malagasy", "Español", "Deutsch", "Português", "Italiano", "Русский", "中文", "日本語", "العربية", "हिन्दी", "한국어", "Nederlands", "Türkçe", "Polski", "Svenska", "Tiếng Việt", "Bahasa Indonesia", "ไทย"]
+    st.session_state["langue"] = st.selectbox("🌐", liste_langues, label_visibility="collapsed")
+    st.session_state["remote"] = st.checkbox("💻 Remote")
+
+# --- FONCTIONS ---
 def generer_ia(prompt):
-    response = client_groq.chat.completions.create(
-        messages=[{"role": "user", "content": prompt}], model="llama3-8b-8192"
-    )
-    return response.choices[0].message.content
+    consigne = f"Réponds en {st.session_state['langue']}."
+    if st.session_state["remote"]: consigne += " Priorise les opportunités Remote."
+    res = client_groq.chat.completions.create(messages=[{"role": "system", "content": consigne}, {"role": "user", "content": prompt}], model="llama3-8b-8192")
+    return res.choices[0].message.content
 
-def afficher_visio_jitsi(nom_salle):
-    components.iframe(f"https://meet.jit.si/{nom_salle}", height=600)
-
-# --- FLUX AUTHENTIFICATION ---
+# --- AUTHENTIFICATION & CGV ---
 if not st.session_state.auth:
-    st.markdown('<h1 style="color:#000080;">zip<span style="color:#1E90FF;">ngo</span> 👍</h1>', unsafe_allow_html=True)
+    st.markdown('# zip<span style="color:#1E90FF;">ngo</span> 👍', unsafe_allow_html=True)
     role = st.radio("Accès :", ["Candidat", "Employeur"], horizontal=True)
-    email = st.text_input("Votre email :")
-    if st.button("✨ Recevoir mon lien magique"):
-        st.session_state.update({"auth": True, "user_email": email, "user_type": role})
+    if st.button("✨ Entrer"):
+        st.session_state.update({"auth": True, "user_type": role})
         st.rerun()
-
 elif not st.session_state.cgv_validee:
-    st.write("## 📜 CGVU")
+    st.write("## 📜 CGVU & Mode d'emploi\nUtilisez le mode Remote pour cibler l'international. Les emails seront en FR ou EN uniquement si le mode Remote est actif.")
     if st.checkbox("J'accepte"):
-        if st.button("Confirmer"):
-            st.session_state.cgv_validee = True
-            st.rerun()
-
-elif not st.session_state.bienvenue_vue:
-    st.balloons()
-    st.write("# Bienvenue chez zipngo 👋")
-    if st.button("Continuer"):
-        st.session_state.bienvenue_vue = True
-        st.rerun()
-
-# --- DASHBOARD & TOOLS ---
+        if st.button("Continuer"): st.session_state.cgv_validee = True; st.rerun()
 else:
-    st.sidebar.title("Navigation")
-    menu = st.sidebar.radio("Menu", ["Dashboard", "Tiroir Entretien", "Prospection B2B"])
+    # --- NAVIGATION ---
+    menu = st.sidebar.radio("Navigation", ["Dashboard", "Tiroir Entretien", "Prospection B2B", "Info & Premium"])
     
     if menu == "Dashboard":
         if st.session_state.user_type == "Employeur":
             st.header("📊 Candidatures")
-            # Simulation de tri
-            candidats = [{"nom": "Jean"}, {"nom": "Marie"}]
-            for c in candidats:
-                col1, col2, col3 = st.columns([2, 1, 1])
-                col1.write(f"Candidat : {c['nom']}")
-                if col2.button("👍", key=f"up_{c['nom']}"):
-                    st.session_state.entretiens.append(c)
-                col3.button("👎", key=f"down_{c['nom']}")
+            for c in [{"nom": "Jean"}, {"nom": "Marie"}]:
+                c1, c2, c3 = st.columns([2, 1, 1])
+                c1.write(f"Candidat : {c['nom']}")
+                if c2.button("👍", key=f"up_{c['nom']}"): st.session_state.entretiens.append(c); st.rerun()
+                c3.button("👎", key=f"down_{c['nom']}")
         else:
-            st.header("🚀 Espace Candidat")
-            cv = st.text_area("Optimisation CV :")
-            if st.button("Analyser"): st.write(generer_ia(f"Optimise : {cv}"))
+            st.header("🚀 Optimisation CV")
+            cv = st.text_area("CV :")
+            if st.button("Analyser"): st.write(generer_ia(f"Optimise ce CV : {cv}"))
 
     elif menu == "Tiroir Entretien":
         st.header("📹 Entretien Vidéo")
         for ent in st.session_state.entretiens:
             if st.button(f"Lancer visio avec {ent['nom']}"):
-                afficher_visio_jitsi(f"zipngo-{ent['nom']}")
+                components.iframe(f"https://meet.jit.si/zipngo-{ent['nom']}", height=600)
 
     elif menu == "Prospection B2B":
-        st.header("🔍 Agent IA")
-        secteur = st.selectbox("Secteur :", ["Tech", "Finance", "Santé"])
-        if st.button("Rechercher"):
-            st.write(generer_ia(f"Liste 20 entreprises en {secteur} avec contacts."))
+        st.header("🔍 Prospection IA")
+        brut = st.text_area("Données annuaire :")
+        if st.button("Traiter"):
+            res = generer_ia(f"Extrais (nom, email, tel) en JSON : {brut}")
+            supabase.table("prospection").insert(json.loads(res)).execute()
+            st.success("Enregistré !")
+        # Envoi Mailto intelligent
+        emails = [e['email'] for e in supabase.table("prospection").select("email").execute().data]
+        if emails:
+            lang_mail = "Français" if st.session_state["langue"] == "Français" and not st.session_state["remote"] else "English"
+            sujet = "Candidature" if lang_mail == "Français" else "Job Application"
+            st.markdown(f'[📩 Envoyer mail groupé ({lang_mail})]({"mailto:?bcc=" + ",".join(emails) + "&subject=" + sujet})')
 
+    elif menu == "Info & Premium":
+        st.write("💎 Premium : Contactez creationsites06@gmail.com")
+        
     if st.sidebar.button("Déconnexion"): st.session_state.clear(); st.rerun()
+
+st.markdown("---")
+st.write(f"© {date.today().year} zipngo | RAKOTOBE Liliane")
