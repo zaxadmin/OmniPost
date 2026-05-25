@@ -1,82 +1,88 @@
 import streamlit as st
+import requests
+from bs4 import BeautifulSoup
+from groq import Groq
+from supabase import create_client
+import streamlit.components.v1 as components
 from datetime import date
 
+# --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo | .zaxx.app", layout="wide")
+client_groq = Groq(api_key=st.secrets["GROQ_API_KEY"])
+supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
-# --- FONCTIONS DE CONTENU ---
-def afficher_presentation():
-    st.markdown("""
-    ### Bienvenue sur zipngo 👍
-    *Votre talent, votre choix, votre succès.*
-    
-    La plateforme de télé-candidature intelligente qui remet l'humain au centre du recrutement.
-    """)
-    st.markdown("""
-    * **Pour les Candidats :** Optimisez votre CV, ciblez les entreprises via notre moteur IA et gérez vos entretiens dans un espace 100% sécurisé.
-    * **Pour les Employeurs :** Centralisez vos candidatures (interne Zipngo & sources externes), triez-les automatiquement par compatibilité et engagez les meilleurs talents.
-    
-    **La confiance avant tout :** Notre système d'anonymat protégé par le "double pouce" garantit une confidentialité totale jusqu'au moment de votre entretien vidéo.
-    """)
+# --- INITIALISATION SESSION ---
+if "auth" not in st.session_state:
+    st.session_state.update({
+        "auth": False, "cgv_validee": False, "bienvenue_vue": False, 
+        "profil_complet": False, "user_type": None, "user_email": None,
+        "entretiens": []
+    })
 
-def afficher_cgv():
-    st.markdown("## 📜 Conditions Générales de Vente et d'Utilisation (CGVU)")
-    st.markdown("""
-    **Consigne :** L'employeur doit utiliser une adresse email dédiée au recrutement pour permettre l'analyse par IA.
-    **Responsabilité :** RAKOTOBE Liliane décline toute responsabilité sur les contrats passés.
-    **Premium :** Facturé via Stripe, non remboursable après activation.
-    """)
-    st.write("Éditeur : RAKOTOBE Liliane | Contact : creationsites06@gmail.com")
+# --- FONCTIONS IA & LOGIQUE ---
+def generer_ia(prompt):
+    response = client_groq.chat.completions.create(
+        messages=[{"role": "user", "content": prompt}], model="llama3-8b-8192"
+    )
+    return response.choices[0].message.content
 
-# --- INITIALISATION ---
-if "auth" not in st.session_state: 
-    st.session_state.update({"auth": False, "user_type": None, "entretiens": [], "is_premium": False})
+def afficher_visio_jitsi(nom_salle):
+    components.iframe(f"https://meet.jit.si/{nom_salle}", height=600)
 
-# --- AUTHENTIFICATION ---
+# --- FLUX AUTHENTIFICATION ---
 if not st.session_state.auth:
-    st.markdown('<span style="color:#000080; font-weight:bold; font-size:3rem;">zip</span><span style="color:#1E90FF; font-weight:bold; font-size:3rem;">ngo</span> 👍', unsafe_allow_html=True)
-    
-    afficher_presentation()
-    
+    st.markdown('<h1 style="color:#000080;">zip<span style="color:#1E90FF;">ngo</span> 👍</h1>', unsafe_allow_html=True)
     role = st.radio("Accès :", ["Candidat", "Employeur"], horizontal=True)
-    if role == "Employeur":
-        st.info("💡 **Conseil :** Utilisez une adresse email dédiée (ex: recrutement@entreprise.com).")
-    
-    accept = st.checkbox("J'accepte les CGVU (incluant la recommandation d'email dédié).")
-    if st.button("✨ Entrer", disabled=not accept): 
-        st.session_state.update({"auth": True, "user_type": role}); st.rerun()
+    email = st.text_input("Votre email :")
+    if st.button("✨ Recevoir mon lien magique"):
+        st.session_state.update({"auth": True, "user_email": email, "user_type": role})
+        st.rerun()
+
+elif not st.session_state.cgv_validee:
+    st.write("## 📜 CGVU")
+    if st.checkbox("J'accepte"):
+        if st.button("Confirmer"):
+            st.session_state.cgv_validee = True
+            st.rerun()
+
+elif not st.session_state.bienvenue_vue:
+    st.balloons()
+    st.write("# Bienvenue chez zipngo 👋")
+    if st.button("Continuer"):
+        st.session_state.bienvenue_vue = True
+        st.rerun()
+
+# --- DASHBOARD & TOOLS ---
 else:
-    # --- NAVIGATION ---
-    with st.sidebar:
-        menu = st.radio("Navigation", ["Dashboard", "Tiroir Entretien", "Mon Compte", "CGV & Mentions"])
-        if st.button("🚪 Déconnexion"): st.session_state.clear(); st.rerun()
-
-    # --- ESPACE CANDIDAT ---
-    if st.session_state.user_type == "Candidat":
-        st.header("🚀 Télé-Candidature IA")
-        st.write("Bienvenue dans votre espace sécurisé.")
-
-    # --- ESPACE EMPLOYEUR (Tri IA + Engagement) ---
-    else:
-        st.header("📊 Candidatures (Triées par IA)")
-        candidats = [{"nom": "Jean", "source": "zipngo"}, {"nom": "Marie", "source": "France Travail"}]
-        for c in candidats:
-            col1, col2 = st.columns([3, 1])
-            col1.write(f"**{c['nom']}** (Source: {c['source']})")
-            if c['source'] == 'zipngo':
-                col2.button("👍", key=c['nom'])
-            else:
-                if col2.button("🟡", key=c['nom']):
-                    st.link_button("📩 Répondre", "mailto:candidat@email.com")
-
-    # --- MON COMPTE ---
-    if menu == "Mon Compte":
-        if not st.session_state.is_premium:
-            st.link_button("💎 ACTIVER PREMIUM (Stripe)", "https://buy.stripe.com/votre_lien")
-        else:
-            st.success("💎 Premium Actif")
+    st.sidebar.title("Navigation")
+    menu = st.sidebar.radio("Menu", ["Dashboard", "Tiroir Entretien", "Prospection B2B"])
     
-    if menu == "CGV & Mentions":
-        afficher_cgv()
+    if menu == "Dashboard":
+        if st.session_state.user_type == "Employeur":
+            st.header("📊 Candidatures")
+            # Simulation de tri
+            candidats = [{"nom": "Jean"}, {"nom": "Marie"}]
+            for c in candidats:
+                col1, col2, col3 = st.columns([2, 1, 1])
+                col1.write(f"Candidat : {c['nom']}")
+                if col2.button("👍", key=f"up_{c['nom']}"):
+                    st.session_state.entretiens.append(c)
+                col3.button("👎", key=f"down_{c['nom']}")
+        else:
+            st.header("🚀 Espace Candidat")
+            cv = st.text_area("Optimisation CV :")
+            if st.button("Analyser"): st.write(generer_ia(f"Optimise : {cv}"))
 
-st.markdown("---")
-st.markdown(f"© {date.today().year} **zipngo** | Créatrice : RAKOTOBE Liliane")
+    elif menu == "Tiroir Entretien":
+        st.header("📹 Entretien Vidéo")
+        for ent in st.session_state.entretiens:
+            if st.button(f"Lancer visio avec {ent['nom']}"):
+                afficher_visio_jitsi(f"zipngo-{ent['nom']}")
+
+    elif menu == "Prospection B2B":
+        st.header("🔍 Agent IA")
+        secteur = st.selectbox("Secteur :", ["Tech", "Finance", "Santé"])
+        if st.button("Rechercher"):
+            st.write(generer_ia(f"Liste 20 entreprises en {secteur} avec contacts."))
+
+    if st.sidebar.button("Déconnexion"): st.session_state.clear(); st.rerun()
