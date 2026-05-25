@@ -1,5 +1,4 @@
 import streamlit as st
-import json
 import re
 from groq import Groq
 from supabase import create_client
@@ -10,98 +9,67 @@ st.set_page_config(page_title="zipngo | ATS Premium", layout="wide")
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
-# --- FONCTIONS SYSTÈME ---
-def est_email_valide(email):
-    return re.match(r"[^@]+@[^@]+\.[^@]+", email)
-
-def traduire(texte, langue):
-    try:
-        res = client.chat.completions.create(messages=[{"role": "user", "content": f"Traduis en {langue} : {texte}"}], model="llama3-8b-8192")
-        return res.choices[0].message.content
-    except:
-        return texte
-
+# --- FONCTIONS ---
 def moteur_ia(prompt):
     try:
-        res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama3-8b-8192")
+        res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama3-8b-8192", max_tokens=1000)
         return res.choices[0].message.content
-    except:
-        return "Service IA temporairement indisponible."
-
-def scrapper_cibles(secteur):
-    prompt = f"Génère une liste de 3 entreprises actives dans le secteur '{secteur}' avec leur email de contact RH et un nom de responsable. Format : Nom|Email|Responsable"
-    res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama3-8b-8192")
-    return res.choices[0].message.content.split('\n')
+    except Exception as e: return f"Erreur : {e}"
 
 def creer_salle_jitsi(id_candidature):
     return f"https://meet.jit.si/zipngo-{id_candidature}"
 
-# --- TEXTES & CGV ---
+# --- TEXTES ---
 TEXTES = {
-    "presentation": "### 🚀 Bienvenue sur Zipngo, la nouvelle ère du recrutement international.",
-    "candidat_emploi": "MODE D'EMPLOI CANDIDAT : 1. Testez votre CV avec notre ATS. 2. Prospection (20/mois). 3. Entretien visio Jitsi.",
-    "employeur_emploi": "MODE D'EMPLOI EMPLOYEUR : 1. Publiez vos offres (3/mois). 2. Recevez des candidats triés par IA. 3. Utilisez le 'Pouce' pour déverrouiller et initier la visio.",
-    "cgv": "**CGV & RESPONSABILITÉ :** ..."
+    "presentation": "### 🚀 Bienvenue sur Zipngo, l'accélérateur de carrière international.",
+    "cgv": "**CONDITIONS GÉNÉRALES :**\n1. Outil de mise en relation.\n2. Traitement des données par IA.\n3. Contact : creationsites06@gmail.com"
 }
 
-# --- NAVIGATION & RÔLE ---
+# --- AUTHENTIFICATION ---
 if "role" not in st.session_state:
+    st.title("Zipngo")
+    st.markdown(TEXTES["presentation"])
     st.sidebar.title("Connexion / Création")
     st.session_state.role = st.sidebar.radio("Je suis un :", ["Candidat", "Employeur"])
     email = st.sidebar.text_input("Votre Email")
-    accept_cgv = st.sidebar.checkbox("J'accepte les CGV.")
-    if st.sidebar.button("Envoyer Magik Link"):
-        if not email: st.sidebar.error("Veuillez entrer votre email.")
-        elif not accept_cgv: st.sidebar.error("Vous devez accepter les CGV.")
-        else: st.sidebar.info("Lien envoyé !")
+    if st.sidebar.checkbox("J'accepte les CGV"):
+        if st.sidebar.button("Envoyer Magik Link"): st.sidebar.success("Lien envoyé !")
     st.stop()
 
-# Initialisation état
-if "creneaux_proposes" not in st.session_state: st.session_state.creneaux_proposes = []
-if "cibles_trouvees" not in st.session_state: st.session_state.cibles_trouvees = []
-
-langue = st.sidebar.selectbox("Langue", ["Français", "English", "Malagasy", "Español"])
-
-# --- SIDEBAR PREMIUM & CONTACT ---
-st.sidebar.markdown("---")
-prix = "6€" if st.session_state.role == "Candidat" else "39€"
-if st.sidebar.button(f"🚀 Passer Premium ({prix} / 3 mois)"): st.sidebar.success("Redirection Stripe...")
-st.sidebar.markdown(f"📧 [Contact Créatrice](mailto:creationsites06@gmail.com)")
-
+# --- NAVIGATION ---
 menu = st.sidebar.radio("Navigation", ["Accueil", "Espace de Travail", "CGV"])
 
-# --- LOGIQUE APP CORRIGÉE ---
+# --- LOGIQUE ---
 if menu == "Accueil":
-    st.title("Zipngo")
-    st.write(TEXTES["presentation"])
+    st.markdown(TEXTES["presentation"])
 
 elif menu == "Espace de Travail":
-    # CORRECTION : Utilisation de if/elif explicite sur le rôle
+    # ESPACE CANDIDAT
     if st.session_state.role == "Candidat":
         st.header("Espace Candidat")
-        tab1, tab2, tab3, tab4 = st.tabs(["Candidater (Scrapping)", "Mes Candidatures", "Mes CVs", "Mes Entretiens"])
-        with tab1:
+        t1, t2 = st.tabs(["Candidature (Scrapping)", "Entretiens"])
+        with t1:
             secteur = st.text_input("Secteur visé")
-            if st.button("Identifier des cibles"):
-                st.session_state.cibles_trouvees = scrapper_cibles(secteur)
-            for ligne in st.session_state.cibles_trouvees:
-                if "|" in ligne:
-                    nom, email, resp = ligne.split('|')
-                    st.write(f"🏢 **{nom}** (Contact: {resp})")
-                    st.link_button("Envoyer candidature", f"mailto:{email}")
-        with tab3:
-            st.file_uploader("Upload mon CV", type=['pdf', 'docx'])
-            st.download_button("Télécharger mon CV actuel", "data", "mon_cv.pdf")
-            
+            if st.button("Identifier cibles"):
+                st.session_state.cibles = moteur_ia(f"Donne 3 entreprises secteur {secteur}. Format: Nom|Email.")
+            st.write(st.session_state.get("cibles", ""))
+        with t2:
+            st.warning(f"Lien Visio : [Rejoindre Jitsi]({creer_salle_jitsi('candidat')})")
+
+    # ESPACE EMPLOYEUR
     elif st.session_state.role == "Employeur":
         st.header("Espace Employeur")
-        tab1, tab2, tab3 = st.tabs(["Poster une offre", "Programmer entretiens", "Talents (CVs triés)"])
-        with tab2:
-            st.session_state.creneaux_proposes = st.multiselect("Disponibilités", ["10:00", "14:00", "16:00"])
-        with tab3:
-            pays = st.selectbox("Pays", ["France", "USA", "UK", "Canada", "Madagascar", "Autre"])
-            if st.button("Rechercher un candidat"):
-                st.info("Talents détectés par IA...")
+        t1, t2 = st.tabs(["Talents & Dispatch", "Gestion Visio"])
+        with t1:
+            pays = st.selectbox("Pays", ["France", "Madagascar", "Canada"])
+            if st.button("Rechercher candidats"):
+                st.session_state.candidats = moteur_ia(f"Suggère 3 profils en {pays}.")
+            st.write(st.session_state.get("candidats", ""))
+            if st.button("👍 Déverrouiller et Dispatcher"):
+                st.success("Candidat dispatché et notifié par email !")
+        with t2:
+            st.info("Programmez vos entretiens et lancez la visio :")
+            st.link_button("Lancer salle de recrutement Jitsi", creer_salle_jitsi("recruteur"))
 
 elif menu == "CGV":
     st.markdown(TEXTES["cgv"])
