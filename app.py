@@ -1,68 +1,100 @@
 import streamlit as st
-import smtplib
-from email.message import EmailMessage
+import requests
 from groq import Groq
 from supabase import create_client
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo | ATS Premium", layout="wide")
+
+# Initialisation des clients (Secrets gérés dans Streamlit Cloud)
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-# --- FONCTIONS IA ---
+# --- FONCTION D'ENVOI EMAIL (RESEND) ---
+def envoyer_email_dispatch(dest, sujet, contenu):
+    url = "https://api.resend.com/emails"
+    headers = {
+        "Authorization": f"Bearer {st.secrets['RESEND_API_KEY']}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "from": "onboarding@resend.dev",
+        "to": dest,
+        "subject": sujet,
+        "html": f"<p>{contenu}</p>"
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    return response.status_code == 200
+
+# --- FONCTION IA ---
 def moteur_ia(prompt):
     try:
-        res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
+        res = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}], 
+            model="llama-3.3-70b-versatile"
+        )
         return res.choices[0].message.content
-    except Exception as e: return f"Erreur IA : {e}"
+    except Exception as e: 
+        return f"Erreur IA : {e}"
 
-# --- LOGIQUE D'EMAIL RÉEL ---
-def envoyer_email_dispatch(dest, sujet, contenu):
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-        smtp.login(st.secrets["GMAIL_USER"], st.secrets["GMAIL_PASS"])
-        msg = EmailMessage()
-        msg.set_content(contenu)
-        msg['Subject'] = sujet
-        msg['From'] = "contact@zaxx.app"
-        msg['To'] = dest
-        smtp.send_message(msg)
-
-# --- CSS & LOGO ---
+# --- CSS & DESIGN ---
 st.markdown("""
     <style>
     .zip { color: #000080; font-weight: bold; font-size: 2.5rem; }
     .ngo { color: #4169E1; font-weight: bold; font-size: 2.5rem; }
-    .zaxx { font-size: 1rem; color: #555; display: block; margin-bottom: 20px; }
     </style>
-    <div><span class="zip">zip</span><span class="ngo">ngo</span><span class="zaxx">.zaxx.app</span></div>
+    <div><span class="zip">zip</span><span class="ngo">ngo</span>.zaxx.app</div>
 """, unsafe_allow_html=True)
 
-# --- NAVIGATION ---
-menu = st.sidebar.radio("Navigation", ["Accueil", "Espace de Travail", "CGV"])
+# --- NAVIGATION (ONGLETS DIRECTS) ---
+tab_candidat, tab_employeur, tab_cgv = st.tabs(["🚀 Espace Candidat", "💼 Espace Employeur", "📜 CGV"])
 
-# --- ESPACE CANDIDAT ---
-if st.session_state.get("role") == "Candidat":
-    st.header("Espace Candidat")
-    tab1, tab2 = st.tabs(["Scrapping & Candidatures", "Relooking CV"])
-    with tab1:
-        secteur = st.text_input("Secteur visé")
-        if st.button("Scraper 20 cibles"):
-            st.write(moteur_ia(f"Donne 20 entreprises en {secteur} avec emails. Format: Nom|Email."))
-    with tab2:
-        cv_text = st.text_area("Copiez votre CV ici")
-        if st.button("Améliorer mon CV"):
-            st.write(moteur_ia(f"Améliore ce CV pour le rendre plus percutant : {cv_text}"))
+with tab_candidat:
+    st.header("Interface Candidat")
+    secteur = st.text_input("Secteur visé pour le scraping")
+    if st.button("Lancer Scrapping 20 cibles"):
+        with st.spinner("Recherche IA en cours..."):
+            st.write(moteur_ia(f"Donne 20 entreprises en {secteur} avec emails."))
+    
+    cv = st.text_area("Copiez votre CV ici")
+    if st.button("Optimiser mon CV avec IA"):
+        with st.spinner("Amélioration en cours..."):
+            st.write(moteur_ia(f"Améliore ce CV pour le rendre plus percutant : {cv}"))
 
-# --- ESPACE EMPLOYEUR ---
-elif st.session_state.get("role") == "Employeur":
-    st.header("Espace Employeur (ATS)")
-    pays = st.selectbox("Pays", ["France", "Madagascar", "Canada", "Remote"])
-    if st.button("Rechercher et Trier Talents"):
-        st.write(moteur_ia(f"Suggère 5 profils candidats qualifiés en {pays}."))
+with tab_employeur:
+    st.header("Interface Employeur (ATS)")
+    pays = st.selectbox("Pays ciblé", ["France", "Madagascar", "Canada", "Remote"])
+    
+    if st.button("Rechercher Talents"):
+        with st.spinner("Analyse des profils..."):
+            st.write(moteur_ia(f"Suggère 5 profils candidats qualifiés en {pays}."))
+    
+    st.markdown("---")
+    email_candidat = st.text_input("Email du candidat à déverrouiller")
+    
     if st.button("👍 Déverrouiller et Dispatcher"):
-        envoyer_email_dispatch("candidat@test.com", "Entretien Zipngo", "Vous êtes déverrouillé !")
-        st.success("Candidat dispatché et notifié par email.")
+        if email_candidat:
+            # 1. Mise à jour dans Supabase
+            try:
+                supabase.table("candidats").update({"est_debloque": True}).eq("email", email_candidat).execute()
+                
+                # 2. Notification Mail via Resend
+                sujet = "Zipngo : Félicitations, vous avez été sélectionné !"
+                contenu = "Bonjour, un recruteur a déverrouillé votre profil sur Zipngo. Voici le lien pour votre entretien : https://meet.jit.si/zipngo-entretien-privé"
+                
+                if envoyer_email_dispatch(email_candidat, sujet, contenu):
+                    st.success(f"Candidat {email_candidat} déverrouillé et notifié par email !")
+                else:
+                    st.error("Erreur lors de l'envoi de l'email via Resend.")
+            except Exception as e:
+                st.error(f"Erreur base de données : {e}")
+        else:
+            st.warning("Veuillez entrer l'email du candidat.")
 
-# --- CGV ---
-elif menu == "CGV":
-    st.markdown("### Conditions Générales\n(Détails complets avec mise à jour du 25 mai 2026).")
+with tab_cgv:
+    st.markdown("""
+    ### Conditions Générales de Vente
+    Mise à jour : 25 mai 2026.
+    Zipngo est un service premium de recrutement par IA.
+    Accès illimité aux profils via abonnement.
+    """)
