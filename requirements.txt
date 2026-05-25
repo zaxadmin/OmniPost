@@ -10,3 +10,4 @@ pdfplumber
 fpdf
 PyPDF2
 datetime
+requests
