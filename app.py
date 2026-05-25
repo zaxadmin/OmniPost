@@ -62,4 +62,25 @@ with tab_candidat:
     with dossiers[4]:
         secteur = st.text_input("Secteur")
         if st.button("Identifier"):
-            res = client.chat.completions.create(messages=[{"role": "user", "content": f"20 emails RH en {secteur}. Liste séparée par virgules."}], model="llama-3
+            res = client.chat.completions.create(messages=[{"role": "user", "content": f"Donne 20 emails RH en {secteur}. Retourne uniquement une liste séparée par virgules."}], model="llama-3.3-70b-versatile")
+            st.session_state.emails_trouves = res.choices[0].message.content
+            st.info("✅ Étape suivante : Allez dans l'onglet '🚀 Campagne'.")
+    with dossiers[5]:
+        dest = st.text_input("Expéditeur")
+        bcc = st.text_area("Emails cibles", value=st.session_state.emails_trouves)
+        cv = st.file_uploader("CV pour envoi", type=["pdf"])
+        if st.button("Lancer envoi"):
+            if envoyer_email_avec_cv(dest, bcc.split(","), "Candidature", "Voici mon CV.", cv): st.success("Campagne lancée !")
+
+with tab_employeur:
+    st.header("Interface Employeur")
+    email_auth = st.text_input("Votre email professionnel (Lien Magique)")
+    if st.button("Envoyer mon Lien Magique"):
+        supabase.auth.sign_in_with_otp({"email": email_auth})
+        st.success("Lien envoyé !")
+    email_a_trier = st.text_input("Email de réception à trier")
+    if st.button("🚀 Lancer le Tri IA"): st.write("Tri en cours...")
+
+with tab_cgv:
+    st.markdown("## 📜 Conditions Générales de Vente")
+    st.markdown("1. Objet : Services d'optimisation de carrière. 2. Tarifs : Candidat 6€/3mois | Recruteur 39€/mois. 3. Responsabilité : Outil technologique sans garantie de résultat. 4. Propriété : Propriété exclusive de zaxx.app.")
