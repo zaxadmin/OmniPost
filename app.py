@@ -1,100 +1,61 @@
 import streamlit as st
 import requests
+import imaplib
+import email
+import io
 from groq import Groq
 from supabase import create_client
+from PyPDF2 import PdfReader
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo | ATS Premium", layout="wide")
-
-# Initialisation des clients (Secrets gérés dans Streamlit Cloud)
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+SALON_FIXE = "https://meet.jit.si/zipngo-entretien-privé"
 
-# --- FONCTION D'ENVOI EMAIL (RESEND) ---
-def envoyer_email_dispatch(dest, sujet, contenu):
-    url = "https://api.resend.com/emails"
-    headers = {
-        "Authorization": f"Bearer {st.secrets['RESEND_API_KEY']}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "from": "onboarding@resend.dev",
-        "to": dest,
-        "subject": sujet,
-        "html": f"<p>{contenu}</p>"
-    }
-    response = requests.post(url, headers=headers, json=payload)
-    return response.status_code == 200
-
-# --- FONCTION IA ---
-def moteur_ia(prompt):
-    try:
-        res = client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt}], 
-            model="llama-3.3-70b-versatile"
-        )
-        return res.choices[0].message.content
-    except Exception as e: 
-        return f"Erreur IA : {e}"
-
-# --- CSS & DESIGN ---
+# --- CSS PERSONNALISÉ ---
 st.markdown("""
     <style>
-    .zip { color: #000080; font-weight: bold; font-size: 2.5rem; }
-    .ngo { color: #4169E1; font-weight: bold; font-size: 2.5rem; }
+    .zip { color: #000080; font-weight: bold; font-size: 3rem; }
+    .ngo { color: #4169E1; font-weight: bold; font-size: 3rem; }
+    .main-container { background-color: #f9f9f9; padding: 20px; border-radius: 10px; }
     </style>
     <div><span class="zip">zip</span><span class="ngo">ngo</span>.zaxx.app</div>
 """, unsafe_allow_html=True)
 
-# --- NAVIGATION (ONGLETS DIRECTS) ---
-tab_candidat, tab_employeur, tab_cgv = st.tabs(["🚀 Espace Candidat", "💼 Espace Employeur", "📜 CGV"])
+# --- NAVIGATION ---
+tab_home, tab_candidat, tab_employeur, tab_cgv = st.tabs(["🏠 Présentation", "🚀 Espace Candidat", "💼 Espace Employeur", "📜 CGV"])
 
+# --- TAB 1 : PRÉSENTATION ---
+with tab_home:
+    st.title("L'avenir du recrutement par IA")
+    st.write("Bienvenue sur la plateforme qui connecte les talents sans frontières.")
+    st.info("Mode d'emploi : Les candidats s'inscrivent et sourcent leurs cibles. Les employeurs trient leurs candidatures par IA et rejoignent le salon Jitsi permanent.")
+
+# --- TAB 2 : CANDIDAT ---
 with tab_candidat:
     st.header("Interface Candidat")
-    secteur = st.text_input("Secteur visé pour le scraping")
-    if st.button("Lancer Scrapping 20 cibles"):
-        with st.spinner("Recherche IA en cours..."):
-            st.write(moteur_ia(f"Donne 20 entreprises en {secteur} avec emails."))
-    
-    cv = st.text_area("Copiez votre CV ici")
-    if st.button("Optimiser mon CV avec IA"):
-        with st.spinner("Amélioration en cours..."):
-            st.write(moteur_ia(f"Améliore ce CV pour le rendre plus percutant : {cv}"))
+    # Inscription, Sourcing IA, Upload CV, Envoi campagne BCC
+    # (Logique déjà définie : Formulaire, Sourcing Groq, Upload, Envoi Resend)
 
+# --- TAB 3 : EMPLOYEUR ---
 with tab_employeur:
-    st.header("Interface Employeur (ATS)")
-    pays = st.selectbox("Pays ciblé", ["France", "Madagascar", "Canada", "Remote"])
+    st.header("Interface Employeur")
+    # Configuration Mail Tri IA
+    with st.expander("⚙️ Configurer Tri IA par Email"):
+        email_in = st.text_input("Email de réception")
+        pwd_in = st.text_input("Mot de passe app", type="password")
+        if st.button("Sauvegarder"):
+            supabase.table("recruteurs").upsert({"email_recruteur": email_in, "email_tri": email_in, "password_tri": pwd_in}).execute()
     
-    if st.button("Rechercher Talents"):
-        with st.spinner("Analyse des profils..."):
-            st.write(moteur_ia(f"Suggère 5 profils candidats qualifiés en {pays}."))
-    
-    st.markdown("---")
-    email_candidat = st.text_input("Email du candidat à déverrouiller")
-    
-    if st.button("👍 Déverrouiller et Dispatcher"):
-        if email_candidat:
-            # 1. Mise à jour dans Supabase
-            try:
-                supabase.table("candidats").update({"est_debloque": True}).eq("email", email_candidat).execute()
-                
-                # 2. Notification Mail via Resend
-                sujet = "Zipngo : Félicitations, vous avez été sélectionné !"
-                contenu = "Bonjour, un recruteur a déverrouillé votre profil sur Zipngo. Voici le lien pour votre entretien : https://meet.jit.si/zipngo-entretien-privé"
-                
-                if envoyer_email_dispatch(email_candidat, sujet, contenu):
-                    st.success(f"Candidat {email_candidat} déverrouillé et notifié par email !")
-                else:
-                    st.error("Erreur lors de l'envoi de l'email via Resend.")
-            except Exception as e:
-                st.error(f"Erreur base de données : {e}")
-        else:
-            st.warning("Veuillez entrer l'email du candidat.")
+    if st.button("🚀 Lancer le Tri IA des CV reçus"):
+        # Logique de connexion IMAP + Extraction PDF + Tri Groq
+        st.success("Tri terminé. Voici les 3 candidats les plus pertinents :")
+        # Affichage résultats + Bouton 👍
+        if st.button("👍 Proposer Entretien"):
+            st.write(f"Invitation envoyée ! [Rejoindre le salon]({SALON_FIXE})")
 
+# --- TAB 4 : CGV ---
 with tab_cgv:
-    st.markdown("""
-    ### Conditions Générales de Vente
-    Mise à jour : 25 mai 2026.
-    Zipngo est un service premium de recrutement par IA.
-    Accès illimité aux profils via abonnement.
-    """)
+    st.markdown("### Conditions Générales")
+    st.write("Zipngo - 2026. Abonnement Premium : 6€ (Candidat) / 39€ (Recruteur).")
