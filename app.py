@@ -45,8 +45,14 @@ tab_home, tab_candidat, tab_employeur, tab_cgv = st.tabs(["🏠 Accueil", "🚀 
 
 with tab_candidat:
     st.header("Mon Espace Candidat")
-    rdvs = supabase.table("entretiens").select("*").eq("statut", "en_attente").execute().data
-    if rdvs: st.sidebar.error(f"🔔 {len(rdvs)} entretien(s) en attente !")
+    
+    # Notification clochette sécurisée
+    try:
+        response = supabase.table("entretiens").select("*").eq("statut", "en_attente").execute()
+        if hasattr(response, 'data') and response.data:
+            st.sidebar.error(f"🔔 {len(response.data)} entretien(s) en attente !")
+    except Exception as e:
+        st.sidebar.warning(f"⚠️ Erreur DB : {str(e)}")
     
     dossiers = st.tabs(["📂 Mes Candidatures", "📅 Mes Entretiens", "📄 Mes CVs", "✨ Relooking IA", "🌐 Sourcing", "🚀 Campagne"])
     with dossiers[2]: up = st.file_uploader("Upload mon CV", type=["pdf"])
@@ -62,7 +68,7 @@ with tab_candidat:
     with dossiers[4]:
         secteur = st.text_input("Secteur")
         if st.button("Identifier"):
-            res = client.chat.completions.create(messages=[{"role": "user", "content": f"Donne 20 emails RH en {secteur}. Retourne uniquement une liste séparée par virgules."}], model="llama-3.3-70b-versatile")
+            res = client.chat.completions.create(messages=[{"role": "user", "content": f"Donne 20 emails RH en {secteur}. Liste séparée par virgules."}], model="llama-3.3-70b-versatile")
             st.session_state.emails_trouves = res.choices[0].message.content
             st.info("✅ Étape suivante : Allez dans l'onglet '🚀 Campagne'.")
     with dossiers[5]:
@@ -74,12 +80,17 @@ with tab_candidat:
 
 with tab_employeur:
     st.header("Interface Employeur")
+    with st.expander("ℹ️ Pourquoi connecter votre boîte mail ?"):
+        st.write("Nous utilisons un **Lien Magique** pour votre connexion sécurisée sans mot de passe. L'IA scanne votre email de réception pour trier vos candidatures automatiquement.")
+    
     email_auth = st.text_input("Votre email professionnel (Lien Magique)")
     if st.button("Envoyer mon Lien Magique"):
         supabase.auth.sign_in_with_otp({"email": email_auth})
         st.success("Lien envoyé !")
+    
     email_a_trier = st.text_input("Email de réception à trier")
-    if st.button("🚀 Lancer le Tri IA"): st.write("Tri en cours...")
+    if st.button("🚀 Lancer le Tri IA"):
+        st.write("Tri en cours...")
 
 with tab_cgv:
     st.markdown("## 📜 Conditions Générales de Vente")
