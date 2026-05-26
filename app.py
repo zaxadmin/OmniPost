@@ -42,6 +42,20 @@ tab_home, tab_candidat, tab_employeur = st.tabs(["🏠 Accueil", "🚀 Candidat"
 with tab_home:
     st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
     st.info("Bienvenue sur zipngo. Utilisez votre espace dédié pour gérer votre carrière ou vos recrutements.")
+    
+    st.markdown("---")
+    with st.expander("📜 Lire les Conditions Générales de Vente"):
+        afficher_cgv()
+    
+    st.checkbox("J'accepte les Conditions Générales de Vente", key="accept_cgv")
+
+    st.markdown("""
+    <div style='text-align: center; margin-top: 50px;'>
+        © 2026 zipngo.zaxx.app<br>
+        <strong>Créatrice : Liliane RAKOTOBE</strong> | 
+        <a href='mailto:creationsites06@gmail.com'>📧 Contact</a>
+    </div>
+    """, unsafe_allow_html=True)
 
 with tab_candidat:
     st.header("Mon Espace Candidat")
@@ -53,13 +67,11 @@ with tab_candidat:
         with col1:
             st.markdown("#### 🟢 Accès Gratuit")
             st.write("• 1 CV optimisé / mois\n• 1 campagne / mois\n• Profil actif 3 mois")
-            if st.button("Tester le mode gratuit"): st.info("Vous êtes sur l'accès découverte.")
+            if st.button("Tester le mode gratuit"): st.info("Accès découverte activé.")
         with col2:
             st.markdown("#### 💎 Mode Premium")
             st.write("• 3 CVs optimisés / semaine\n• 20 mails par jour\n• Priorité totale")
             if st.button("🚀 Booster ma carrière"): st.info("Redirection vers le paiement...")
-        st.markdown("---")
-        st.subheader("📬 Historique des envois")
 
     with dossiers[1]: # 📅 Entretiens
         st.subheader("📅 Mes Entretiens")
@@ -92,6 +104,7 @@ with tab_candidat:
             texte = "".join([p.extract_text() for p in reader.pages])
             res = client.chat.completions.create(messages=[{"role": "user", "content": f"Analyse ce CV : {texte}"}], model="llama-3.3-70b-versatile")
             st.info(res.choices[0].message.content)
+            
         poste = st.text_input("Poste visé")
         if st.button("Valider et Produire"):
             if up and poste:
@@ -103,9 +116,4 @@ with tab_candidat:
 
 with tab_employeur:
     st.header("Interface Employeur")
-    st.info("Structure identique à prévoir ici prochainement.")
-
-# --- FOOTER ---
-st.markdown("---")
-with st.expander("📜 Lire les Conditions Générales de Vente"): afficher_cgv()
-st.markdown("<div style='text-align: center;'>© 2026 zipngo.zaxx.app</div>", unsafe_allow_html=True)
+    st.info("Structure de gestion employeur en cours de déploiement.")
