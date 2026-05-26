@@ -36,34 +36,38 @@ def envoyer_email_avec_cv(dest, bcc, sujet, contenu, cv_file):
         headers={"Authorization": f"Bearer {st.secrets['RESEND_API_KEY']}"}, json=payload)
     return response.status_code == 200
 
-# --- CGV ETOFFEES ---
 def afficher_cgv():
     st.markdown("""
-    ### 📜 Conditions Générales de Vente (CGV)
-    1. **Objet :** Services d'optimisation (zipngo/zaxx.app).
+    ### 📜 Conditions Générales de Vente
+    1. **Objet :** Services d'optimisation zipngo/zaxx.app.
     2. **Tarifs :** Candidat 6€/3mois | Recruteur 39€/mois.
-    3. **Non-garantie :** zipngo est un outil d'aide, non une promesse d'emploi.
-    4. **Responsabilité :** L'utilisateur est seul responsable de ses usages.
-    5. **Propriété :** Code et algorithmes propriété exclusive de zaxx.app.
-    6. **Données :** Collecte minimale pour le service, aucune vente à des tiers.
-    7. **Juridiction :** Droit français, tribunaux du siège social de zaxx.app.
+    3. **Non-garantie :** Outil d'aide, aucune garantie d'emploi.
+    4. **Responsabilité :** Utilisateur seul responsable de ses usages.
+    5. **Propriété :** Code et algorithmes propriété de zaxx.app.
+    6. **Données :** Collecte minimale, aucune vente à des tiers.
+    7. **Juridiction :** Droit français.
     """)
 
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='color:#000080;'>zip<span style='color:#4169E1;'>ngo</span>.zaxx.app</h1>", unsafe_allow_html=True)
-session = supabase.auth.get_session()
 if 'emails_trouves' not in st.session_state: st.session_state.emails_trouves = ""
 
-tab_home, tab_candidat, tab_employeur = st.tabs(["🏠 Accueil", "🚀 Candidat", "💼 Employeur"])
+session = supabase.auth.get_session()
+
+# Navigation dynamique : N'affiche les onglets que si connecté
+if not session:
+    tab_home = st.tabs(["🏠 Accueil"])[0]
+else:
+    tab_home, tab_candidat, tab_employeur = st.tabs(["🏠 Accueil", "🚀 Candidat", "💼 Employeur"])
 
 with tab_home:
     st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
     st.markdown("---")
     st.markdown("""
     ### Bienvenue sur **zipngo**
-    Nous transformons la complexité du marché de l'emploi en opportunités concrètes. Que vous cherchiez à décrocher le poste de vos rêves ou à bâtir une équipe d'exception, nous vous offrons les outils pour gagner en efficacité et en clarté.
-    * **Pour les Talents :** Valorisation sur-mesure de votre parcours et ciblage direct des décideurs.
-    * **Pour les Recruteurs :** Gestion sereine, tri intelligent des profils et rapidité d'exécution.
+    Nous transformons la complexité du marché de l'emploi en opportunités concrètes.
+    * **Pour les Talents :** Valorisation sur-mesure et ciblage direct des décideurs.
+    * **Pour les Recruteurs :** Gestion sereine, tri intelligent des profils et rapidité.
     """)
     st.markdown("---")
     col1, col2 = st.columns(2)
@@ -72,29 +76,23 @@ with tab_home:
         email_cand = st.text_input("Email Candidat", key="cand_email")
         if st.button("Connexion Candidat"):
             supabase.auth.sign_in_with_otp({"email": email_cand})
-            st.success("Lien magique envoyé par email.")
+            st.success("Lien envoyé par email.")
     with col2:
         st.subheader("💼 Espace Recruteur")
         email_rec = st.text_input("Email Recruteur", key="rec_email")
         if st.button("Connexion Recruteur"):
             supabase.auth.sign_in_with_otp({"email": email_rec})
-            st.success("Lien magique envoyé par email.")
+            st.success("Lien envoyé par email.")
 
-with tab_candidat:
-    if not session:
-        st.warning("⚠️ Veuillez vous connecter depuis l'accueil pour accéder à votre espace.")
-    else:
+if session:
+    with tab_candidat:
         st.header("Mon Espace Candidat")
-        dossiers = st.tabs(["📂 Mes Candidatures", "📅 Mes Entretiens", "📄 Mes CVs", "✨ Relooking IA", "🌐 Sourcing", "🚀 Campagne"])
-        # ... (insère ici tout ton code de dossiers candidat)
+        # (Ton code dossiers candidat ici)
         with st.expander("📜 Voir les CGV"):
             afficher_cgv()
-
-with tab_employeur:
-    if not session:
-        st.warning("⚠️ Veuillez vous connecter depuis l'accueil pour accéder à votre espace.")
-    else:
+            
+    with tab_employeur:
         st.header("Interface Employeur")
-        # ... (insère ici ton code employeur)
+        # (Ton code employeur ici)
         with st.expander("📜 Voir les CGV"):
             afficher_cgv()
