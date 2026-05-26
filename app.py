@@ -45,20 +45,29 @@ tab_home, tab_candidat, tab_employeur, tab_cgv = st.tabs(["🏠 Accueil", "🚀 
 
 with tab_home:
     st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
+    
+    # Espace de connexion centralisé
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("🚀 Espace Candidat")
+        email_cand = st.text_input("Email Candidat", key="cand_email")
+        if st.button("Connexion Candidat"):
+            supabase.auth.sign_in_with_otp({"email": email_cand})
+            st.success("Lien envoyé par email.")
+    with col2:
+        st.subheader("💼 Espace Recruteur")
+        email_rec = st.text_input("Email Recruteur", key="rec_email")
+        if st.button("Connexion Recruteur"):
+            supabase.auth.sign_in_with_otp({"email": email_rec})
+            st.success("Lien envoyé par email.")
+    
+    st.markdown("---")
     st.markdown("""
-    ---
     ### Bienvenue sur **zipngo**
-    Nous transformons la complexité du marché de l'emploi en opportunités concrètes. Que vous cherchiez à décrocher le poste de vos rêves ou à bâtir une équipe d'exception, nous vous offrons les outils pour gagner en efficacité.
-
-    **🚀 Pour les Talents :**
-    * **Valorisation sur-mesure :** Donnez à votre parcours l'impact qu'il mérite.
-    * **Visibilité ciblée :** Identifiez et atteignez directement les décideurs de votre secteur.
-    * **Fluidité totale :** Gérez vos candidatures avec une simplicité inédite.
-
-    **💼 Pour les Recruteurs :**
-    * **Clarté décisionnelle :** Identifiez les profils qui correspondent réellement à vos besoins.
-    * **Gestion sereine :** Éliminez les tâches répétitives pour vous concentrer sur l'humain.
-    * **Rapidité d'exécution :** Connectez-vous, triez, rencontrez.
+    Nous transformons la complexité du marché de l'emploi en opportunités concrètes.
+    * **Pour les Talents :** Valorisation sur-mesure et ciblage direct.
+    * **Pour les Recruteurs :** Clarté décisionnelle et automatisation des tâches.
     """)
 
 with tab_candidat:
@@ -96,11 +105,8 @@ with tab_candidat:
 with tab_employeur:
     st.header("Interface Employeur")
     with st.expander("ℹ️ Pourquoi connecter votre boîte mail ?"):
-        st.write("Nous utilisons un système sécurisé pour connecter votre espace. Votre boîte mail devient un tableau de bord intelligent pour centraliser et organiser vos candidatures en un clin d'œil.")
-    email_auth = st.text_input("Votre email professionnel (Lien Magique)")
-    if st.button("Envoyer mon Lien Magique"):
-        supabase.auth.sign_in_with_otp({"email": email_auth})
-        st.success("Lien envoyé !")
+        st.write("Votre boîte mail devient un tableau de bord intelligent pour centraliser et organiser vos candidatures.")
+    email_a_trier = st.text_input("Email de réception à trier")
     if st.button("🚀 Lancer le Tri Intelligent"): st.write("Analyse en cours...")
 
 with tab_cgv:
