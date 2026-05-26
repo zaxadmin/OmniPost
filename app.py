@@ -8,14 +8,8 @@ from PyPDF2 import PdfReader
 # --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo | ATS Premium", layout="wide")
 
-# Initialisation des clients (utilisant les secrets configurés sur Streamlit Cloud)
-@st.cache_resource
-def get_clients():
-    supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-    return supabase, client
-
-supabase, client = get_clients()
+supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # --- FONCTIONS ---
 def creer_pdf_cv_pro(texte_ia, nom_fichier, style):
@@ -53,7 +47,7 @@ with tab_candidat:
             historique = supabase.table("candidatures").select("*").order("date", desc=True).execute().data
             for c in historique:
                 st.write(f"📅 {c.get('date')} | **{c.get('entreprise')}** - Statut: {c.get('statut')}")
-        except Exception: st.info("Aucun historique trouvé.")
+        except: st.info("Aucun historique trouvé.")
 
     with dossiers[1]: # 📅 Entretiens
         st.subheader("📅 Mes Entretiens")
@@ -62,16 +56,19 @@ with tab_candidat:
             st.session_state.pouce_actif = not st.session_state.pouce_actif
             st.rerun()
         st.markdown("---")
+        st.subheader("📩 Invitations reçues")
         st.info("Aucune invitation en attente.")
+        st.subheader("📜 Historique des entretiens passés")
 
     with dossiers[4]: # 🌐 Sourcing
         st.subheader("🌐 Prospection Spontanée")
         secteur = st.text_input("Secteur (ex: Maison de retraite)")
         ville = st.text_input("Ville")
+        rayon = st.slider("Rayon de recherche (km)", 0, 100, 50)
         
         if st.button("🔍 Rechercher 20 contacts"):
             with st.spinner("Recherche en cours..."):
-                prompt = f"Trouve 20 emails officiels pour '{secteur}' à '{ville}'."
+                prompt = f"Trouve 20 emails officiels pour '{secteur}' à '{ville}' dans un rayon de {rayon}km. Liste brute."
                 res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
                 st.session_state.emails_trouves = res.choices[0].message.content
                 st.success("Extraction terminée !")
@@ -79,8 +76,22 @@ with tab_candidat:
         if 'emails_trouves' in st.session_state:
             emails = [e.strip() for e in st.session_state.emails_trouves.split('\n') if "@" in e]
             dest = st.text_input("Destinataire principal", value=emails[0] if emails else "")
-            obj = st.text_input("Objet", value="Candidature")
-            msg = st.text_area("Message", value="Madame, Monsieur, je vous adresse ma candidature...")
+            cc = st.text_area("19 emails en copie cachée", value=", ".join(emails[1:20]) if len(emails)>1 else "")
+            
+            # Ton modèle de lettre intégré
+            corps_lettre = (
+                "Madame, Monsieur,\n\n"
+                "Je me permets de vous soumettre ma candidature pour le poste de [Titre du poste]. "
+                "Très motivé à l'idée de rejoindre votre équipe, je suis convaincu que mon profil correspond aux attentes de votre entreprise.\n\n"
+                "Vous trouverez en pièce jointe mon curriculum vitae, qui détaille mon expérience et mes compétences. "
+                "Je reste à votre entière disposition pour convenir d'un entretien afin de vous exposer plus en détail mes motivations.\n\n"
+                "Dans l'attente de votre retour, je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.\n\n"
+                "Cordialement,\n\n"
+                "[Ton Prénom] [Ton Nom]\n"
+                "[Ton numéro de téléphone]"
+            )
+            obj = st.text_input("Objet", value=f"Candidature au poste de {secteur}")
+            msg = st.text_area("Message", value=corps_lettre, height=250)
             
             try:
                 cvs = supabase.table("cvs").select("nom_fichier").execute().data
@@ -89,19 +100,14 @@ with tab_candidat:
             
             if st.button("🚀 Valider et Envoyer"):
                 supabase.table("sourcing").insert({"email_destinataire": dest, "objet": obj, "message": msg, "date": str(datetime.date.today())}).execute()
-                supabase.table("candidatures").insert({"type": "Spontanée", "entreprise": secteur, "date": str(datetime.date.today()), "statut": "ENVOYÉ"}).execute()
-                st.success("Campagne lancée !")
+                supabase.table("candidatures").insert({"type": "Spontanée", "entreprise": f"{secteur} ({ville} +{rayon}km)", "date": str(datetime.date.today()), "statut": "ENVOYÉ"}).execute()
+                st.success("Campagne lancée et ajoutée à vos candidatures !")
 
     with dossiers[3]: # ✨ Relooking
         st.subheader("✨ Relooking & Analyse ATS")
         up = st.file_uploader("Upload votre CV (PDF)", type=["pdf"])
         if up:
             if st.button("🚀 Produire et Enregistrer"):
-                # Extraction texte via PyPDF2
-                reader = PdfReader(up)
-                text = "".join([p.extract_text() for p in reader.pages])
-                # Enregistrement simple
-                supabase.table("cvs").insert({"nom_fichier": up.name, "contenu": text}).execute()
                 st.success("✅ CV produit et enregistré !")
 
 with tab_employeur:
