@@ -93,13 +93,15 @@ with tab_candidat:
             obj = st.text_input("Objet", value=f"Candidature au poste de {secteur}")
             msg = st.text_area("Message", value=corps_lettre, height=250)
             
+            # --- BLOC CORRIGÉ ---
             try:
-                data = supabase.table("cvs").select("nom_fichier").execute().data
-                if data:
-                    nom_cv = st.selectbox("Attacher mon CV", [c['nom_fichier'] for c in data])
+                cvs = supabase.table("cvs").select("nom_fichier").execute().data
+                if cvs:
+                    nom_cv = st.selectbox("Attacher mon CV", [c['nom_fichier'] for c in cvs])
                 else:
-                    st.warning("⚠️ Chargez un CV dans 'Relooking CV' d'abord.")
-            except: st.warning("Impossible de charger les CVs.")
+                    st.warning("⚠️ Aucun CV trouvé en base. Merci de charger un CV dans l'onglet 'Relooking' avant d'envoyer une candidature.")
+            except Exception as e:
+                st.error("Erreur de connexion à la base de données.")
             
             if st.button("🚀 Valider et Envoyer"):
                 supabase.table("sourcing").insert({"email_destinataire": dest, "objet": obj, "message": msg, "date": str(datetime.date.today())}).execute()
