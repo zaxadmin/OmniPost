@@ -76,11 +76,7 @@ with tab_home:
         if st.button("Connexion Recruteur"):
             supabase.auth.sign_in_with_otp({"email": email_rec})
             st.success("Lien envoyé par email.")
-
-    st.markdown("---")
-    st.markdown("### Bienvenue sur **zipngo**")
-    st.write("Nous transformons la complexité du marché de l'emploi en opportunités concrètes.")
-
+ 
 with tab_candidat:
     st.header("Mon Espace Candidat")
     try:
