@@ -45,26 +45,38 @@ tab_home, tab_candidat, tab_employeur, tab_cgv = st.tabs(["🏠 Accueil", "🚀 
 
 with tab_home:
     st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
+    
     st.markdown("---")
-    col_text1, col_text2 = st.columns(2)
-    with col_text1:
-        st.subheader("🚀 Espace Candidat")
-        st.write("Optimisez votre CV, ciblez les entreprises et gérez vos candidatures avec simplicité.")
-    with col_text2:
-        st.subheader("💼 Espace Recruteur")
-        st.write("Centralisez vos candidatures, triez les profils pertinents et gagnez un temps précieux.")
-    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Le texte de bienvenue et présentation en premier
+    st.markdown("""
+    ### Bienvenue sur **zipngo**
+    Nous transformons la complexité du marché de l'emploi en opportunités concrètes. 
+    Que vous cherchiez à décrocher le poste de vos rêves ou à bâtir une équipe d'exception, 
+    nous vous offrons les outils pour gagner en efficacité et en clarté.
+
+    * **Pour les Talents :** Valorisation sur-mesure de votre parcours et ciblage direct des décideurs.
+    * **Pour les Recruteurs :** Gestion sereine, tri intelligent des profils et rapidité d'exécution.
+    """)
+    
+    st.markdown("---")
+    
+    # Les blocs de connexion tout en dessous
     col_conn1, col_conn2 = st.columns(2)
     with col_conn1:
+        st.subheader("🚀 Espace Candidat")
         email_cand = st.text_input("Email Candidat", key="cand_email")
         if st.button("Connexion Candidat"):
             supabase.auth.sign_in_with_otp({"email": email_cand})
             st.success("Lien envoyé par email.")
+            
     with col_conn2:
+        st.subheader("💼 Espace Recruteur")
         email_rec = st.text_input("Email Recruteur", key="rec_email")
         if st.button("Connexion Recruteur"):
             supabase.auth.sign_in_with_otp({"email": email_rec})
             st.success("Lien envoyé par email.")
+
     st.markdown("---")
     st.markdown("### Bienvenue sur **zipngo**")
     st.write("Nous transformons la complexité du marché de l'emploi en opportunités concrètes.")
