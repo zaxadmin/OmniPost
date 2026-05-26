@@ -39,10 +39,10 @@ def envoyer_email_avec_cv(dest, bcc, sujet, contenu, cv_file):
 def afficher_cgv():
     st.markdown("""
     ### 📜 Conditions Générales de Vente
-    1. **Objet :** Services d'optimisation zipngo/zaxx.app.
+    1. **Objet :** Services d'optimisation (zipngo).
     2. **Tarifs :** Candidat 6€/3mois | Recruteur 39€/mois.
     3. **Non-garantie :** Outil d'aide, aucune garantie d'emploi.
-    4. **Responsabilité :** Utilisateur seul responsable de ses usages.
+    4. **Responsabilité :** L'utilisateur est seul responsable de ses usages.
     5. **Propriété :** Code et algorithmes propriété de zaxx.app.
     6. **Données :** Collecte minimale, aucune vente à des tiers.
     7. **Juridiction :** Droit français.
@@ -54,7 +54,7 @@ if 'emails_trouves' not in st.session_state: st.session_state.emails_trouves = "
 
 session = supabase.auth.get_session()
 
-# Navigation dynamique : N'affiche les onglets que si connecté
+# Navigation dynamique
 if not session:
     tab_home = st.tabs(["🏠 Accueil"])[0]
 else:
@@ -75,14 +75,26 @@ with tab_home:
         st.subheader("🚀 Espace Candidat")
         email_cand = st.text_input("Email Candidat", key="cand_email")
         if st.button("Connexion Candidat"):
-            supabase.auth.sign_in_with_otp({"email": email_cand})
-            st.success("Lien envoyé par email.")
+            try:
+                supabase.auth.sign_in_with_otp({
+                    "email": email_cand,
+                    "options": {"email_redirect_to": "https://zipngo.streamlit.app/"}
+                })
+                st.success("Lien magique envoyé ! Vérifiez vos emails.")
+            except Exception as e:
+                st.error("Erreur de connexion.")
     with col2:
         st.subheader("💼 Espace Recruteur")
         email_rec = st.text_input("Email Recruteur", key="rec_email")
         if st.button("Connexion Recruteur"):
-            supabase.auth.sign_in_with_otp({"email": email_rec})
-            st.success("Lien envoyé par email.")
+            try:
+                supabase.auth.sign_in_with_otp({
+                    "email": email_rec,
+                    "options": {"email_redirect_to": "https://zipngo.streamlit.app/"}
+                })
+                st.success("Lien magique envoyé ! Vérifiez vos emails.")
+            except Exception as e:
+                st.error("Erreur de connexion.")
 
 if session:
     with tab_candidat:
