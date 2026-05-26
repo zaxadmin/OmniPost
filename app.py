@@ -42,13 +42,10 @@ tab_home, tab_candidat, tab_employeur = st.tabs(["🏠 Accueil", "🚀 Candidat"
 with tab_home:
     st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
     st.info("Bienvenue sur zipngo. Utilisez votre espace dédié pour gérer votre carrière ou vos recrutements.")
-    
     st.markdown("---")
     with st.expander("📜 Lire les Conditions Générales de Vente"):
         afficher_cgv()
-    
     st.checkbox("J'accepte les Conditions Générales de Vente", key="accept_cgv")
-
     st.markdown("""
     <div style='text-align: center; margin-top: 50px;'>
         © 2026 zipngo.zaxx.app<br>
@@ -75,7 +72,6 @@ with tab_candidat:
 
     with dossiers[1]: # 📅 Entretiens
         st.subheader("📅 Mes Entretiens")
-        st.write("### ⏳ À confirmer")
         try:
             a_confirmer = supabase.table("entretiens").select("*").eq("statut", "A_CONFIRMER").execute().data
             if a_confirmer:
@@ -97,23 +93,32 @@ with tab_candidat:
         except: st.write("Aucun CV enregistré.")
 
     with dossiers[3]: # ✨ Relooking
-        st.subheader("✨ Relooking & Analyse")
-        up = st.file_uploader("Upload CV", type=["pdf"])
-        if up and st.button("🚀 Lancer l'analyse"):
+        st.subheader("✨ Relooking & Analyse ATS")
+        up = st.file_uploader("Upload votre CV (PDF)", type=["pdf"])
+        if up:
             reader = PdfReader(up)
-            texte = "".join([p.extract_text() for p in reader.pages])
-            res = client.chat.completions.create(messages=[{"role": "user", "content": f"Analyse ce CV : {texte}"}], model="llama-3.3-70b-versatile")
-            st.info(res.choices[0].message.content)
+            texte_cv = "".join([p.extract_text() for p in reader.pages])
+            if st.button("🔍 Lancer le Scan ATS"):
+                res = client.chat.completions.create(messages=[{"role": "user", "content": f"Scan ATS critique : {texte_cv}"}], model="llama-3.3-70b-versatile")
+                st.info(res.choices[0].message.content)
             
-        poste = st.text_input("Poste visé")
-        if st.button("Valider et Produire"):
-            if up and poste:
-                res = client.chat.completions.create(messages=[{"role": "user", "content": f"Réécris pour {poste} : {texte}"}], model="llama-3.3-70b-versatile")
-                contenu = res.choices[0].message.content
-                supabase.table("cvs").insert({"user_email": "test@test.com", "nom_fichier": f"CV_{poste}.pdf", "contenu": contenu, "poste_vise": poste}).execute()
-                st.session_state.cv_final = contenu
-                st.success("CV produit et sauvegardé !")
+            offre_emploi = st.text_area("Copiez ici l'offre d'emploi")
+            poste_vise = st.text_input("Poste visé")
+            template = st.selectbox("Choisissez votre style", ["Classique", "Moderne", "Professionnel"])
+            
+            if st.button("🚀 Produire et Enregistrer mon CV"):
+                prompt = f"Réécris et optimise ce CV pour le poste de {poste_vise}. Offre : {offre_emploi}. CV original : {texte_cv}"
+                res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
+                contenu_final = res.choices[0].message.content
+                supabase.table("cvs").insert({"user_email": "test@test.com", "nom_fichier": f"CV_{poste_vise}.pdf", "contenu": contenu_final, "poste_vise": poste_vise}).execute()
+                st.session_state.cv_final = contenu_final
+                st.success("✅ CV produit et enregistré !")
+
+        if 'cv_final' in st.session_state:
+            nom_pdf = "mon_cv_relooker.pdf"
+            creer_pdf_cv_pro(st.session_state.cv_final, nom_pdf, template)
+            with open(nom_pdf, "rb") as f: st.download_button(f"📥 Télécharger le CV ({template})", f, nom_pdf)
 
 with tab_employeur:
     st.header("Interface Employeur")
-    st.info("Structure de gestion employeur en cours de déploiement.")
+    st.info("Module en cours de déploiement.")
