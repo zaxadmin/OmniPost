@@ -34,7 +34,7 @@ tab_home, tab_candidat, tab_employeur = st.tabs(["🏠 Accueil", "🚀 Candidat"
 with tab_home:
     st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
     with st.expander("📜 Lire les CGV"): afficher_cgv()
-    st.checkbox("J'accepte les Conditions Générales de Vente", key="accept_cgv")
+    st.checkbox("J'accepte les CGV", key="accept_cgv")
     st.markdown("<div style='text-align: center; margin-top: 50px;'>© 2026 zipngo.zaxx.app | <strong>Créatrice : Liliane RAKOTOBE</strong></div>", unsafe_allow_html=True)
 
 with tab_candidat:
