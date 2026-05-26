@@ -49,51 +49,65 @@ with tab_candidat:
     st.header("Mon Espace Candidat")
     dossiers = st.tabs(["📂 Candidatures", "📅 Entretiens", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing", "🚀 Campagne"])
     
-    with dossiers[2]: # Mes CVs (Code sécurisé)
+    # 1. Entretiens
+    with dossiers[1]: 
+        st.subheader("📅 Mes Entretiens")
+        st.write("### ⏳ À confirmer")
+        try:
+            a_confirmer = supabase.table("entretiens").select("*").eq("statut", "A_CONFIRMER").execute().data
+            if a_confirmer:
+                for e in a_confirmer:
+                    with st.expander(f"Proposition : {e['poste']} - {e['date_heure'][:16]}"):
+                        if st.button("✅ Confirmer ce rendez-vous", key=e['id']):
+                            supabase.table("entretiens").update({"statut": "CONFIRME"}).eq("id", e['id']).execute()
+                            st.rerun()
+            else: st.info("Aucune proposition en attente.")
+        except: st.warning("Connexion aux entretiens en cours...")
+
+        st.markdown("---")
+        st.write("### 📜 Historique & Entretiens confirmés")
+        try:
+            entretiens = supabase.table("entretiens").select("*").in_("statut", ["CONFIRME", "PASSE"]).order("date_heure", desc=True).execute().data
+            for e in entretiens:
+                status_icon = "✅" if e['statut'] == "CONFIRME" else "🏁"
+                with st.expander(f"{status_icon} {e['poste']} - {e['date_heure'][:16]}"):
+                    if e['statut'] == "CONFIRME":
+                        st.success("Entretien confirmé !")
+                        st.link_button("🎥 Rejoindre la salle Jitsi (Lien Recruteur)", e['jitsi_url'])
+                    else: st.write("Entretien passé.")
+        except: st.write("Aucun historique.")
+
+    # 2. CVs
+    with dossiers[2]: 
         st.subheader("📄 Mes CVs enregistrés")
         try:
             response = supabase.table("cvs").select("id, poste_vise, created_at, contenu").order("created_at", desc=True).execute()
-            cvs_enregistres = response.data
-            if cvs_enregistres:
-                for item in cvs_enregistres:
-                    with st.expander(f"CV pour {item['poste_vise']} - {item.get('created_at', 'N/A')[:10]}"):
-                        st.write(item.get('contenu', ''))
-            else:
-                st.write("Aucun CV enregistré pour le moment.")
-        except Exception as e:
-            st.warning("Connexion à la base de données en cours...")
+            for item in response.data:
+                with st.expander(f"CV pour {item['poste_vise']} - {item.get('created_at', 'N/A')[:10]}"):
+                    st.write(item.get('contenu', ''))
+        except: st.write("Aucun CV enregistré.")
 
-    with dossiers[3]: # Relooking CV (Production)
+    # 3. Relooking
+    with dossiers[3]: 
         st.subheader("✨ Relooking & Analyse ATS")
-        up = st.file_uploader("1. Upload mon CV", type=["pdf"])
-        if up:
-            if st.button("🚀 Lancer l'analyse ATS"):
-                with st.spinner("Analyse en cours..."):
-                    reader = PdfReader(up)
-                    texte = "".join([p.extract_text() for p in reader.pages])
-                    res = client.chat.completions.create(messages=[{"role": "user", "content": f"Agis comme expert ATS. Analyse ce CV : {texte}. Score /100 et 3 points critiques."}], model="llama-3.3-70b-versatile")
-                    st.session_state.diagnostic = res.choices[0].message.content
-            if 'diagnostic' in st.session_state: st.info(st.session_state.diagnostic)
-
-        st.markdown("---")
-        st.subheader("🎯 Adapter mon CV")
+        up = st.file_uploader("Upload CV", type=["pdf"])
+        if up and st.button("🚀 Lancer l'analyse ATS"):
+            reader = PdfReader(up)
+            texte = "".join([p.extract_text() for p in reader.pages])
+            res = client.chat.completions.create(messages=[{"role": "user", "content": f"Analyse ATS de ce CV : {texte}"}], model="llama-3.3-70b-versatile")
+            st.info(res.choices[0].message.content)
+            
         poste = st.text_input("Poste visé")
-        style = st.selectbox("Style :", ["Classique", "Moderne", "Créatif"])
-        
         if st.button("Valider et Produire"):
             if up and poste:
-                with st.spinner("Production et sauvegarde..."):
-                    reader = PdfReader(up)
-                    texte = "".join([p.extract_text() for p in reader.pages])
-                    res = client.chat.completions.create(messages=[{"role": "user", "content": f"Réécris pour le poste de {poste}. Style {style} : {texte}"}], model="llama-3.3-70b-versatile")
-                    contenu_final = res.choices[0].message.content
-                    supabase.table("cvs").insert({"user_email": "test@test.com", "nom_fichier": f"CV_{poste}.pdf", "contenu": contenu_final, "poste_vise": poste}).execute()
-                    st.session_state.cv_final = contenu_final
-                    st.success("CV produit et sauvegardé !")
-            else: st.error("Upload et poste requis.")
+                res = client.chat.completions.create(messages=[{"role": "user", "content": f"Réécris ce CV pour {poste} : {texte}"}], model="llama-3.3-70b-versatile")
+                contenu = res.choices[0].message.content
+                supabase.table("cvs").insert({"user_email": "test@test.com", "nom_fichier": f"CV_{poste}.pdf", "contenu": contenu, "poste_vise": poste}).execute()
+                st.session_state.cv_final = contenu
+                st.success("CV produit et sauvegardé !")
 
         if 'cv_final' in st.session_state:
-            creer_pdf_cv_pro(st.session_state.cv_final, "cv_prod.pdf", style)
+            creer_pdf_cv_pro(st.session_state.cv_final, "cv_prod.pdf", "Classique")
             with open("cv_prod.pdf", "rb") as f: st.download_button("📥 Télécharger le CV final", f, "mon_cv_final.pdf")
 
 with tab_employeur:
