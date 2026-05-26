@@ -77,23 +77,23 @@ with tab_employeur:
     st.header("Interface Employeur")
     st.write("Outils de tri et gestion activés.")
 
-# --- FOOTER CLIQUABLE ---
+# --- FOOTER ---
 st.markdown("---")
-
-# Section CGV
 st.markdown("<div id='cgv-section'></div>", unsafe_allow_html=True)
 with st.expander("📜 Lire les Conditions Générales de Vente"):
     afficher_cgv()
 
-# Footer avec HTML interprété
-st.markdown("""
-<div style="text-align: center; margin-top: 50px; color: grey;">
+# Footer avec icône professionnelle et rendu HTML propre
+footer_html = """
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<div style="text-align: center; margin-top: 50px; color: grey; font-family: sans-serif;">
     <p>© 2026 zipngo.zaxx.app | 
     <a href="#cgv-section" style="color: #4169E1; text-decoration: none; font-weight: bold;">Voir les CGV</a></p>
     
     <p>Créatrice : Liliane RAKOTOBE | 
     <a href="mailto:creationsites06@gmail.com" style="color: #4169E1; text-decoration: none;">
-        📧 creationsites06@gmail.com
+        <i class="fa-solid fa-envelope"></i> creationsites06@gmail.com
     </a></p>
 </div>
-""", unsafe_allow_html=True)
+"""
+st.markdown(footer_html, unsafe_allow_html=True)
