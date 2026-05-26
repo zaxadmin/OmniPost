@@ -36,11 +36,25 @@ def envoyer_email_avec_cv(dest, bcc, sujet, contenu, cv_file):
         headers={"Authorization": f"Bearer {st.secrets['RESEND_API_KEY']}"}, json=payload)
     return response.status_code == 200
 
+# --- CGV ETOFFEES ---
+def afficher_cgv():
+    st.markdown("""
+    ### 📜 Conditions Générales de Vente (CGV)
+    1. **Objet :** Services d'optimisation (zipngo/zaxx.app).
+    2. **Tarifs :** Candidat 6€/3mois | Recruteur 39€/mois.
+    3. **Non-garantie :** zipngo est un outil d'aide, non une promesse d'emploi.
+    4. **Responsabilité :** L'utilisateur est seul responsable de ses usages.
+    5. **Propriété :** Code et algorithmes propriété exclusive de zaxx.app.
+    6. **Données :** Collecte minimale pour le service, aucune vente à des tiers.
+    7. **Juridiction :** Droit français, tribunaux du siège social de zaxx.app.
+    """)
+
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='color:#000080;'>zip<span style='color:#4169E1;'>ngo</span>.zaxx.app</h1>", unsafe_allow_html=True)
 session = supabase.auth.get_session()
+if 'emails_trouves' not in st.session_state: st.session_state.emails_trouves = ""
 
-tab_home, tab_candidat, tab_employeur, tab_cgv = st.tabs(["🏠 Accueil", "🚀 Candidat", "💼 Employeur", "📜 CGV"])
+tab_home, tab_candidat, tab_employeur = st.tabs(["🏠 Accueil", "🚀 Candidat", "💼 Employeur"])
 
 with tab_home:
     st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
@@ -48,7 +62,6 @@ with tab_home:
     st.markdown("""
     ### Bienvenue sur **zipngo**
     Nous transformons la complexité du marché de l'emploi en opportunités concrètes. Que vous cherchiez à décrocher le poste de vos rêves ou à bâtir une équipe d'exception, nous vous offrons les outils pour gagner en efficacité et en clarté.
-
     * **Pour les Talents :** Valorisation sur-mesure de votre parcours et ciblage direct des décideurs.
     * **Pour les Recruteurs :** Gestion sereine, tri intelligent des profils et rapidité d'exécution.
     """)
@@ -72,42 +85,16 @@ with tab_candidat:
         st.warning("⚠️ Veuillez vous connecter depuis l'accueil pour accéder à votre espace.")
     else:
         st.header("Mon Espace Candidat")
-        # (Ton code de dossiers candidat reste ici)
-        st.write("Bienvenue dans votre espace sécurisé.")
+        dossiers = st.tabs(["📂 Mes Candidatures", "📅 Mes Entretiens", "📄 Mes CVs", "✨ Relooking IA", "🌐 Sourcing", "🚀 Campagne"])
+        # ... (insère ici tout ton code de dossiers candidat)
+        with st.expander("📜 Voir les CGV"):
+            afficher_cgv()
 
 with tab_employeur:
     if not session:
         st.warning("⚠️ Veuillez vous connecter depuis l'accueil pour accéder à votre espace.")
     else:
         st.header("Interface Employeur")
-        # (Ton code employeur reste ici)
-        st.write("Outils de gestion activés.")
-
-with tab_cgv:
-    st.markdown("## 📜 Conditions Générales de Vente (CGV)")
-    st.markdown("""
-    ### 1. Objet et acceptation
-    Les présentes conditions régissent l'utilisation des services proposés par **zipngo** (propriété de zaxx.app). En utilisant nos outils, l'utilisateur accepte sans réserve l'intégralité des présentes conditions.
-
-    ### 2. Services proposés
-    * **Espace Candidat :** Optimisation de documents (CV), identification de contacts RH, et gestion automatisée des campagnes de candidature.
-    * **Espace Recruteur :** Outils de tri de candidatures par intelligence artificielle et gestion des flux d'entretiens.
-
-    ### 3. Tarification et Abonnements
-    * **Offre Candidat :** 6€ pour une période de 3 mois. Accès complet aux outils d'optimisation.
-    * **Offre Recruteur :** 39€ par mois. Accès complet aux outils de tri et de gestion.
-    * Les paiements sont sécurisés. Aucun remboursement n'est effectué pour les périodes déjà entamées.
-
-    ### 4. Responsabilité et Garantie
-    * **Nature des outils :** Nos services sont des outils d'aide à la décision. **zipngo** ne garantit en aucun cas l'obtention d'un entretien ou d'un contrat de travail.
-    * **Limitation de responsabilité :** L'utilisateur est seul responsable de l'usage fait des outils (notamment le respect du RGPD lors de l'envoi de campagnes emails). **zipngo** décline toute responsabilité en cas de perte de données ou d'incompatibilité logicielle.
-
-    ### 5. Propriété Intellectuelle
-    Le site, son code, ses algorithmes et son identité graphique sont la propriété exclusive de **zaxx.app**. Toute reproduction, modification ou distribution sans autorisation écrite est strictement interdite.
-
-    ### 6. Protection des données
-    Nous collectons uniquement les données strictement nécessaires au fonctionnement du service (emails de connexion, documents uploadés). Ces données ne sont ni vendues, ni partagées à des tiers.
-
-    ### 7. Litiges et Juridiction
-    Tout litige relatif à l'interprétation ou à l'exécution des présentes CGV sera soumis au droit français. En cas de désaccord persistant, les tribunaux compétents seront ceux du siège social de **zaxx.app**.
-    """)
+        # ... (insère ici ton code employeur)
+        with st.expander("📜 Voir les CGV"):
+            afficher_cgv()
