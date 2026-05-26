@@ -42,15 +42,11 @@ with tab_candidat:
     
     with dossiers[0]: # 📂 Candidatures
         st.subheader("📊 Mon Statut & Historique Sourcing")
-        col1, col2 = st.columns(2)
-        with col1: st.write("🟢 **Accès Gratuit :** 1 campagne/mois.")
-        with col2: st.write("💎 **Mode Premium :** 20 mails/jour.")
-        st.markdown("---")
+        # Historique synchronisé
         try:
-            historique = supabase.table("sourcing").select("*").order("id", desc=True).execute().data
-            for h in historique:
-                with st.expander(f"📅 {h.get('date')} | Destinataire : {h.get('email_destinataire')}"):
-                    st.write(f"**Objet :** {h.get('objet')}")
+            historique = supabase.table("candidatures").select("*").order("date", desc=True).execute().data
+            for c in historique:
+                st.write(f"📅 {c.get('date')} | **{c.get('entreprise')}** - Statut: {c.get('statut')}")
         except: st.info("Aucun historique trouvé.")
 
     with dossiers[1]: # 📅 Entretiens
@@ -61,25 +57,40 @@ with tab_candidat:
             st.rerun()
         st.markdown("---")
         st.subheader("📩 Invitations reçues")
-        # Logique Jitsi / Validation horaire
         st.info("Aucune invitation en attente.")
         st.subheader("📜 Historique des entretiens passés")
 
-    with dossiers[4]: # 🌐 Sourcing (1 + 19)
-        st.subheader("🌐 Prospection Spontanée (Campagne 1+19)")
-        destinataire = st.text_input("Destinataire principal")
-        copie_cachee = st.text_area("19 emails en copie cachée")
-        objet = st.text_input("Objet du mail")
-        message = st.text_area("Message")
-        if st.button("🚀 Envoyer à 20 contacts"):
-            supabase.table("sourcing").insert({"email_destinataire": destinataire, "objet": objet, "message": message, "date": str(datetime.date.today())}).execute()
-            st.success("Campagne lancée !")
+    with dossiers[4]: # 🌐 Sourcing (IA Intégré)
+        st.subheader("🌐 Prospection Spontanée (IA)")
+        secteur = st.text_input("Secteur (ex: Maison de retraite)")
+        ville = st.text_input("Ville")
+        
+        if st.button("🔍 Rechercher 20 contacts"):
+            with st.spinner("Recherche des emails officiels..."):
+                prompt = f"Trouve 20 emails officiels (rh@, contact@) pour '{secteur}' à '{ville}'. Liste brute."
+                res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
+                st.session_state.emails_trouves = res.choices[0].message.content
+                st.success("Extraction terminée !")
+        
+        if 'emails_trouves' in st.session_state:
+            emails = [e.strip() for e in st.session_state.emails_trouves.split('\n') if "@" in e]
+            dest = st.text_input("Destinataire principal", value=emails[0] if emails else "")
+            cc = st.text_area("19 emails en copie cachée", value=", ".join(emails[1:20]) if len(emails)>1 else "")
+            obj = st.text_input("Objet", value="Candidature")
+            msg = st.text_area("Message", value="Madame, Monsieur, je vous adresse ma candidature...")
+            
+            cvs = supabase.table("cvs").select("nom_fichier").execute().data
+            nom_cv = st.selectbox("Attacher mon CV", [c['nom_fichier'] for c in cvs])
+            
+            if st.button("🚀 Valider et Envoyer"):
+                supabase.table("sourcing").insert({"email_destinataire": dest, "objet": obj, "message": msg, "date": str(datetime.date.today())}).execute()
+                supabase.table("candidatures").insert({"type": "Spontanée", "entreprise": secteur, "date": str(datetime.date.today()), "statut": "ENVOYÉ"}).execute()
+                st.success("Campagne lancée et ajoutée à vos candidatures !")
 
     with dossiers[3]: # ✨ Relooking
         st.subheader("✨ Relooking & Analyse ATS")
         up = st.file_uploader("Upload votre CV (PDF)", type=["pdf"])
         if up:
-            # ... (logique scan ATS + bouton Produire et Enregistrer)
             if st.button("🚀 Produire et Enregistrer"):
                 st.success("✅ CV produit et enregistré !")
 
