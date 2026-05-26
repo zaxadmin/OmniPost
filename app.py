@@ -84,5 +84,30 @@ with tab_employeur:
         st.write("Outils de gestion activés.")
 
 with tab_cgv:
-    st.markdown("## 📜 Conditions Générales de Vente")
-    st.markdown("1. Objet : Services d'optimisation. 2. Tarifs : Candidat 6€/3mois | Recruteur 39€/mois. 3. Propriété exclusive de zaxx.app.")
+    st.markdown("## 📜 Conditions Générales de Vente (CGV)")
+    st.markdown("""
+    ### 1. Objet et acceptation
+    Les présentes conditions régissent l'utilisation des services proposés par **zipngo** (propriété de zaxx.app). En utilisant nos outils, l'utilisateur accepte sans réserve l'intégralité des présentes conditions.
+
+    ### 2. Services proposés
+    * **Espace Candidat :** Optimisation de documents (CV), identification de contacts RH, et gestion automatisée des campagnes de candidature.
+    * **Espace Recruteur :** Outils de tri de candidatures par intelligence artificielle et gestion des flux d'entretiens.
+
+    ### 3. Tarification et Abonnements
+    * **Offre Candidat :** 6€ pour une période de 3 mois. Accès complet aux outils d'optimisation.
+    * **Offre Recruteur :** 39€ par mois. Accès complet aux outils de tri et de gestion.
+    * Les paiements sont sécurisés. Aucun remboursement n'est effectué pour les périodes déjà entamées.
+
+    ### 4. Responsabilité et Garantie
+    * **Nature des outils :** Nos services sont des outils d'aide à la décision. **zipngo** ne garantit en aucun cas l'obtention d'un entretien ou d'un contrat de travail.
+    * **Limitation de responsabilité :** L'utilisateur est seul responsable de l'usage fait des outils (notamment le respect du RGPD lors de l'envoi de campagnes emails). **zipngo** décline toute responsabilité en cas de perte de données ou d'incompatibilité logicielle.
+
+    ### 5. Propriété Intellectuelle
+    Le site, son code, ses algorithmes et son identité graphique sont la propriété exclusive de **zaxx.app**. Toute reproduction, modification ou distribution sans autorisation écrite est strictement interdite.
+
+    ### 6. Protection des données
+    Nous collectons uniquement les données strictement nécessaires au fonctionnement du service (emails de connexion, documents uploadés). Ces données ne sont ni vendues, ni partagées à des tiers.
+
+    ### 7. Litiges et Juridiction
+    Tout litige relatif à l'interprétation ou à l'exécution des présentes CGV sera soumis au droit français. En cas de désaccord persistant, les tribunaux compétents seront ceux du siège social de **zaxx.app**.
+    """)
