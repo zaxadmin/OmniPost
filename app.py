@@ -42,7 +42,6 @@ with tab_candidat:
     
     with dossiers[0]: # 📂 Candidatures
         st.subheader("📊 Mon Statut & Historique Sourcing")
-        # Historique synchronisé
         try:
             historique = supabase.table("candidatures").select("*").order("date", desc=True).execute().data
             for c in historique:
@@ -60,13 +59,13 @@ with tab_candidat:
         st.info("Aucune invitation en attente.")
         st.subheader("📜 Historique des entretiens passés")
 
-    with dossiers[4]: # 🌐 Sourcing (IA Intégré)
-        st.subheader("🌐 Prospection Spontanée (IA)")
+    with dossiers[4]: # 🌐 Sourcing
+        st.subheader("🌐 Prospection Spontanée")
         secteur = st.text_input("Secteur (ex: Maison de retraite)")
         ville = st.text_input("Ville")
         
         if st.button("🔍 Rechercher 20 contacts"):
-            with st.spinner("Recherche des emails officiels..."):
+            with st.spinner("Recherche en cours..."):
                 prompt = f"Trouve 20 emails officiels (rh@, contact@) pour '{secteur}' à '{ville}'. Liste brute."
                 res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
                 st.session_state.emails_trouves = res.choices[0].message.content
