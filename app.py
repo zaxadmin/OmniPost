@@ -43,9 +43,9 @@ with tab_home:
     st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
     st.info("Bienvenue sur zipngo. Utilisez votre espace dédié pour gérer votre carrière ou vos recrutements.")
     st.markdown("---")
-    with st.expander("📜 Lire les Conditions Générales de Vente"):
+    with st.expander("📜 Lire les CGV"):
         afficher_cgv()
-    st.checkbox("J'accepte les Conditions Générales de Vente", key="accept_cgv")
+    st.checkbox("J'accepte les CGV", key="accept_cgv")
     st.markdown("""
     <div style='text-align: center; margin-top: 50px;'>
         © 2026 zipngo.zaxx.app<br>
