@@ -41,7 +41,6 @@ tab_home, tab_candidat, tab_employeur = st.tabs(["🏠 Accueil", "🚀 Candidat"
 
 with tab_home:
     st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
-    
     st.markdown("""
     ### Bienvenue sur **zipngo**
     **zipngo** est un écosystème conçu pour maximiser votre impact professionnel, que vous soyez un talent en quête d'opportunités ou un recruteur à la recherche de la perle rare.
@@ -53,12 +52,9 @@ with tab_home:
     * **Durée de vie :** Profil actif pendant 3 mois, puis mise en veille automatique.
     * **Outils :** Accès aux outils de diagnostic et de gestion des entretiens.
     """)
-    
     if st.button("Tester gratuitement"):
-        # Note : Si tu n'as pas de dossiers 'pages/', utilise ceci pour naviguer :
-        st.session_state.active_tab = "🚀 Candidat"
-        st.rerun()
-
+        st.info("Redirection vers l'espace Candidat...")
+    
     st.markdown("""
     ---
     #### 💎 Pourquoi passer en mode Premium ?
@@ -68,10 +64,9 @@ with tab_home:
     * **Priorité :** Accès illimité à nos outils d'optimisation les plus poussés.
     * **Avantage exclusif :** Accès en avant-première à toutes les nouvelles fonctionnalités.
     """)
-    
     if st.button("🚀 Booster ma carrière avec le Premium"):
         st.info("Redirection vers la page de paiement...")
-
+    
     st.info("💡 **Mode Test :** Accès total actuel pour découvrir nos fonctionnalités.")
 
 with tab_candidat:
@@ -80,14 +75,55 @@ with tab_candidat:
     
     with dossiers[1]: # Entretiens
         st.subheader("📅 Mes Entretiens")
-        # ... (reste de ton code inchangé)
+        st.write("### ⏳ À confirmer")
+        try:
+            a_confirmer = supabase.table("entretiens").select("*").eq("statut", "A_CONFIRMER").execute().data
+            if a_confirmer:
+                for e in a_confirmer:
+                    with st.expander(f"Proposition : {e['poste']} - {e['date_heure'][:16]}"):
+                        if st.button("✅ Confirmer ce rendez-vous", key=e['id']):
+                            supabase.table("entretiens").update({"statut": "CONFIRME"}).eq("id", e['id']).execute()
+                            st.rerun()
+            else: st.info("Aucune proposition en attente.")
+        except: st.warning("Connexion aux entretiens en cours...")
 
     with dossiers[2]: # CVs
-        # ... (reste de ton code inchangé)
+        st.subheader("📄 Mes CVs enregistrés")
+        try:
+            response = supabase.table("cvs").select("id, poste_vise, created_at, contenu").order("created_at", desc=True).execute()
+            for item in response.data:
+                with st.expander(f"CV pour {item['poste_vise']} - {item.get('created_at', 'N/A')[:10]}"):
+                    st.write(item.get('contenu', ''))
+        except: st.write("Aucun CV enregistré.")
 
     with dossiers[3]: # Relooking
-        # ... (reste de ton code inchangé)
+        st.subheader("✨ Relooking & Analyse")
+        up = st.file_uploader("Upload CV", type=["pdf"])
+        if up and st.button("🚀 Lancer l'analyse"):
+            reader = PdfReader(up)
+            texte = "".join([p.extract_text() for p in reader.pages])
+            res = client.chat.completions.create(messages=[{"role": "user", "content": f"Analyse ce CV pour le marché actuel : {texte}"}], model="llama-3.3-70b-versatile")
+            st.info(res.choices[0].message.content)
+            
+        poste = st.text_input("Poste visé")
+        if st.button("Valider et Produire"):
+            if up and poste:
+                res = client.chat.completions.create(messages=[{"role": "user", "content": f"Réécris ce CV pour le poste de {poste} : {texte}"}], model="llama-3.3-70b-versatile")
+                contenu = res.choices[0].message.content
+                supabase.table("cvs").insert({"user_email": "test@test.com", "nom_fichier": f"CV_{poste}.pdf", "contenu": contenu, "poste_vise": poste}).execute()
+                st.session_state.cv_final = contenu
+                st.success("CV produit et sauvegardé !")
+
+        if 'cv_final' in st.session_state:
+            creer_pdf_cv_pro(st.session_state.cv_final, "cv_prod.pdf", "Classique")
+            with open("cv_prod.pdf", "rb") as f: st.download_button("📥 Télécharger le CV final", f, "mon_cv_final.pdf")
+
+with tab_employeur:
+    st.header("Interface Employeur")
 
 # --- FOOTER ---
 st.markdown("---")
-# ... (fin du fichier)
+st.markdown("<div id='cgv-section'></div>", unsafe_allow_html=True)
+with st.expander("📜 Lire les Conditions Générales de Vente"): afficher_cgv()
+st.markdown("<div style='text-align: center;'>© 2026 zipngo.zaxx.app | <a href='#cgv-section'>Voir les CGV</a></div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center;'>Créatrice : Liliane RAKOTOBE | <a href='mailto:creationsites06@gmail.com'>📧</a></div>", unsafe_allow_html=True)
