@@ -1,5 +1,3 @@
-Voici la version finale de ton fichier app.py. J'ai intégré le bloc tab_home avec un texte percutant, orienté bénéfices et résultats, en évitant les termes techniques "IA" ou "scrapping".
-```python
 import streamlit as st
 import imaplib
 import email
