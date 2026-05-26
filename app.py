@@ -49,33 +49,31 @@ with tab_candidat:
     st.header("Mon Espace Candidat")
     dossiers = st.tabs(["📂 Candidatures", "📅 Entretiens", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing", "🚀 Campagne"])
     
-    with dossiers[2]: # Mes CVs
+    with dossiers[2]: # Mes CVs (Code sécurisé)
         st.subheader("📄 Mes CVs enregistrés")
-        cvs_enregistres = supabase.table("cvs").select("*").order("created_at", desc=True).execute().data
-        if cvs_enregistres:
-            for item in cvs_enregistres:
-                with st.expander(f"CV pour {item['poste_vise']} - {item['created_at'][:10]}"):
-                    st.write(item['contenu'])
-        else:
-            st.write("Aucun CV enregistré pour le moment.")
+        try:
+            response = supabase.table("cvs").select("id, poste_vise, created_at, contenu").order("created_at", desc=True).execute()
+            cvs_enregistres = response.data
+            if cvs_enregistres:
+                for item in cvs_enregistres:
+                    with st.expander(f"CV pour {item['poste_vise']} - {item.get('created_at', 'N/A')[:10]}"):
+                        st.write(item.get('contenu', ''))
+            else:
+                st.write("Aucun CV enregistré pour le moment.")
+        except Exception as e:
+            st.warning("Connexion à la base de données en cours...")
 
     with dossiers[3]: # Relooking CV (Production)
         st.subheader("✨ Relooking & Analyse ATS")
         up = st.file_uploader("1. Upload mon CV", type=["pdf"])
-        
         if up:
             if st.button("🚀 Lancer l'analyse ATS"):
                 with st.spinner("Analyse en cours..."):
                     reader = PdfReader(up)
                     texte = "".join([p.extract_text() for p in reader.pages])
-                    res = client.chat.completions.create(
-                        messages=[{"role": "user", "content": f"Agis comme un expert ATS. Analyse ce CV : {texte}. Donne un score sur 100 et liste 3 points critiques."}], 
-                        model="llama-3.3-70b-versatile"
-                    )
+                    res = client.chat.completions.create(messages=[{"role": "user", "content": f"Agis comme expert ATS. Analyse ce CV : {texte}. Score /100 et 3 points critiques."}], model="llama-3.3-70b-versatile")
                     st.session_state.diagnostic = res.choices[0].message.content
-            
-            if 'diagnostic' in st.session_state:
-                st.info(st.session_state.diagnostic)
+            if 'diagnostic' in st.session_state: st.info(st.session_state.diagnostic)
 
         st.markdown("---")
         st.subheader("🎯 Adapter mon CV")
@@ -87,29 +85,16 @@ with tab_candidat:
                 with st.spinner("Production et sauvegarde..."):
                     reader = PdfReader(up)
                     texte = "".join([p.extract_text() for p in reader.pages])
-                    res = client.chat.completions.create(
-                        messages=[{"role": "user", "content": f"Réécris professionnellement ce CV pour le poste de {poste}. Utilise un style {style} : {texte}"}], 
-                        model="llama-3.3-70b-versatile"
-                    )
+                    res = client.chat.completions.create(messages=[{"role": "user", "content": f"Réécris pour le poste de {poste}. Style {style} : {texte}"}], model="llama-3.3-70b-versatile")
                     contenu_final = res.choices[0].message.content
-                    
-                    # Sauvegarde Supabase
-                    supabase.table("cvs").insert({
-                        "user_email": "test@test.com",
-                        "nom_fichier": f"CV_{poste}.pdf",
-                        "contenu": contenu_final,
-                        "poste_vise": poste
-                    }).execute()
-                    
+                    supabase.table("cvs").insert({"user_email": "test@test.com", "nom_fichier": f"CV_{poste}.pdf", "contenu": contenu_final, "poste_vise": poste}).execute()
                     st.session_state.cv_final = contenu_final
-                    st.success("CV produit et sauvegardé dans 'Mes CVs' !")
-            else:
-                st.error("Veuillez uploader un CV et renseigner le poste.")
+                    st.success("CV produit et sauvegardé !")
+            else: st.error("Upload et poste requis.")
 
         if 'cv_final' in st.session_state:
             creer_pdf_cv_pro(st.session_state.cv_final, "cv_prod.pdf", style)
-            with open("cv_prod.pdf", "rb") as f:
-                st.download_button("📥 Télécharger le CV final", f, "mon_cv_final.pdf")
+            with open("cv_prod.pdf", "rb") as f: st.download_button("📥 Télécharger le CV final", f, "mon_cv_final.pdf")
 
 with tab_employeur:
     st.header("Interface Employeur")
@@ -117,7 +102,6 @@ with tab_employeur:
 # --- FOOTER ---
 st.markdown("---")
 st.markdown("<div id='cgv-section'></div>", unsafe_allow_html=True)
-with st.expander("📜 Lire les Conditions Générales de Vente"):
-    afficher_cgv()
+with st.expander("📜 Lire les Conditions Générales de Vente"): afficher_cgv()
 st.markdown("<div style='text-align: center;'>© 2026 zipngo.zaxx.app | <a href='#cgv-section'>Voir les CGV</a></div>", unsafe_allow_html=True)
 st.markdown("<div style='text-align: center;'>Créatrice : Liliane RAKOTOBE | <a href='mailto:creationsites06@gmail.com'>📧</a></div>", unsafe_allow_html=True)
