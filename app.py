@@ -29,11 +29,9 @@ def afficher_cgv():
     ### 📜 Conditions Générales de Vente (CGV)
     1. **Objet :** Services d'optimisation de carrière (zipngo).
     2. **Tarifs :** Candidat 6€/3mois | Recruteur 39€/mois.
-    3. **Non-garantie :** Outil d'aide à la décision.
-    4. **Responsabilité :** L'utilisateur est seul responsable de ses usages.
-    5. **Propriété Intellectuelle :** Propriété exclusive de zaxx.app.
-    6. **Données :** Collecte minimale. Aucune revente à des tiers.
-    7. **Litiges :** Droit français, tribunaux du siège social de zaxx.app.
+    3. **Gestion profil :** Accès actif 3 mois, puis mise en veille automatique.
+    4. **Limites Gratuit :** 1 CV optimisé/mois, 1 campagne/mois.
+    5. **Données :** Collecte minimale. Aucune revente à des tiers.
     """)
 
 # --- UI PRINCIPALE ---
@@ -43,14 +41,32 @@ tab_home, tab_candidat, tab_employeur = st.tabs(["🏠 Accueil", "🚀 Candidat"
 
 with tab_home:
     st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
-    st.warning("🛠️ **Mode Test :** Accès total à toutes les fonctionnalités.")
+    st.markdown("""
+    ### Bienvenue sur **zipngo**
+    **zipngo** est un écosystème conçu pour maximiser votre impact professionnel, que vous soyez un talent en quête d'opportunités ou un recruteur à la recherche de la perle rare.
+
+    ---
+    #### 🟢 Accès Gratuit
+    * **Optimisation de CV :** 1 CV par mois.
+    * **Campagne :** 1 campagne par mois.
+    * **Durée de vie :** Profil actif pendant 3 mois, puis mise en veille automatique.
+    * **Outils :** Accès aux outils de diagnostic et de gestion des entretiens.
+
+    ---
+    #### 💎 Pourquoi passer en mode Premium ?
+    *Débloquez une puissance de frappe supérieure pour vos candidatures :*
+    * **CVs optimisés :** Jusqu'à 3 CVs par semaine.
+    * **Campagnes de contact :** Jusqu'à 20 emails par jour.
+    * **Priorité :** Accès illimité à nos outils d'optimisation les plus poussés.
+    * **Avantage exclusif :** Accès en avant-première à toutes les nouvelles fonctionnalités.
+    """)
+    st.info("💡 **Mode Test :** Accès total actuel pour découvrir nos fonctionnalités.")
 
 with tab_candidat:
     st.header("Mon Espace Candidat")
     dossiers = st.tabs(["📂 Candidatures", "📅 Entretiens", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing", "🚀 Campagne"])
     
-    # 1. Entretiens
-    with dossiers[1]: 
+    with dossiers[1]: # Entretiens
         st.subheader("📅 Mes Entretiens")
         st.write("### ⏳ À confirmer")
         try:
@@ -77,8 +93,7 @@ with tab_candidat:
                     else: st.write("Entretien passé.")
         except: st.write("Aucun historique.")
 
-    # 2. CVs
-    with dossiers[2]: 
+    with dossiers[2]: # CVs
         st.subheader("📄 Mes CVs enregistrés")
         try:
             response = supabase.table("cvs").select("id, poste_vise, created_at, contenu").order("created_at", desc=True).execute()
@@ -87,20 +102,19 @@ with tab_candidat:
                     st.write(item.get('contenu', ''))
         except: st.write("Aucun CV enregistré.")
 
-    # 3. Relooking
-    with dossiers[3]: 
-        st.subheader("✨ Relooking & Analyse ATS")
+    with dossiers[3]: # Relooking
+        st.subheader("✨ Relooking & Analyse")
         up = st.file_uploader("Upload CV", type=["pdf"])
-        if up and st.button("🚀 Lancer l'analyse ATS"):
+        if up and st.button("🚀 Lancer l'analyse"):
             reader = PdfReader(up)
             texte = "".join([p.extract_text() for p in reader.pages])
-            res = client.chat.completions.create(messages=[{"role": "user", "content": f"Analyse ATS de ce CV : {texte}"}], model="llama-3.3-70b-versatile")
+            res = client.chat.completions.create(messages=[{"role": "user", "content": f"Analyse ce CV pour le marché actuel : {texte}"}], model="llama-3.3-70b-versatile")
             st.info(res.choices[0].message.content)
             
         poste = st.text_input("Poste visé")
         if st.button("Valider et Produire"):
             if up and poste:
-                res = client.chat.completions.create(messages=[{"role": "user", "content": f"Réécris ce CV pour {poste} : {texte}"}], model="llama-3.3-70b-versatile")
+                res = client.chat.completions.create(messages=[{"role": "user", "content": f"Réécris ce CV pour le poste de {poste} : {texte}"}], model="llama-3.3-70b-versatile")
                 contenu = res.choices[0].message.content
                 supabase.table("cvs").insert({"user_email": "test@test.com", "nom_fichier": f"CV_{poste}.pdf", "contenu": contenu, "poste_vise": poste}).execute()
                 st.session_state.cv_final = contenu
