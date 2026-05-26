@@ -51,7 +51,9 @@ with tab_home:
     * **Campagne :** 1 campagne par mois.
     * **Durée de vie :** Profil actif pendant 3 mois, puis mise en veille automatique.
     * **Outils :** Accès aux outils de diagnostic et de gestion des entretiens.
-
+# Bouton pour l'accès gratuit
+    if st.button("Tester gratuitement"):
+        st.switch_page("pages/candidat.py") # Ajuste selon la structure de ton projet
     ---
     #### 💎 Pourquoi passer en mode Premium ?
     *Débloquez une puissance de frappe supérieure pour vos candidatures :*
@@ -60,6 +62,9 @@ with tab_home:
     * **Priorité :** Accès illimité à nos outils d'optimisation les plus poussés.
     * **Avantage exclusif :** Accès en avant-première à toutes les nouvelles fonctionnalités.
     """)
+      # Bouton attractif pour le Premium
+    if st.button("🚀 Booster ma carrière avec le Premium"):
+        st.write("Redirection vers la page de paiement...")
     st.info("💡 **Mode Test :** Accès total actuel pour découvrir nos fonctionnalités.")
 
 with tab_candidat:
