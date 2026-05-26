@@ -79,10 +79,13 @@ with tab_employeur:
 
 # --- FOOTER CLIQUABLE ---
 st.markdown("---")
+
+# Section CGV
 st.markdown("<div id='cgv-section'></div>", unsafe_allow_html=True)
 with st.expander("📜 Lire les Conditions Générales de Vente"):
     afficher_cgv()
 
+# Footer avec HTML interprété
 st.markdown("""
 <div style="text-align: center; margin-top: 50px; color: grey;">
     <p>© 2026 zipngo.zaxx.app | 
