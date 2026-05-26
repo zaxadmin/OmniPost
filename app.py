@@ -85,13 +85,19 @@ st.markdown("<div id='cgv-section'></div>", unsafe_allow_html=True)
 with st.expander("📜 Lire les Conditions Générales de Vente"):
     afficher_cgv()
 
-# Footer - Utilise unsafe_allow_html=True
+# Footer avec enveloppe cliquable
 st.markdown("""
 <div style="text-align: center; margin-top: 50px; color: grey;">
-    <p>© 2026 zipngo.zaxx.app | <a href="#cgv-section" style="color: #4169E1; text-decoration: none; font-weight: bold;">Voir les CGV</a></p>
+    <p>© 2026 zipngo.zaxx.app | 
+    <a href="#cgv-section" style="color: #4169E1; text-decoration: none; font-weight: bold;">Voir les CGV</a></p>
+    
     <p>Créatrice : Liliane RAKOTOBE | 
+    <a href="mailto:creationsites06@gmail.com" style="text-decoration: none;">
+        📧
+    </a>
     <a href="mailto:creationsites06@gmail.com" style="color: #4169E1; text-decoration: none;">
-        📧 creationsites06@gmail.com
+        creationsites06@gmail.com
     </a></p>
 </div>
 """, unsafe_allow_html=True)
+
