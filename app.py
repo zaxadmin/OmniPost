@@ -8,7 +8,6 @@ from PyPDF2 import PdfReader
 # --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo | ATS Premium", layout="wide")
 
-# Initialisation des clients
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
@@ -93,20 +92,36 @@ with tab_candidat:
             obj = st.text_input("Objet", value=f"Candidature au poste de {secteur}")
             msg = st.text_area("Message", value=corps_lettre, height=250)
             
-            # --- BLOC CORRIGÉ ---
+            # --- BLOC CORRIGÉ ET SÉCURISÉ ---
             try:
-                cvs = supabase.table("cvs").select("nom_fichier").execute().data
-                if cvs:
+                response = supabase.table("cvs").select("nom_fichier").execute()
+                cvs = response.data
+                if cvs and len(cvs) > 0:
                     nom_cv = st.selectbox("Attacher mon CV", [c['nom_fichier'] for c in cvs])
                 else:
-                    st.warning("⚠️ Aucun CV trouvé en base. Merci de charger un CV dans l'onglet 'Relooking' avant d'envoyer une candidature.")
-            except Exception as e:
-                st.error("Erreur de connexion à la base de données.")
+                    st.warning("⚠️ Aucun CV trouvé. Chargez un CV dans 'Relooking' avant d'envoyer.")
+            except Exception:
+                st.warning("Erreur de lecture des CVs.")
             
             if st.button("🚀 Valider et Envoyer"):
-                supabase.table("sourcing").insert({"email_destinataire": dest, "objet": obj, "message": msg, "date": str(datetime.date.today())}).execute()
-                supabase.table("candidatures").insert({"type": "Spontanée", "entreprise": f"{secteur} ({ville} +{rayon}km)", "date": str(datetime.date.today()), "statut": "ENVOYÉ"}).execute()
-                st.success("Campagne lancée et ajoutée à vos candidatures !")
+                try:
+                    supabase.table("sourcing").insert({
+                        "email_destinataire": dest, 
+                        "objet": obj, 
+                        "message": msg, 
+                        "date": str(datetime.date.today())
+                    }).execute()
+                    
+                    supabase.table("candidatures").insert({
+                        "type": "Spontanée", 
+                        "entreprise": f"{secteur} ({ville} +{rayon}km)", 
+                        "date": str(datetime.date.today()), 
+                        "statut": "ENVOYÉ"
+                    }).execute()
+                    
+                    st.success("✅ Campagne enregistrée avec succès !")
+                except Exception as e:
+                    st.error(f"Erreur d'insertion : {e}")
 
     with dossiers[3]: # ✨ Relooking
         st.subheader("✨ Relooking & Analyse ATS")
