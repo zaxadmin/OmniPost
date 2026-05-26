@@ -1,4 +1,4 @@
-Import streamlit as st
+import streamlit as st
 import imaplib
 import email
 import requests
@@ -45,10 +45,7 @@ tab_home, tab_candidat, tab_employeur, tab_cgv = st.tabs(["🏠 Accueil", "🚀 
 
 with tab_home:
     st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
-    
     st.markdown("---")
-    
-    # Texte descriptif en premier
     col_text1, col_text2 = st.columns(2)
     with col_text1:
         st.subheader("🚀 Espace Candidat")
@@ -56,31 +53,21 @@ with tab_home:
     with col_text2:
         st.subheader("💼 Espace Recruteur")
         st.write("Centralisez vos candidatures, triez les profils pertinents et gagnez un temps précieux.")
-    
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Connexion en dessous
     col_conn1, col_conn2 = st.columns(2)
     with col_conn1:
         email_cand = st.text_input("Email Candidat", key="cand_email")
         if st.button("Connexion Candidat"):
             supabase.auth.sign_in_with_otp({"email": email_cand})
             st.success("Lien envoyé par email.")
-            
     with col_conn2:
         email_rec = st.text_input("Email Recruteur", key="rec_email")
         if st.button("Connexion Recruteur"):
             supabase.auth.sign_in_with_otp({"email": email_rec})
             st.success("Lien envoyé par email.")
-    
     st.markdown("---")
-    st.markdown("""
-    ### Bienvenue sur **zipngo**
-    Nous transformons la complexité du marché de l'emploi en opportunités concrètes.
-    * **Pour les Talents :** Valorisation sur-mesure et ciblage direct.
-    * **Pour les Recruteurs :** Clarté décisionnelle et automatisation des tâches.
-    """)
-
+    st.markdown("### Bienvenue sur **zipngo**")
+    st.write("Nous transformons la complexité du marché de l'emploi en opportunités concrètes.")
 
 with tab_candidat:
     st.header("Mon Espace Candidat")
