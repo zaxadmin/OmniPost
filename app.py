@@ -8,6 +8,7 @@ from PyPDF2 import PdfReader
 # --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo | ATS Premium", layout="wide")
 
+# Initialisation des clients
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
@@ -78,7 +79,6 @@ with tab_candidat:
             dest = st.text_input("Destinataire principal", value=emails[0] if emails else "")
             cc = st.text_area("19 emails en copie cachée", value=", ".join(emails[1:20]) if len(emails)>1 else "")
             
-            # Ton modèle de lettre intégré
             corps_lettre = (
                 "Madame, Monsieur,\n\n"
                 "Je me permets de vous soumettre ma candidature pour le poste de [Titre du poste]. "
@@ -94,8 +94,11 @@ with tab_candidat:
             msg = st.text_area("Message", value=corps_lettre, height=250)
             
             try:
-                cvs = supabase.table("cvs").select("nom_fichier").execute().data
-                nom_cv = st.selectbox("Attacher mon CV", [c['nom_fichier'] for c in cvs])
+                data = supabase.table("cvs").select("nom_fichier").execute().data
+                if data:
+                    nom_cv = st.selectbox("Attacher mon CV", [c['nom_fichier'] for c in data])
+                else:
+                    st.warning("⚠️ Chargez un CV dans 'Relooking CV' d'abord.")
             except: st.warning("Impossible de charger les CVs.")
             
             if st.button("🚀 Valider et Envoyer"):
@@ -108,7 +111,13 @@ with tab_candidat:
         up = st.file_uploader("Upload votre CV (PDF)", type=["pdf"])
         if up:
             if st.button("🚀 Produire et Enregistrer"):
-                st.success("✅ CV produit et enregistré !")
+                try:
+                    reader = PdfReader(up)
+                    text = "".join([p.extract_text() for p in reader.pages])
+                    supabase.table("cvs").insert({"nom_fichier": up.name, "contenu": text}).execute()
+                    st.success("✅ CV produit et enregistré !")
+                except Exception as e:
+                    st.error(f"Erreur : {e}")
 
 with tab_employeur:
     st.header("Interface Employeur")
