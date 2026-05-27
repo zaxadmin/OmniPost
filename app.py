@@ -71,7 +71,6 @@ with tab_candidat:
     with dossiers[4]: # 🌐 Sourcing
         st.subheader("🌐 Prospection Spontanée")
         
-        # Sélection élargie pour couvrir tous les types d'entreprises
         categorie = st.selectbox("Domaine d'activité", [
             "Restauration (Traditionnel, Fast-food, Brasseries, Chaînes)",
             "Hôtellerie et Hébergement (Hôtels, Airbnb, Campings, Auberges)",
@@ -81,13 +80,18 @@ with tab_candidat:
         ])
         ville = st.text_input("Ville")
         
-        if st.button("🔍 Rechercher 20 contacts"):
-            with st.spinner("Analyse approfondie du secteur..."):
-                # Prompt enrichi pour forcer la diversité des résultats
+        if st.button("🔍 Rechercher 20 nouveaux contacts"):
+            with st.spinner("Recherche intelligente (exclusion des doublons)..."):
+                # Récupération de l'historique pour exclusion
+                deja_contactes = supabase.table("sourcing").select("email_destinataire").execute().data
+                liste_exclue = [c['email_destinataire'] for c in deja_contactes]
+                
+                # Prompt enrichi avec exclusion
                 prompt = f"""
                 Agis comme un expert en sourcing. Trouve 20 emails officiels d'entreprises 
                 appartenant au domaine '{categorie}' à '{ville}'. 
-                Inclus une grande variété : grandes enseignes nationales, franchises connues et petits établissements indépendants. 
+                IMPORTANT : N'inclus PAS les emails suivants déjà contactés : {', '.join(liste_exclue)}.
+                Inclus une grande variété : grandes enseignes, franchises et indépendants. 
                 Donne uniquement la liste des emails, un par ligne.
                 """
                 res = client.chat.completions.create(
