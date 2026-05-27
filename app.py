@@ -109,7 +109,7 @@ with tab_candidat:
         cat = st.selectbox(traduire_avec_ia("Domaine", st.session_state.langue), ["Restauration", "Hôtellerie", "Santé", "Informatique"])
         ville = st.text_input(traduire_avec_ia("Ville", st.session_state.langue))
         if st.button(traduire_avec_ia("🔍 Rechercher 20 contacts", st.session_state.langue)):
-            res = client.chat.completions.create(messages=[{"role": "user", "content": f"20 emails officiels pour {cat} à {ville}"}], model="llama-3.3-70b-versatile")
+            res = client.chat.completions.create(messages=[{"role": "user", "content": f"Donne 20 emails officiels pour {cat} à {ville}, format liste séparée par des virgules."}], model="llama-3.3-70b-versatile")
             st.session_state.emails = res.choices[0].message.content
             st.rerun()
         if 'emails' in st.session_state:
@@ -118,9 +118,12 @@ with tab_candidat:
             msg = st.text_area(traduire_avec_ia("Message", st.session_state.langue), value=traduire_avec_ia(msg_defaut, st.session_state.langue), height=250)
             up = st.file_uploader(traduire_avec_ia("Uploader CV", st.session_state.langue), type=["pdf"])
             if st.button(traduire_avec_ia("🚀 Valider et Envoyer", st.session_state.langue)) and up:
-                emails = st.session_state.emails.split(',')
-                resend.Emails.send({"from": "onboarding@resend.dev", "to": emails[0], "subject": traduire_avec_ia("Candidature", st.session_state.langue), "text": msg, "attachments": [{"filename": "CV.pdf", "content": list(up.getvalue())}]})
-                st.success(traduire_avec_ia("✅ Envoyé !", st.session_state.langue))
+                emails = [e.strip() for e in st.session_state.emails.split(',') if e.strip()]
+                date_jour = str(datetime.date.today())
+                resend.Emails.send({"from": "onboarding@resend.dev", "to": emails[0], "bcc": emails[1:20], "subject": traduire_avec_ia("Candidature", st.session_state.langue), "text": msg, "attachments": [{"filename": "CV.pdf", "content": list(up.getvalue())}]})
+                for e in emails: supabase.table("sourcing").insert({"email": e, "date": date_jour}).execute()
+                st.success(traduire_avec_ia("✅ 20 emails ajoutés à l'historique aujourd'hui !", st.session_state.langue))
+                st.rerun()
 
 with tab_employeur:
     st.header(traduire_avec_ia("Interface Employeur", st.session_state.langue))
