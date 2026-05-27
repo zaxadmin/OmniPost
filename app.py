@@ -1,11 +1,12 @@
 import streamlit as st
 import datetime
-import re
 import pandas as pd
-from fpdf import FPDF
+import io
+import re
 from groq import Groq
 from supabase import create_client
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
+from fpdf import FPDF
 import resend
 
 # --- CONFIGURATION ---
@@ -35,16 +36,7 @@ st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='colo
 st.markdown("<p style='color:#333333; font-size: 14px; margin-top: 0px;'>.zaxx.app</p>", unsafe_allow_html=True)
 
 langues = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", "العربية (Arabe)", "हिन्दी (Hindi)", "Bengali", "Português", "Русский", "日本語 (Japonais)", "Deutsch", "한국어 (Coréen)", "Tiếng Việt", "Italiano", "Türkçe", "Polski", "Nederlands", "Bahasa Indonesia", "ภาษาไทย (Thaï)"]
-st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue / Select your language", langues, index=0)
-
-st.markdown("<h4 style='color: #4169E1; margin: 20px 0;'>Votre succès professionnel, propulsé par la précision.</h4>", unsafe_allow_html=True)
-
-st.markdown("""
-<div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1; margin-bottom: 20px;'>
-    <h4 style='margin-top:0;'>Bienvenue sur zipngo</h4>
-    L'écosystème intelligent dédié à votre dynamique professionnelle.
-</div>
-""", unsafe_allow_html=True)
+st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue", langues, index=0)
 
 with st.expander("📜 Lire les CGV"): afficher_cgv()
 st.checkbox("J'accepte les CGV", key="accept_cgv")
@@ -62,87 +54,66 @@ with tab_candidat:
         st.subheader("📜 Historique des envois")
         try:
             response = supabase.table("sourcing").select("email, date").order("date", desc=True).execute()
-            if response.data:
-                df = pd.DataFrame(response.data)
-                df.columns = ["Email", "Date"]
-                st.table(df)
+            if response.data: st.table(pd.DataFrame(response.data))
         except Exception as e: st.error(f"Erreur : {e}")
 
-    with dossiers[3]: # RELOOKING CV
-        st.subheader("✨ Relooking & Analyse ATS")
-        source_cv = st.radio("Source du CV", ["Uploader depuis mon ordinateur", "Sélectionner parmi mes CVs enregistrés"])
+    with dossiers[3]: # RELOOKING ATS & SCORING
+        st.subheader("✨ Relooking & Scoring ATS")
+        source = st.radio("Source", ["Uploader depuis mon ordinateur", "Sélectionner parmi mes CVs enregistrés"])
         
         texte_cv = ""
-        if source_cv == "Uploader depuis mon ordinateur":
-            up = st.file_uploader("Upload votre CV (PDF)", type=["pdf"])
-            if up:
-                reader = PdfReader(up)
-                texte_cv = "".join([p.extract_text() for p in reader.pages])
+        if source == "Uploader depuis mon ordinateur":
+            up = st.file_uploader("Upload", type=["pdf"])
+            if up: texte_cv = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up.getvalue())).pages])
         else:
-            data_cvs = supabase.table("cvs").select("nom_fichier, contenu").execute().data
-            if data_cvs:
-                nom_choisi = st.selectbox("Mes CVs", [c['nom_fichier'] for c in data_cvs])
-                texte_cv = next(c['contenu'] for c in data_cvs if c['nom_fichier'] == nom_choisi)
+            data = supabase.table("cvs").select("nom_fichier, contenu").execute().data
+            if data:
+                choix = st.selectbox("Mes CVs", [c['nom_fichier'] for c in data])
+                texte_cv = next(c['contenu'] for c in data if c['nom_fichier'] == choix)
 
         if texte_cv:
-            if st.button("🔍 Scanner et Analyser ATS"):
-                res = client.chat.completions.create(messages=[{"role": "user", "content": f"Analyse ATS et conseils : {texte_cv}"}], model="llama-3.3-70b-versatile")
-                st.session_state.analyse_cv = res.choices[0].message.content
+            if st.button("🔍 Lancer le Scan & Scoring"):
+                with st.spinner("Analyse approfondie..."):
+                    prompt = f"Analyse ce CV. 1. Score ATS (X/100). 2. Points à améliorer. 3. RECRÉE le contenu du CV avec ces améliorations pour un score de 100/100. CV : {texte_cv}"
+                    res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
+                    st.session_state.analyse = res.choices[0].message.content
             
-            if 'analyse_cv' in st.session_state:
-                st.info(st.session_state.analyse_cv)
-                contenu_pro = st.text_area("Optimisation du contenu", value=texte_cv, height=300)
-                if st.button("✨ Générer version ATS optimisée"):
-                    res_opt = client.chat.completions.create(messages=[{"role": "user", "content": f"Optimise pour ATS : {contenu_pro}"}], model="llama-3.3-70b-versatile")
-                    st.session_state.texte_final = res_opt.choices[0].message.content
-                    st.success("Contenu optimisé !")
-
-            if 'texte_final' in st.session_state:
-                style = st.selectbox("Template Visuel", ["Classique", "Moderne", "Minimaliste"])
-                nom_f = st.text_input("Nom du fichier", value=f"CV_Pro_{datetime.date.today()}.pdf")
-                if st.button("💾 Télécharger et Archiver"):
-                    creer_pdf_cv_pro(st.session_state.texte_final, nom_f, style)
-                    supabase.table("cvs").insert({"nom_fichier": nom_f, "contenu": st.session_state.texte_final}).execute()
-                    with open(nom_f, "rb") as f: st.download_button("📥 Télécharger", f, file_name=nom_f)
-                    st.success("✅ Archivé et prêt !")
+            if 'analyse' in st.session_state:
+                st.markdown(st.session_state.analyse)
+                match = re.search(r'(\d+)/100', st.session_state.analyse)
+                if match: st.progress(int(match.group(1)) / 100)
+                
+                if st.button("💾 Sauvegarder la version optimisée"):
+                    supabase.table("cvs").insert({"nom_fichier": f"ATS_Optimise_{datetime.date.today()}", "contenu": st.session_state.analyse}).execute()
+                    st.success("✅ Version optimisée sauvegardée !")
 
     with dossiers[4]: # SOURCING
         st.subheader("🌐 Prospection Spontanée")
-        categorie = st.selectbox("Domaine d'activité", ["Restauration", "Hôtellerie", "Commerce", "Santé", "BTP", "Logistique", "Informatique"])
+        categorie = st.selectbox("Domaine", ["Restauration", "Hôtellerie", "Commerce", "Santé", "BTP", "Logistique", "Informatique"])
         ville = st.text_input("Ville")
         
-        if st.button("🔍 Rechercher 20 nouveaux contacts"):
-            with st.spinner("Recherche..."):
-                try:
-                    response = supabase.table("sourcing").select("email").execute()
-                    exclus = [c['email'] for c in response.data] if response.data else []
-                except: exclus = []
-                prompt = f"Donne 20 emails officiels pour {categorie} à {ville}. Exclus : {', '.join(exclus)}. Liste séparée par virgules."
-                res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
-                st.session_state.emails_trouves = res.choices[0].message.content
-                st.rerun()
-        
+        if st.button("🔍 Rechercher 20 contacts"):
+            prompt = f"Donne 20 emails officiels pour {categorie} à {ville}. Liste seule séparée par virgules."
+            res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
+            st.session_state.emails_trouves = res.choices[0].message.content
+            st.rerun()
+            
         if 'emails_trouves' in st.session_state:
-            emails_list = [e.strip() for e in st.session_state.emails_trouves.split(',')]
-            msg = st.text_area(
-                "Message", 
-                value="""Madame, Monsieur, 
+            st.write("Emails :", st.session_state.emails_trouves)
+            msg = st.text_area("Message", value="""Madame, Monsieur, 
 
 Intégrer votre équipe représente pour moi l'opportunité de mettre mon dynamisme et mon savoir-faire au service de vos objectifs. Je suis convaincu(e) que mon profil pourrait répondre à vos besoins actuels ou futurs.
 
 Vous trouverez ci-joint mon curriculum vitae détaillant mon parcours. Je serais ravi(e) de vous rencontrer lors d'un entretien afin de vous exposer plus en détail mes motivations.
 
-Dans cette attente, je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.""", 
-                height=250
-            )
-            uploaded = st.file_uploader("Uploader CV (PDF)", type=["pdf"], key="sourcing_cv")
+Dans cette attente, je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.""", height=250)
             
+            uploaded = st.file_uploader("Uploader CV pour envoi", type=["pdf"], key="sourcing_cv")
             if st.button("🚀 Valider et Envoyer"):
-                if not uploaded: st.error("Veuillez charger un PDF.")
-                else:
-                    pdf_content = uploaded.getvalue()
-                    resend.Emails.send({"from": "contact@zaxx.app", "to": emails_list[0], "bcc": emails_list[1:20], "subject": "Candidature", "text": msg, "attachments": [{"filename": "CV.pdf", "content": list(pdf_content)}]})
-                    for e in emails_list: supabase.table("sourcing").insert({"email": e, "date": str(datetime.date.today())}).execute()
+                if uploaded:
+                    emails = st.session_state.emails_trouves.split(',')
+                    resend.Emails.send({"from": "contact@zaxx.app", "to": emails[0], "bcc": emails[1:20], "subject": "Candidature", "text": msg, "attachments": [{"filename": "CV.pdf", "content": list(uploaded.getvalue())}]})
+                    for e in emails: supabase.table("sourcing").insert({"email": e.strip(), "date": str(datetime.date.today())}).execute()
                     st.success("✅ Envoyé !")
                     del st.session_state.emails_trouves
                     st.rerun()
