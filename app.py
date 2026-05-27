@@ -31,22 +31,10 @@ def afficher_cgv():
 
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
-st.markdown("<p style='color:#333333; font-size: 14px; margin-top: 0px; margin-bottom: 20px;'>.zaxx.app</p>", unsafe_allow_html=True)
+st.markdown("<p style='color:#333333; font-size: 14px; margin-top: 0px;'>.zaxx.app</p>", unsafe_allow_html=True)
 
-# TEXTE DE PRÉSENTATION (DÉPLACÉ ENTRE LE SOUS-TITRE ET LE SELECTEUR)
-st.markdown("""
-<div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1; margin-bottom: 20px;'>
-    <h4 style='margin-top:0;'>Bienvenue sur zipngo</h4>
-    L'écosystème intelligent dédié à votre dynamique professionnelle. Que vous soyez en quête de nouvelles opportunités ou en phase de gestion de talents, 
-    zipngo agit comme un facilitateur technologique. Nous simplifions la mise en relation et la gestion des parcours.
-    <br><br>
-    <ul>
-        <li><b>Optimisation :</b> Des outils de précision pour valoriser les compétences.</li>
-        <li><b>Organisation :</b> Centralisez vos démarches dans un espace sécurisé.</li>
-        <li><b>Efficacité :</b> Automatisation des tâches et analyse intelligente des données.</li>
-    </ul>
-</div>
-""", unsafe_allow_html=True)
+# SLOGAN DÉPLACÉ ICI
+st.markdown("<h4 style='color: #4169E1; margin-bottom: 20px;'>Votre succès professionnel, propulsé par la précision.</h4>", unsafe_allow_html=True)
 
 # SÉLECTION DE LANGUE
 langues = [
@@ -60,7 +48,19 @@ st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue / Select
 tab_home, tab_candidat, tab_employeur = st.tabs(["🏠 Accueil", "🚀 Candidat", "💼 Employeur"])
 
 with tab_home:
-    st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1;'>
+        <h4 style='margin-top:0;'>Bienvenue sur zipngo</h4>
+        L'écosystème intelligent dédié à votre dynamique professionnelle. Que vous soyez en quête de nouvelles opportunités ou en phase de gestion de talents, 
+        zipngo agit comme un facilitateur technologique. Nous simplifions la mise en relation et la gestion des parcours.
+        <br><br>
+        <ul>
+            <li><b>Optimisation :</b> Des outils de précision pour valoriser les compétences.</li>
+            <li><b>Organisation :</b> Centralisez vos démarches dans un espace sécurisé.</li>
+            <li><b>Efficacité :</b> Automatisation des tâches et analyse intelligente des données.</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
     st.write("---")
     with st.expander("📜 Lire les CGV"): afficher_cgv()
     st.checkbox("J'accepte les CGV", key="accept_cgv")
@@ -126,7 +126,6 @@ with tab_candidat:
         if 'emails_trouves' in st.session_state:
             emails = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', st.session_state.emails_trouves)
             dest = st.text_input("Destinataire principal", value=emails[0] if emails else "")
-            
             msg = st.text_area("Message", value="""Madame, Monsieur, 
 
 Je me permets de vous adresser ma candidature spontanée pour rejoindre votre entreprise. Je suis convaincu que mon profil pourrait répondre à vos besoins actuels ou futurs.
