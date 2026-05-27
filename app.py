@@ -16,6 +16,23 @@ client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 resend.api_key = st.secrets["RESEND_API_KEY"]
 
 # --- FONCTIONS ---
+def t(texte_fr):
+    # Dictionnaire simple de traduction
+    traductions = {
+        "Bienvenue sur zipngo": {
+            "English (US)": "Welcome to zipngo",
+            "Español": "Bienvenido a zipngo"
+        },
+        "L'intelligence artificielle au service de votre trajectoire professionnelle.": {
+            "English (US)": "Artificial intelligence for your professional career.",
+            "Español": "Inteligencia artificial para su trayectoria profesional."
+        }
+    }
+    langue = st.session_state.get("langue", "Français")
+    if langue == "Français" or langue not in traductions.get(texte_fr, {}):
+        return texte_fr
+    return traductions[texte_fr][langue]
+
 def creer_pdf_cv_pro(texte_ia, nom_fichier, style):
     pdf = FPDF()
     pdf.add_page()
@@ -35,17 +52,18 @@ def afficher_cgv():
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color:#333333; font-size: 14px; margin-top: 0px;'>.zaxx.app</p>", unsafe_allow_html=True)
 
+# --- SÉLECTEUR DE LANGUE ---
+langues = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", "العربية (Arabe)", "हिन्दी (Hindi)", "Bengali", "Português", "Русский", "日本語 (Japonais)", "Deutsch", "한국어 (Coreen)", "Tiếng Việt", "Italiano", "Türkçe", "Polski", "Nederlands", "Bahasa Indonesia", "ภาษาไทย (Thaï)"]
+st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue", langues, index=0)
+
 # --- TEXTE DE PRÉSENTATION ---
-st.markdown("<h4 style='color: #4169E1; margin: 20px 0;'>L'intelligence artificielle au service de votre trajectoire professionnelle.</h4>", unsafe_allow_html=True)
-st.markdown("""
+st.markdown(f"<h4 style='color: #4169E1; margin: 20px 0;'>{t('L\'intelligence artificielle au service de votre trajectoire professionnelle.')}</h4>", unsafe_allow_html=True)
+st.markdown(f"""
 <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1; margin-bottom: 20px;'>
-    <h4 style='margin-top:0;'>Bienvenue sur zipngo</h4>
+    <h4 style='margin-top:0;'>{t('Bienvenue sur zipngo')}</h4>
     Optimisez vos démarches et facilitez vos interactions professionnelles grâce à notre écosystème intelligent, conçu pour accompagner efficacement chaque étape de vos projets de carrière.
 </div>
 """, unsafe_allow_html=True)
-
-langues = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", "العربية (Arabe)", "हिन्दी (Hindi)", "Bengali", "Português", "Русский", "日本語 (Japonais)", "Deutsch", "한국어 (Coreen)", "Tiếng Việt", "Italiano", "Türkçe", "Polski", "Nederlands", "Bahasa Indonesia", "ภาษาไทย (Thaï)"]
-st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue", langues, index=0)
 
 with st.expander("📜 Lire les CGV"): afficher_cgv()
 st.checkbox("J'accepte les CGV", key="accept_cgv")
@@ -121,7 +139,7 @@ Dans cette attente, je vous prie d'agréer, Madame, Monsieur, l'expression de me
             if st.button("🚀 Valider et Envoyer"):
                 if uploaded:
                     emails = st.session_state.emails_trouves.split(',')
-                    resend.Emails.send({"from": "contact@zaxx.app", "to": emails[0], "bcc": emails[1:20], "subject": "Candidature", "text": msg, "attachments": [{"filename": "CV.pdf", "content": list(uploaded.getvalue())}]})
+                    resend.Emails.send({"from": "onboarding@resend.dev", "to": emails[0], "bcc": emails[1:20], "subject": "Candidature", "text": msg, "attachments": [{"filename": "CV.pdf", "content": list(uploaded.getvalue())}]})
                     for e in emails: supabase.table("sourcing").insert({"email": e.strip(), "date": str(datetime.date.today())}).execute()
                     st.success("✅ Envoyé !")
                     del st.session_state.emails_trouves
