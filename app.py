@@ -70,13 +70,30 @@ with tab_candidat:
 
     with dossiers[4]: # 🌐 Sourcing
         st.subheader("🌐 Prospection Spontanée")
-        secteur = st.text_input("Secteur visé")
+        
+        # Sélection élargie pour couvrir tous les types d'entreprises
+        categorie = st.selectbox("Domaine d'activité", [
+            "Restauration (Traditionnel, Fast-food, Brasseries, Chaînes)",
+            "Hôtellerie et Hébergement (Hôtels, Airbnb, Campings, Auberges)",
+            "Commerce et Grande Distribution",
+            "Services à la personne et Santé",
+            "BTP et Artisanat"
+        ])
         ville = st.text_input("Ville")
         
         if st.button("🔍 Rechercher 20 contacts"):
-            with st.spinner("Recherche..."):
-                prompt = f"Trouve 20 emails officiels pour '{secteur}' à '{ville}'. Donne uniquement la liste des emails, un par ligne."
-                res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
+            with st.spinner("Analyse approfondie du secteur..."):
+                # Prompt enrichi pour forcer la diversité des résultats
+                prompt = f"""
+                Agis comme un expert en sourcing. Trouve 20 emails officiels d'entreprises 
+                appartenant au domaine '{categorie}' à '{ville}'. 
+                Inclus une grande variété : grandes enseignes nationales, franchises connues et petits établissements indépendants. 
+                Donne uniquement la liste des emails, un par ligne.
+                """
+                res = client.chat.completions.create(
+                    messages=[{"role": "user", "content": prompt}], 
+                    model="llama-3.3-70b-versatile"
+                )
                 st.session_state.emails_trouves = res.choices[0].message.content
                 st.success("Extraction terminée !")
         
@@ -98,7 +115,7 @@ with tab_candidat:
             if st.button("🚀 Valider et Envoyer"):
                 if cv_final:
                     supabase.table("sourcing").insert({"email_destinataire": dest, "objet": "Candidature spontanée", "message": msg, "date": str(datetime.date.today())}).execute()
-                    supabase.table("candidatures").insert({"type": "Spontanée", "entreprise": secteur, "date": str(datetime.date.today()), "statut": "ENVOYÉ"}).execute()
+                    supabase.table("candidatures").insert({"type": "Spontanée", "entreprise": categorie, "date": str(datetime.date.today()), "statut": "ENVOYÉ"}).execute()
                     st.success("✅ Candidature envoyée !")
                 else: st.error("Sélectionnez un CV.")
 
