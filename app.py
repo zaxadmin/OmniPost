@@ -30,7 +30,8 @@ def afficher_cgv():
     st.markdown("### 📜 Conditions Générales de Vente (CGV)\n1. Accès Candidat 6€/3mois | Recruteur 39€/mois.\n2. Limites Gratuit : 1 CV/mois, 1 campagne/mois.\n3. Premium : 3 CVs/semaine, 20 mails/jour.")
 
 # --- UI PRINCIPALE ---
-st.markdown("<h1 style='color:#000080;'>zip<span style='color:#4169E1;'>ngo</span>.zaxx.app👍</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>.zaxx.app👍</h1>", unsafe_allow_html=True)
+st.markdown("<p style='color:#333333; font-size: 14px; margin-top: 0px;'>.zaxx.app</p>", unsafe_allow_html=True)
 
 # SÉLECTION DE LANGUE
 langues = [
@@ -45,6 +46,13 @@ tab_home, tab_candidat, tab_employeur = st.tabs(["🏠 Accueil", "🚀 Candidat"
 
 with tab_home:
     st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px; text-align: center;'>
+    Bienvenue sur <strong>zipngo</strong>, votre partenaire intelligent pour la gestion de carrière. 
+    Optimisez votre CV, organisez vos candidatures et automatisez votre prospection avec l'IA.
+    </div>
+    """, unsafe_allow_html=True)
+    st.write("---")
     with st.expander("📜 Lire les CGV"): afficher_cgv()
     st.checkbox("J'accepte les CGV", key="accept_cgv")
     st.markdown("<div style='text-align: center; margin-top: 50px;'>© 2026 zipngo.zaxx.app | <strong>Créatrice : Liliane RAKOTOBE</strong></div>", unsafe_allow_html=True)
@@ -98,19 +106,16 @@ with tab_candidat:
         domaines = ["Restauration", "Hôtellerie", "Commerce", "Santé", "BTP", "Logistique", "Informatique", "Immobilier", "Événementiel", "Conseil", "Industrie", "Agriculture", "Éducation", "Culture", "Services", "Tourisme", "Artisanat", "Transport", "Finance", "Administration"]
         categorie = st.selectbox("Domaine d'activité", domaines)
         ville = st.text_input("Ville")
-        
         if st.button("🔍 Rechercher 20 nouveaux contacts"):
             with st.spinner("Recherche..."):
                 liste_exclue = [c['email_destinataire'] for c in supabase.table("sourcing").select("email_destinataire").execute().data]
                 prompt = f"Expert sourcing, trouve 20 emails officiels pour '{categorie}' à '{ville}'. Exclus : {', '.join(liste_exclue)}. Liste uniquement, un par ligne."
                 res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
                 st.session_state.emails_trouves = res.choices[0].message.content
-
         if 'emails_trouves' in st.session_state:
             emails = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', st.session_state.emails_trouves)
             dest = st.text_input("Destinataire principal", value=emails[0] if emails else "")
-            msg = st.text_area("Message", value="Madame, Monsieur, \n\nJe me permets de vous adresser ma candidature spontanée pour rejoindre votre entreprise. Je suis convaincu que mes compétences et ma motivation constituent un atout pour votre équipe. \n\nCi-joint mon curriculum vitae. \n\nCordialement,", height=250)
-            
+            msg = st.text_area("Message", value="Madame, Monsieur, \n\nJe me permets de vous adresser ma candidature spontanée pour rejoindre votre entreprise. Ci-joint mon curriculum vitae.\n\nCordialement,", height=250)
             mode_cv = st.radio("Source du CV", ["Choisir dans l'App", "Uploader CV"])
             cv_f = None
             if mode_cv == "Choisir dans l'App":
@@ -118,7 +123,6 @@ with tab_candidat:
                 cv_f = st.selectbox("Mes CVs", [c['nom_fichier'] for c in data])
             else:
                 cv_f = st.file_uploader("Upload CV", type=["pdf"])
-
             if st.button("🚀 Valider et Envoyer"):
                 try:
                     content = cv_f.read() if hasattr(cv_f, 'read') else open(cv_f, "rb").read()
