@@ -35,7 +35,16 @@ def afficher_cgv():
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color:#333333; font-size: 14px; margin-top: 0px;'>.zaxx.app</p>", unsafe_allow_html=True)
 
-langues = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", "العربية (Arabe)", "हिन्दी (Hindi)", "Bengali", "Português", "Русский", "日本語 (Japonais)", "Deutsch", "한국어 (Coréen)", "Tiếng Việt", "Italiano", "Türkçe", "Polski", "Nederlands", "Bahasa Indonesia", "ภาษาไทย (Thaï)"]
+# --- TEXTE DE PRÉSENTATION ---
+st.markdown("<h4 style='color: #4169E1; margin: 20px 0;'>L'intelligence artificielle au service de votre trajectoire professionnelle.</h4>", unsafe_allow_html=True)
+st.markdown("""
+<div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1; margin-bottom: 20px;'>
+    <h4 style='margin-top:0;'>Bienvenue sur zipngo</h4>
+    Optimisez vos démarches et facilitez vos interactions professionnelles grâce à notre écosystème intelligent, conçu pour accompagner efficacement chaque étape de vos projets de carrière.
+</div>
+""", unsafe_allow_html=True)
+
+langues = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", "العربية (Arabe)", "हिन्दी (Hindi)", "Bengali", "Português", "Русский", "日本語 (Japonais)", "Deutsch", "한국어 (Coreen)", "Tiếng Việt", "Italiano", "Türkçe", "Polski", "Nederlands", "Bahasa Indonesia", "ภาษาไทย (Thaï)"]
 st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue", langues, index=0)
 
 with st.expander("📜 Lire les CGV"): afficher_cgv()
