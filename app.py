@@ -126,8 +126,14 @@ with tab_candidat:
         if 'emails_trouves' in st.session_state:
             emails = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', st.session_state.emails_trouves)
             dest = st.text_input("Destinataire principal", value=emails[0] if emails else "")
-            msg = st.text_area("Message", value="Madame, Monsieur, \n\nJe me permets de vous adresser ma candidature spontanée pour rejoindre votre entreprise.
-Je vous prie d'agréer mes salutations distinguées. Ci-joint mon curriculum vitae.\n\nCordialement,", height=250)
+            
+            # Correction ici : Utilisation des triples guillemets pour le message
+            msg = st.text_area("Message", value="""Madame, Monsieur, 
+
+Je me permets de vous adresser ma candidature spontanée pour rejoindre votre entreprise. Je suis convaincu que mon profil pourrait répondre à vos besoins actuels ou futurs.
+Je vous prie d'agréer mes salutations distinguées. Ci-joint mon curriculum vitae.
+
+Cordialement,""", height=250)
             
             mode_cv = st.radio("Source du CV", ["Choisir dans l'App", "Uploader CV"])
             cv_f = None
