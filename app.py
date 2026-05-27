@@ -1,5 +1,6 @@
 import streamlit as st
 import datetime
+import re  # Import nécessaire pour le nettoyage des emails
 from fpdf import FPDF
 from groq import Groq
 from supabase import create_client
@@ -68,57 +69,41 @@ with tab_candidat:
         
         if st.button("🔍 Rechercher 20 contacts"):
             with st.spinner("Recherche en cours..."):
-                prompt = f"Trouve 20 emails officiels pour '{secteur}' à '{ville}' dans un rayon de {rayon}km. Liste brute."
+                prompt = f"Trouve 20 emails officiels pour '{secteur}' à '{ville}'. Donne uniquement la liste des emails, un par ligne, rien d'autre."
                 res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
                 st.session_state.emails_trouves = res.choices[0].message.content
                 st.success("Extraction terminée !")
         
         if 'emails_trouves' in st.session_state:
-            emails = [e.strip() for e in st.session_state.emails_trouves.split('\n') if "@" in e]
-            dest = st.text_input("Destinataire principal", value=emails[0] if emails else "")
-            cc = st.text_area("19 emails en copie cachée", value=", ".join(emails[1:20]) if len(emails)>1 else "")
+            # Extraction propre des emails via Regex
+            emails_bruts = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', st.session_state.emails_trouves)
             
-            corps_lettre = (
-                "Madame, Monsieur,\n\n"
-                "Je me permets de vous soumettre ma candidature pour le poste de [Titre du poste]. "
-                "Très motivé à l'idée de rejoindre votre équipe, je suis convaincu que mon profil correspond aux attentes de votre entreprise.\n\n"
-                "Vous trouverez en pièce jointe mon curriculum vitae, qui détaille mon expérience et mes compétences. "
-                "Je reste à votre entière disposition pour convenir d'un entretien afin de vous exposer plus en détail mes motivations.\n\n"
-                "Dans l'attente de votre retour, je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.\n\n"
-                "Cordialement,\n\n"
-                "[Ton Prénom] [Ton Nom]\n"
-                "[Ton numéro de téléphone]"
-            )
+            dest = st.text_input("Destinataire principal", value=emails_bruts[0] if emails_bruts else "")
+            cc = st.text_area("19 emails en copie cachée (séparés par des virgules)", value=", ".join(emails_bruts[1:20]) if len(emails_bruts) > 1 else "")
+            
+            corps_lettre = "Madame, Monsieur,\n\nJe me permets de vous soumettre ma candidature..."
             obj = st.text_input("Objet", value=f"Candidature au poste de {secteur}")
             msg = st.text_area("Message", value=corps_lettre, height=250)
             
-            # --- BLOC CORRIGÉ ET SÉCURISÉ ---
+            # --- BLOC ROBUSTE CVS ---
             try:
                 response = supabase.table("cvs").select("nom_fichier").execute()
                 cvs = response.data
                 if cvs and len(cvs) > 0:
                     nom_cv = st.selectbox("Attacher mon CV", [c['nom_fichier'] for c in cvs])
                 else:
-                    st.warning("⚠️ Aucun CV trouvé. Chargez un CV dans 'Relooking' avant d'envoyer.")
+                    st.warning("⚠️ Aucun CV trouvé. Chargez un CV dans 'Relooking' avant.")
             except Exception:
                 st.warning("Erreur de lecture des CVs.")
             
             if st.button("🚀 Valider et Envoyer"):
                 try:
                     supabase.table("sourcing").insert({
-                        "email_destinataire": dest, 
-                        "objet": obj, 
-                        "message": msg, 
-                        "date": str(datetime.date.today())
+                        "email_destinataire": dest, "objet": obj, "message": msg, "date": str(datetime.date.today())
                     }).execute()
-                    
                     supabase.table("candidatures").insert({
-                        "type": "Spontanée", 
-                        "entreprise": f"{secteur} ({ville} +{rayon}km)", 
-                        "date": str(datetime.date.today()), 
-                        "statut": "ENVOYÉ"
+                        "type": "Spontanée", "entreprise": f"{secteur} ({ville} +{rayon}km)", "date": str(datetime.date.today()), "statut": "ENVOYÉ"
                     }).execute()
-                    
                     st.success("✅ Campagne enregistrée avec succès !")
                 except Exception as e:
                     st.error(f"Erreur d'insertion : {e}")
