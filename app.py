@@ -44,8 +44,7 @@ st.markdown("<h4 style='color: #4169E1; margin: 20px 0;'>Votre succès professio
 st.markdown("""
 <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1; margin-bottom: 20px;'>
     <h4 style='margin-top:0;'>Bienvenue sur zipngo</h4>
-    L'écosystème intelligent dédié à votre dynamique professionnelle. Que vous soyez en quête de nouvelles opportunités ou en phase de gestion de talents, 
-    zipngo agit comme un facilitateur technologique.
+    L'écosystème intelligent dédié à votre dynamique professionnelle.
 </div>
 """, unsafe_allow_html=True)
 
@@ -55,49 +54,42 @@ with st.expander("📜 Lire les CGV"): afficher_cgv()
 # 5. ACCEPTER LES CGV
 st.checkbox("J'accepte les CGV", key="accept_cgv")
 
-# 6. ACCUEIL/CANDIDAT/EMPLOYEUR
+# 6. ONGLETS
 tab_home, tab_candidat, tab_employeur = st.tabs(["🏠 Accueil", "🚀 Candidat", "💼 Employeur"])
 
 with tab_home:
     st.write("Bienvenue dans votre espace d'accueil.")
-    st.markdown("<div style='text-align: center; margin-top: 50px;'>© 2026 zipngo.zaxx.app | <strong>Créatrice : Liliane RAKOTOBE</strong></div>", unsafe_allow_html=True)
 
 with tab_candidat:
     dossiers = st.tabs(["📂 Candidatures", "📅 Entretiens", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing"])
     
     with dossiers[4]:
         st.subheader("🌐 Prospection Spontanée")
-        # Logique de Quota (Simulation)
-        is_premium = True # Remplacer par votre logique de vérification réelle
-        
         categorie = st.selectbox("Domaine d'activité", ["Restauration", "Hôtellerie", "Commerce", "Santé", "BTP", "Logistique", "Informatique"])
         ville = st.text_input("Ville")
         
         if st.button("🔍 Rechercher 20 nouveaux contacts"):
-            with st.spinner("Recherche intelligente..."):
-                # Récupérer les emails déjà contactés pour les exclure
-                exclus = [c['email'] for c in supabase.table("sourcing").select("email").execute().data]
-                prompt = f"Donne-moi 20 emails officiels pour {categorie} à {ville}. Exclus strictement ceux-ci : {', '.join(exclus)}. Liste uniquement, séparée par des virgules."
+            with st.spinner("Recherche..."):
+                try:
+                    response = supabase.table("sourcing").select("email").execute()
+                    exclus = [c['email'] for c in response.data] if response.data else []
+                except: exclus = []
+                
+                prompt = f"Donne 20 emails officiels pour {categorie} à {ville}. Exclus strictement ceux-ci : {', '.join(exclus)}. Liste seule séparée par virgules."
                 res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
                 st.session_state.emails_trouves = res.choices[0].message.content
+                st.rerun()
         
         if 'emails_trouves' in st.session_state:
-            st.write("Emails détectés :", st.session_state.emails_trouves)
+            st.write("Emails :", st.session_state.emails_trouves)
             emails_list = [e.strip() for e in st.session_state.emails_trouves.split(',')]
-            
             msg = st.text_area("Message", value="Madame, Monsieur, je souhaite rejoindre votre équipe...", height=200)
             
-            source_cv = st.radio("Source du CV", ["Choisir parmi mes CVs", "Uploader CV"])
-            pdf_content = None
+            uploaded = st.file_uploader("Uploader CV (PDF)", type=["pdf"])
             
-            if source_cv == "Choisir parmi mes CVs":
-                cv_f = st.selectbox("Mes CVs", [c['nom_fichier'] for c in supabase.table("cvs").select("nom_fichier").execute().data])
-            else:
-                uploaded = st.file_uploader("Uploader CV", type=["pdf"])
-                if uploaded: pdf_content = uploaded.getvalue()
-
             if st.button("🚀 Valider et Envoyer"):
                 try:
+                    pdf_content = uploaded.getvalue() if uploaded else None
                     resend.Emails.send({
                         "from": "contact@zaxx.app", 
                         "to": emails_list[0], 
@@ -108,7 +100,8 @@ with tab_candidat:
                     })
                     for e in emails_list: 
                         supabase.table("sourcing").insert({"email": e, "date": str(datetime.date.today())}).execute()
-                    st.success("✅ Candidatures envoyées !")
+                    st.success("✅ Candidatures envoyées et archivées !")
+                    del st.session_state.emails_trouves
                 except Exception as e: st.error(f"Erreur : {e}")
 
 with tab_employeur:
