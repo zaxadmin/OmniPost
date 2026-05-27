@@ -83,7 +83,9 @@ with tab_candidat:
         if 'emails_trouves' in st.session_state:
             st.write("Emails :", st.session_state.emails_trouves)
             emails_list = [e.strip() for e in st.session_state.emails_trouves.split(',')]
-            msg = st.text_area("Message", value="Madame, Monsieur, je souhaite rejoindre votre équipe...", height=200)
+            msg = st.text_area("Message", value="Madame, Monsieur, Intégrer votre équipe représente pour moi l'opportunité de mettre mon dynamisme et mon savoir-faire au service de vos objectifs. Je suis convaincu(e) que mon profil pourrait répondre à vos besoins actuels ou futurs.
+​Vous trouverez ci-joint mon curriculum vitae détaillant mon parcours. Je serais ravi(e) de vous rencontrer lors d'un entretien afin de vous exposer plus en détail mes motivations.
+​Dans cette attente, je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.", height=200)
             
             uploaded = st.file_uploader("Uploader CV (PDF)", type=["pdf"])
             
