@@ -4,3 +4,4 @@ groq
 fpdf
 PyPDF2
 resend
+pandas
