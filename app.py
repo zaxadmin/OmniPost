@@ -1,7 +1,7 @@
 import streamlit as st
 import datetime
 import re
-import pandas as pd  # Import ajouté pour les tableaux
+import pandas as pd
 from fpdf import FPDF
 from groq import Groq
 from supabase import create_client
@@ -38,6 +38,7 @@ langues = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandari
 st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue / Select your language", langues, index=0)
 
 st.markdown("<h4 style='color: #4169E1; margin: 20px 0;'>Votre succès professionnel, propulsé par la précision.</h4>", unsafe_allow_html=True)
+
 st.markdown("""
 <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1; margin-bottom: 20px;'>
     <h4 style='margin-top:0;'>Bienvenue sur zipngo</h4>
@@ -48,7 +49,7 @@ st.markdown("""
 with st.expander("📜 Lire les CGV"): afficher_cgv()
 st.checkbox("J'accepte les CGV", key="accept_cgv")
 
-# 6. ONGLETS
+# --- ONGLETS ---
 tab_home, tab_candidat, tab_employeur = st.tabs(["🏠 Accueil", "🚀 Candidat", "💼 Employeur"])
 
 with tab_home:
@@ -57,7 +58,7 @@ with tab_home:
 with tab_candidat:
     dossiers = st.tabs(["📂 Candidatures", "📅 Entretiens", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing"])
     
-    with dossiers[0]:  # --- HISTORIQUE DES PROSPECTIONS ---
+    with dossiers[0]:
         st.subheader("📜 Historique des envois")
         try:
             response = supabase.table("sourcing").select("email, date").order("date", desc=True).execute()
@@ -70,7 +71,7 @@ with tab_candidat:
         except Exception as e:
             st.error(f"Erreur de chargement : {e}")
     
-    with dossiers[4]: # --- SOURCING ---
+    with dossiers[4]:
         st.subheader("🌐 Prospection Spontanée")
         categorie = st.selectbox("Domaine d'activité", ["Restauration", "Hôtellerie", "Commerce", "Santé", "BTP", "Logistique", "Informatique"])
         ville = st.text_input("Ville")
@@ -82,13 +83,13 @@ with tab_candidat:
                     exclus = [c['email'] for c in response.data] if response.data else []
                 except: exclus = []
                 
-                prompt = f"Donne 20 emails officiels pour {categorie} à {ville}. Exclus strictement ceux-ci : {', '.join(exclus)}. Liste seule séparée par virgules."
+                prompt = f"Donne 20 emails officiels pour {categorie} à {ville}. Exclus strictement : {', '.join(exclus)}. Liste seule séparée par virgules."
                 res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
                 st.session_state.emails_trouves = res.choices[0].message.content
                 st.rerun()
         
         if 'emails_trouves' in st.session_state:
-            st.write("Emails trouvés :", st.session_state.emails_trouves)
+            st.write("Emails détectés :", st.session_state.emails_trouves)
             emails_list = [e.strip() for e in st.session_state.emails_trouves.split(',')]
             
             msg = st.text_area(
@@ -100,27 +101,31 @@ Intégrer votre équipe représente pour moi l'opportunité de mettre mon dynami
 Vous trouverez ci-joint mon curriculum vitae détaillant mon parcours. Je serais ravi(e) de vous rencontrer lors d'un entretien afin de vous exposer plus en détail mes motivations.
 
 Dans cette attente, je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.""", 
-                height=200
+                height=250
             )
             
-            uploaded = st.file_uploader("Uploader CV (PDF)", type=["pdf"])
+            uploaded = st.file_uploader("Uploader CV (PDF)", type=["pdf"], key="sourcing_cv")
             
             if st.button("🚀 Valider et Envoyer"):
-                try:
-                    pdf_content = uploaded.getvalue() if uploaded else None
-                    resend.Emails.send({
-                        "from": "contact@zaxx.app", 
-                        "to": emails_list[0], 
-                        "bcc": emails_list[1:20], 
-                        "subject": "Candidature spontanée", 
-                        "text": msg, 
-                        "attachments": [{"filename": "CV.pdf", "content": list(pdf_content) if pdf_content else []}]
-                    })
-                    for e in emails_list: 
-                        supabase.table("sourcing").insert({"email": e, "date": str(datetime.date.today())}).execute()
-                    st.success("✅ Candidatures envoyées et archivées !")
-                    del st.session_state.emails_trouves
-                except Exception as e: st.error(f"Erreur : {e}")
+                if not uploaded:
+                    st.error("Veuillez charger un fichier PDF.")
+                else:
+                    try:
+                        pdf_content = uploaded.getvalue()
+                        resend.Emails.send({
+                            "from": "contact@zaxx.app", 
+                            "to": emails_list[0], 
+                            "bcc": emails_list[1:20], 
+                            "subject": "Candidature spontanée", 
+                            "text": msg, 
+                            "attachments": [{"filename": "CV.pdf", "content": list(pdf_content)}]
+                        })
+                        for e in emails_list: 
+                            supabase.table("sourcing").insert({"email": e, "date": str(datetime.date.today())}).execute()
+                        st.success("✅ Candidatures envoyées et archivées !")
+                        del st.session_state.emails_trouves
+                        st.rerun()
+                    except Exception as e: st.error(f"Erreur : {e}")
 
 with tab_employeur:
     st.header("Interface Employeur")
