@@ -45,7 +45,7 @@ st.markdown("""
 <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1; margin-bottom: 20px;'>
     <h4 style='margin-top:0;'>Bienvenue sur zipngo</h4>
     L'écosystème intelligent dédié à votre dynamique professionnelle. Que vous soyez en quête de nouvelles opportunités ou en phase de gestion de talents, 
-    zipngo agit comme un facilitateur technologique. Nous simplifions la mise en relation et la gestion des parcours.
+    zipngo agit comme un facilitateur technologique.
 </div>
 """, unsafe_allow_html=True)
 
@@ -65,55 +65,51 @@ with tab_home:
 with tab_candidat:
     dossiers = st.tabs(["📂 Candidatures", "📅 Entretiens", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing"])
     
-    with dossiers[0]:
-        st.subheader("📊 Mon Statut & Historique")
-        try:
-            historique = supabase.table("candidatures").select("*").order("date", desc=True).execute().data
-            for c in historique:
-                st.write(f"📅 {c.get('date')} | **{c.get('entreprise')}** - Statut: {c.get('statut')}")
-        except: st.info("Aucun historique trouvé.")
-
-    with dossiers[3]:
-        st.subheader("✨ Relooking & Analyse ATS")
-        up = st.file_uploader("Upload votre CV (PDF)", type=["pdf"])
-        if up:
-            if st.button("🔍 Scanner et Analyser le CV"):
-                with st.spinner("Analyse ATS en cours..."):
-                    reader = PdfReader(up)
-                    text = "".join([p.extract_text() for p in reader.pages])
-                    res = client.chat.completions.create(messages=[{"role": "user", "content": f"Analyse ATS : {text}"}], model="llama-3.3-70b-versatile")
-                    st.session_state.analyse_cv = res.choices[0].message.content
-                    st.session_state.texte_original = text
-            if 'analyse_cv' in st.session_state:
-                st.info(st.session_state.analyse_cv)
-                contenu_pro = st.text_area("Optimisation du contenu", value=st.session_state.texte_original, height=300)
-                if st.button("✨ Générer version ATS optimisée"):
-                    res_opt = client.chat.completions.create(messages=[{"role": "user", "content": f"Optimise pour ATS : {contenu_pro}"}], model="llama-3.3-70b-versatile")
-                    st.session_state.texte_final = res_opt.choices[0].message.content
-                    st.success("Contenu optimisé prêt !")
-                if 'texte_final' in st.session_state:
-                    style = st.selectbox("Style de mise en page", ["Classique", "Moderne", "Minimaliste"])
-                    if st.button("🚀 Générer et Archiver le CV"):
-                        nom_f = f"CV_Optimise_{datetime.date.today()}.pdf"
-                        creer_pdf_cv_pro(st.session_state.texte_final, nom_f, style)
-                        supabase.table("cvs").insert({"nom_fichier": nom_f, "contenu": st.session_state.texte_final}).execute()
-                        st.success(f"✅ {nom_f} archivé !")
-
     with dossiers[4]:
         st.subheader("🌐 Prospection Spontanée")
+        # Logique de Quota (Simulation)
+        is_premium = True # Remplacer par votre logique de vérification réelle
+        
         categorie = st.selectbox("Domaine d'activité", ["Restauration", "Hôtellerie", "Commerce", "Santé", "BTP", "Logistique", "Informatique"])
         ville = st.text_input("Ville")
+        
         if st.button("🔍 Rechercher 20 nouveaux contacts"):
-            st.session_state.emails_trouves = "exemple@email.com" # Simulation
+            with st.spinner("Recherche intelligente..."):
+                # Récupérer les emails déjà contactés pour les exclure
+                exclus = [c['email'] for c in supabase.table("sourcing").select("email").execute().data]
+                prompt = f"Donne-moi 20 emails officiels pour {categorie} à {ville}. Exclus strictement ceux-ci : {', '.join(exclus)}. Liste uniquement, séparée par des virgules."
+                res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
+                st.session_state.emails_trouves = res.choices[0].message.content
         
         if 'emails_trouves' in st.session_state:
-            msg = st.text_area("Message", value="""Madame, Monsieur, 
+            st.write("Emails détectés :", st.session_state.emails_trouves)
+            emails_list = [e.strip() for e in st.session_state.emails_trouves.split(',')]
+            
+            msg = st.text_area("Message", value="Madame, Monsieur, je souhaite rejoindre votre équipe...", height=200)
+            
+            source_cv = st.radio("Source du CV", ["Choisir parmi mes CVs", "Uploader CV"])
+            pdf_content = None
+            
+            if source_cv == "Choisir parmi mes CVs":
+                cv_f = st.selectbox("Mes CVs", [c['nom_fichier'] for c in supabase.table("cvs").select("nom_fichier").execute().data])
+            else:
+                uploaded = st.file_uploader("Uploader CV", type=["pdf"])
+                if uploaded: pdf_content = uploaded.getvalue()
 
-Je me permets de vous adresser ma candidature spontanée pour rejoindre votre entreprise. 
-
-Cordialement,""", height=250)
             if st.button("🚀 Valider et Envoyer"):
-                st.success("✅ Candidatures envoyées !")
+                try:
+                    resend.Emails.send({
+                        "from": "contact@zaxx.app", 
+                        "to": emails_list[0], 
+                        "bcc": emails_list[1:20], 
+                        "subject": "Candidature spontanée", 
+                        "text": msg, 
+                        "attachments": [{"filename": "CV.pdf", "content": list(pdf_content) if pdf_content else []}]
+                    })
+                    for e in emails_list: 
+                        supabase.table("sourcing").insert({"email": e, "date": str(datetime.date.today())}).execute()
+                    st.success("✅ Candidatures envoyées !")
+                except Exception as e: st.error(f"Erreur : {e}")
 
 with tab_employeur:
     st.header("Interface Employeur")
