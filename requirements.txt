@@ -1,7 +1,7 @@
 streamlit
-supabase
+pypdf
 groq
-fpdf
-PyPDF2
+supabase
 resend
+fpdf
 pandas
