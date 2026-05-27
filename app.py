@@ -27,10 +27,10 @@ def creer_pdf_cv_pro(texte_ia, nom_fichier, style):
     pdf.output(nom_fichier)
 
 def afficher_cgv():
-    st.markdown("### 📜 Conditions Générales de Vente (CGV)\n1. Accès Candidat 6€/3mois | Recruteur 39€/mois.\n2. Limites Gratuit : 1 CV/mois, 1 campagne/mois.\n3. Premium : 3 CVs/semaine, 20 mails/jour.")
+    st.markdown("### 📜 CGV (CGV)\n1. Accès Candidat 6€/3mois | Recruteur 39€/mois.\n2. Limites Gratuit : 1 CV/mois, 1 campagne/mois.\n3. Premium : 3 CVs/semaine, 20 mails/jour.")
 
 # --- UI PRINCIPALE ---
-st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>.zaxx.app👍</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color:#333333; font-size: 14px; margin-top: 0px;'>.zaxx.app</p>", unsafe_allow_html=True)
 
 # SÉLECTION DE LANGUE
@@ -48,8 +48,12 @@ with tab_home:
     st.markdown("<h2 style='text-align: center; color: #4169E1;'>Votre succès professionnel, propulsé par la précision.</h2>", unsafe_allow_html=True)
     st.markdown("""
     <div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px; text-align: center;'>
-    Bienvenue sur <strong>zipngo</strong>, votre partenaire intelligent pour la gestion de carrière. 
-    Optimisez votre CV, organisez vos candidatures et automatisez votre prospection avec l'IA.
+    Chez <strong>zipngo</strong>, nous croyons que la réussite professionnelle repose sur la fluidité de l'information et la qualité de la mise en relation. Nous mettons la technologie au service de votre ambition pour transformer chaque interaction en une opportunité concrète.
+
+​Optimisation : Utilisez des outils de précision pour valoriser les compétences et structurer les échanges.
+​Organisation : Centralisez vos démarches et vos interactions au sein d'un espace sécurisé et performant.
+​Efficacité : Gagnez un temps précieux grâce à l'automatisation des tâches répétitives et à une analyse intelligente des données.
+
     </div>
     """, unsafe_allow_html=True)
     st.write("---")
