@@ -66,12 +66,47 @@ with tab_candidat:
                 df = pd.DataFrame(response.data)
                 df.columns = ["Email", "Date"]
                 st.table(df)
-            else:
-                st.info("Aucun historique pour le moment.")
-        except Exception as e:
-            st.error(f"Erreur de chargement : {e}")
-    
-    with dossiers[4]:
+        except Exception as e: st.error(f"Erreur : {e}")
+
+    with dossiers[3]: # RELOOKING CV
+        st.subheader("✨ Relooking & Analyse ATS")
+        source_cv = st.radio("Source du CV", ["Uploader depuis mon ordinateur", "Sélectionner parmi mes CVs enregistrés"])
+        
+        texte_cv = ""
+        if source_cv == "Uploader depuis mon ordinateur":
+            up = st.file_uploader("Upload votre CV (PDF)", type=["pdf"])
+            if up:
+                reader = PdfReader(up)
+                texte_cv = "".join([p.extract_text() for p in reader.pages])
+        else:
+            data_cvs = supabase.table("cvs").select("nom_fichier, contenu").execute().data
+            if data_cvs:
+                nom_choisi = st.selectbox("Mes CVs", [c['nom_fichier'] for c in data_cvs])
+                texte_cv = next(c['contenu'] for c in data_cvs if c['nom_fichier'] == nom_choisi)
+
+        if texte_cv:
+            if st.button("🔍 Scanner et Analyser ATS"):
+                res = client.chat.completions.create(messages=[{"role": "user", "content": f"Analyse ATS et conseils : {texte_cv}"}], model="llama-3.3-70b-versatile")
+                st.session_state.analyse_cv = res.choices[0].message.content
+            
+            if 'analyse_cv' in st.session_state:
+                st.info(st.session_state.analyse_cv)
+                contenu_pro = st.text_area("Optimisation du contenu", value=texte_cv, height=300)
+                if st.button("✨ Générer version ATS optimisée"):
+                    res_opt = client.chat.completions.create(messages=[{"role": "user", "content": f"Optimise pour ATS : {contenu_pro}"}], model="llama-3.3-70b-versatile")
+                    st.session_state.texte_final = res_opt.choices[0].message.content
+                    st.success("Contenu optimisé !")
+
+            if 'texte_final' in st.session_state:
+                style = st.selectbox("Template Visuel", ["Classique", "Moderne", "Minimaliste"])
+                nom_f = st.text_input("Nom du fichier", value=f"CV_Pro_{datetime.date.today()}.pdf")
+                if st.button("💾 Télécharger et Archiver"):
+                    creer_pdf_cv_pro(st.session_state.texte_final, nom_f, style)
+                    supabase.table("cvs").insert({"nom_fichier": nom_f, "contenu": st.session_state.texte_final}).execute()
+                    with open(nom_f, "rb") as f: st.download_button("📥 Télécharger", f, file_name=nom_f)
+                    st.success("✅ Archivé et prêt !")
+
+    with dossiers[4]: # SOURCING
         st.subheader("🌐 Prospection Spontanée")
         categorie = st.selectbox("Domaine d'activité", ["Restauration", "Hôtellerie", "Commerce", "Santé", "BTP", "Logistique", "Informatique"])
         ville = st.text_input("Ville")
@@ -82,16 +117,13 @@ with tab_candidat:
                     response = supabase.table("sourcing").select("email").execute()
                     exclus = [c['email'] for c in response.data] if response.data else []
                 except: exclus = []
-                
-                prompt = f"Donne 20 emails officiels pour {categorie} à {ville}. Exclus strictement : {', '.join(exclus)}. Liste seule séparée par virgules."
+                prompt = f"Donne 20 emails officiels pour {categorie} à {ville}. Exclus : {', '.join(exclus)}. Liste séparée par virgules."
                 res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
                 st.session_state.emails_trouves = res.choices[0].message.content
                 st.rerun()
         
         if 'emails_trouves' in st.session_state:
-            st.write("Emails détectés :", st.session_state.emails_trouves)
             emails_list = [e.strip() for e in st.session_state.emails_trouves.split(',')]
-            
             msg = st.text_area(
                 "Message", 
                 value="""Madame, Monsieur, 
@@ -103,29 +135,17 @@ Vous trouverez ci-joint mon curriculum vitae détaillant mon parcours. Je serais
 Dans cette attente, je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.""", 
                 height=250
             )
-            
             uploaded = st.file_uploader("Uploader CV (PDF)", type=["pdf"], key="sourcing_cv")
             
             if st.button("🚀 Valider et Envoyer"):
-                if not uploaded:
-                    st.error("Veuillez charger un fichier PDF.")
+                if not uploaded: st.error("Veuillez charger un PDF.")
                 else:
-                    try:
-                        pdf_content = uploaded.getvalue()
-                        resend.Emails.send({
-                            "from": "contact@zaxx.app", 
-                            "to": emails_list[0], 
-                            "bcc": emails_list[1:20], 
-                            "subject": "Candidature spontanée", 
-                            "text": msg, 
-                            "attachments": [{"filename": "CV.pdf", "content": list(pdf_content)}]
-                        })
-                        for e in emails_list: 
-                            supabase.table("sourcing").insert({"email": e, "date": str(datetime.date.today())}).execute()
-                        st.success("✅ Candidatures envoyées et archivées !")
-                        del st.session_state.emails_trouves
-                        st.rerun()
-                    except Exception as e: st.error(f"Erreur : {e}")
+                    pdf_content = uploaded.getvalue()
+                    resend.Emails.send({"from": "contact@zaxx.app", "to": emails_list[0], "bcc": emails_list[1:20], "subject": "Candidature", "text": msg, "attachments": [{"filename": "CV.pdf", "content": list(pdf_content)}]})
+                    for e in emails_list: supabase.table("sourcing").insert({"email": e, "date": str(datetime.date.today())}).execute()
+                    st.success("✅ Envoyé !")
+                    del st.session_state.emails_trouves
+                    st.rerun()
 
 with tab_employeur:
     st.header("Interface Employeur")
