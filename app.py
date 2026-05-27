@@ -45,9 +45,9 @@ st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue / Select
 # TEXTE DE PRÉSENTATION NEUTRE
 st.markdown("""
 <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1; margin: 20px 0;'>
-    <h4 style='margin-top:0;'>Bienvenue sur zipngo.zaxx.app</h4>
+    <h4 style='margin-top:0;'>Bienvenue sur zipngo</h4>
     L'écosystème intelligent dédié à votre dynamique professionnelle. Que vous soyez en quête de nouvelles opportunités ou en phase de gestion de talents, 
-    zipngo agit comme un facilitateur technologique. Grâce à l'intelligence artificielle, nous simplifions la mise en relation et la gestion des parcours.
+    zipngo agit comme un facilitateur technologique. Nous simplifions la mise en relation et la gestion des parcours.
     <br><br>
     <ul>
         <li><b>Optimisation :</b> Des outils de précision pour valoriser les compétences.</li>
@@ -126,7 +126,8 @@ with tab_candidat:
         if 'emails_trouves' in st.session_state:
             emails = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', st.session_state.emails_trouves)
             dest = st.text_input("Destinataire principal", value=emails[0] if emails else "")
-            msg = st.text_area("Message", value="Madame, Monsieur, \n\nJe me permets de vous adresser ma candidature spontanée pour rejoindre votre entreprise. Ci-joint mon curriculum vitae.\n\nCordialement,", height=250)
+            msg = st.text_area("Message", value="Madame, Monsieur, \n\nJe me permets de vous adresser ma candidature spontanée pour rejoindre votre entreprise.
+Je vous prie d'agréer mes salutations distinguées. Ci-joint mon curriculum vitae.\n\nCordialement,", height=250)
             
             mode_cv = st.radio("Source du CV", ["Choisir dans l'App", "Uploader CV"])
             cv_f = None
