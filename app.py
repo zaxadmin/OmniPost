@@ -1,6 +1,7 @@
 import streamlit as st
 import datetime
 import re
+import pandas as pd  # Import ajouté pour les tableaux
 from fpdf import FPDF
 from groq import Groq
 from supabase import create_client
@@ -33,14 +34,10 @@ def afficher_cgv():
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color:#333333; font-size: 14px; margin-top: 0px;'>.zaxx.app</p>", unsafe_allow_html=True)
 
-# 1. SÉLECTEUR DE LANGUE
 langues = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", "العربية (Arabe)", "हिन्दी (Hindi)", "Bengali", "Português", "Русский", "日本語 (Japonais)", "Deutsch", "한국어 (Coréen)", "Tiếng Việt", "Italiano", "Türkçe", "Polski", "Nederlands", "Bahasa Indonesia", "ภาษาไทย (Thaï)"]
 st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue / Select your language", langues, index=0)
 
-# 2. VOTRE SUCCÈS...
 st.markdown("<h4 style='color: #4169E1; margin: 20px 0;'>Votre succès professionnel, propulsé par la précision.</h4>", unsafe_allow_html=True)
-
-# 3. BIENVENUE...
 st.markdown("""
 <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1; margin-bottom: 20px;'>
     <h4 style='margin-top:0;'>Bienvenue sur zipngo</h4>
@@ -48,10 +45,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 4. LIRE LES CGV
 with st.expander("📜 Lire les CGV"): afficher_cgv()
-
-# 5. ACCEPTER LES CGV
 st.checkbox("J'accepte les CGV", key="accept_cgv")
 
 # 6. ONGLETS
@@ -63,7 +57,20 @@ with tab_home:
 with tab_candidat:
     dossiers = st.tabs(["📂 Candidatures", "📅 Entretiens", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing"])
     
-    with dossiers[4]:
+    with dossiers[0]:  # --- HISTORIQUE DES PROSPECTIONS ---
+        st.subheader("📜 Historique des envois")
+        try:
+            response = supabase.table("sourcing").select("email, date").order("date", desc=True).execute()
+            if response.data:
+                df = pd.DataFrame(response.data)
+                df.columns = ["Email", "Date"]
+                st.table(df)
+            else:
+                st.info("Aucun historique pour le moment.")
+        except Exception as e:
+            st.error(f"Erreur de chargement : {e}")
+    
+    with dossiers[4]: # --- SOURCING ---
         st.subheader("🌐 Prospection Spontanée")
         categorie = st.selectbox("Domaine d'activité", ["Restauration", "Hôtellerie", "Commerce", "Santé", "BTP", "Logistique", "Informatique"])
         ville = st.text_input("Ville")
@@ -81,10 +88,9 @@ with tab_candidat:
                 st.rerun()
         
         if 'emails_trouves' in st.session_state:
-            st.write("Emails :", st.session_state.emails_trouves)
+            st.write("Emails trouvés :", st.session_state.emails_trouves)
             emails_list = [e.strip() for e in st.session_state.emails_trouves.split(',')]
             
-            # Correction appliquée ici :
             msg = st.text_area(
                 "Message", 
                 value="""Madame, Monsieur, 
