@@ -44,13 +44,18 @@ def afficher_cgv():
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color:#333333; font-size: 14px; margin-top: 0px;'>.zaxx.app</p>", unsafe_allow_html=True)
 
-# Sélecteur de langue
-langues = ["Français", "English (US)", "Español", "中文 (Mandarin)", "العربية (Arabe)", "Deutsch"]
+# --- SÉLECTEUR DE 20 LANGUES ---
+langues = [
+    "Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", 
+    "العربية (Arabe)", "हिन्दी (Hindi)", "Bengali", "Português", "Русский", 
+    "日本語 (Japonais)", "Deutsch", "한국어 (Coréen)", "Tiếng Việt", "Italiano", 
+    "Türkçe", "Polski", "Nederlands", "Bahasa Indonesia", "ภาษาไทย (Thaï)"
+]
 st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue", langues, index=0)
 
 # Présentation
 st.markdown(f"<h4 style='color: #4169E1; margin: 20px 0;'>{traduire_avec_ia('L\'intelligence artificielle au service de votre trajectoire professionnelle.', st.session_state.langue)}</h4>", unsafe_allow_html=True)
-st.markdown(f"<div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1; margin-bottom: 20px;'><h4>{traduire_avec_ia('Bienvenue sur zipngo', st.session_state.langue)}</h4>{traduire_avec_ia('Optimisez vos démarches et facilitez vos interactions professionnelles grâce à notre écosystème intelligent.', st.session_state.langue)}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1; margin-bottom: 20px;'><h4>{traduire_avec_ia('Bienvenue sur zipngo', st.session_state.langue)}</h4>{traduire_avec_ia('Optimisez vos démarches et facilitez vos interactions professionnelles grâce à notre écosystème intelligent, conçu pour accompagner efficacement chaque étape de vos projets de carrière.', st.session_state.langue)}</div>", unsafe_allow_html=True)
 
 with st.expander(traduire_avec_ia("📜 Lire les CGV", st.session_state.langue)): afficher_cgv()
 st.checkbox(traduire_avec_ia("J'accepte les CGV", st.session_state.langue), key="accept_cgv")
@@ -82,12 +87,12 @@ with tab_candidat:
         else:
             data = supabase.table("cvs").select("nom_fichier, contenu").execute().data
             if data:
-                choix = st.selectbox("Mes CVs", [c['nom_fichier'] for c in data])
+                choix = st.selectbox(traduire_avec_ia("Mes CVs", st.session_state.langue), [c['nom_fichier'] for c in data])
                 texte_cv = next(c['contenu'] for c in data if c['nom_fichier'] == choix)
 
         if texte_cv:
             if st.button(traduire_avec_ia("🔍 Lancer le Scan & Scoring", st.session_state.langue)):
-                with st.spinner("Analyse..."):
+                with st.spinner(traduire_avec_ia("Analyse...", st.session_state.langue)):
                     prompt = f"Analyse ce CV et donne un score ATS (X/100), les points à améliorer et RECRÉE le contenu optimisé : {texte_cv}"
                     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
                     st.session_state.analyse = res.choices[0].message.content
@@ -95,21 +100,28 @@ with tab_candidat:
                 st.markdown(st.session_state.analyse)
                 match = re.search(r'(\d+)/100', st.session_state.analyse)
                 if match: st.progress(int(match.group(1)) / 100)
+                if st.button(traduire_avec_ia("💾 Sauvegarder la version optimisée", st.session_state.langue)):
+                    supabase.table("cvs").insert({"nom_fichier": f"ATS_Optimise_{datetime.date.today()}", "contenu": st.session_state.analyse}).execute()
+                    st.success(traduire_avec_ia("✅ Version optimisée sauvegardée !", st.session_state.langue))
 
     with dossiers[4]: # SOURCING
         st.subheader(traduire_avec_ia("🌐 Prospection Spontanée", st.session_state.langue))
         cat = st.selectbox(traduire_avec_ia("Domaine", st.session_state.langue), ["Restauration", "Hôtellerie", "Santé", "Informatique"])
         ville = st.text_input(traduire_avec_ia("Ville", st.session_state.langue))
         if st.button(traduire_avec_ia("🔍 Rechercher 20 contacts", st.session_state.langue)):
-            res = client.chat.completions.create(messages=[{"role": "user", "content": f"20 emails {cat} à {ville}"}], model="llama-3.3-70b-versatile")
+            res = client.chat.completions.create(messages=[{"role": "user", "content": f"20 emails officiels pour {cat} à {ville}"}], model="llama-3.3-70b-versatile")
             st.session_state.emails = res.choices[0].message.content
             st.rerun()
         if 'emails' in st.session_state:
             st.write(st.session_state.emails)
+            msg_defaut = "Madame, Monsieur, Intégrer votre équipe représente pour moi l'opportunité de mettre mon dynamisme et mon savoir-faire au service de vos objectifs. Vous trouverez ci-joint mon CV. Dans cette attente, je vous prie d'agréer mes salutations distinguées."
+            msg = st.text_area(traduire_avec_ia("Message", st.session_state.langue), value=traduire_avec_ia(msg_defaut, st.session_state.langue), height=250)
             up = st.file_uploader(traduire_avec_ia("Uploader CV", st.session_state.langue), type=["pdf"])
             if st.button(traduire_avec_ia("🚀 Valider et Envoyer", st.session_state.langue)) and up:
-                resend.Emails.send({"from": "onboarding@resend.dev", "to": "test@example.com", "subject": "Candidature", "text": "...", "attachments": [{"filename": "CV.pdf", "content": list(up.getvalue())}]})
-                st.success("✅ Envoyé !")
+                emails = st.session_state.emails.split(',')
+                resend.Emails.send({"from": "onboarding@resend.dev", "to": emails[0], "subject": traduire_avec_ia("Candidature", st.session_state.langue), "text": msg, "attachments": [{"filename": "CV.pdf", "content": list(up.getvalue())}]})
+                st.success(traduire_avec_ia("✅ Envoyé !", st.session_state.langue))
 
 with tab_employeur:
     st.header(traduire_avec_ia("Interface Employeur", st.session_state.langue))
+    st.info(traduire_avec_ia("Module en cours de déploiement.", st.session_state.langue))
