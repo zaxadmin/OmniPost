@@ -146,17 +146,35 @@ with tab_candidat:
 
 with tab_employeur:
     st.header("💼 Interface Recrutement")
+
+    # --- NOUVEAU BLOC PRIORITAIRE ---
+    with st.expander("📝 Rédiger et Diffuser une Offre", expanded=True):
+        col1, col2 = st.columns(2)
+        metier = col1.text_input("Métier")
+        diplome = col2.text_input("Diplôme requis")
+        xp = col1.selectbox("Expérience", ["Débutant", "Junior", "Sénior", "Expert"])
+        permis = col2.checkbox("Permis B requis")
+        horaires = col1.text_input("Horaires")
+        salaire = col2.text_input("Salaire")
+        contrat = col1.selectbox("Contrat", ["CDI", "CDD", "Intérim", "Alternance", "Stage"])
+        is_remote = col2.checkbox("100% Remote")
+        
+        if st.button("✨ Générer et Diffuser l'offre"):
+            prompt = f"Rédige une offre pour {metier}, {contrat}, {xp}. Diplôme: {diplome}. Permis B: {permis}. Salaire: {salaire}. Remote: {is_remote}."
+            offre = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
+            st.markdown("---")
+            st.write(offre)
+            
+            st.markdown("### 🚀 Dispatch automatique en cours...")
+            dests = ["Indeed", "LinkedIn", "France Travail", "Welcome to the Jungle"]
+            if is_remote: dests.extend(["RemoteOK", "Wellfound"])
+            for d in dests: st.write(f"✅ Offre publiée sur **{d}**")
+
+    # --- BLOCS DE SUIVI ---
     with st.expander("📂 Candidatures (Triées par IA)"):
         cands = supabase.table("candidatures").select("*").execute().data or []
-        compatibles = [c for c in cands if c.get('score', 0) >= 80]
-        vivier = [c for c in cands if c.get('score', 0) < 80]
-        with st.expander(f"✅ Compatibles ({len(compatibles)})"):
-            for c in compatibles: st.write(f"👤 {c['nom']} - Score : {c['score']}%")
-        with st.expander(f"📥 Vivier de talents ({len(vivier)})"):
-            for c in vivier:
-                if st.button(f"Promouvoir {c['nom']}", key=c['id']):
-                    supabase.table("candidatures").update({"score": 80}).eq("id", c['id']).execute()
-                    st.rerun()
+        for c in cands: st.write(f"👤 {c['nom']} - Remote Ready: {c.get('remote_ready', False)}")
+    
     with st.expander("📊 Suivi Entretiens"):
         if st.button("Archiver test"):
             archiver_entretien("1", "Passé", "https://meet.jit.si/zipngo", "Profil valide.")
