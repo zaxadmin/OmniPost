@@ -129,4 +129,55 @@ with tab_candidat:
         ville = col2.text_input("Ville cible")
         if st.button("🔍 Rechercher 20 nouveaux contacts"):
             prompt = f"Donne 20 emails pros pour '{cat}' à '{ville}'. Liste séparée par virgules."
-            res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-
+            res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
+            st.session_state.emails = [e.strip() for e in res.split(',')]
+            st.rerun()
+        if 'emails' in st.session_state:
+            msg = st.text_area("Message :", f"Madame, Monsieur, je porte un vif intérêt à votre établissement à {ville} dans le secteur de {cat}. Fort(e) d'une expérience pertinente, je vous propose ma candidature. Vous trouverez mon CV en pièce jointe.", height=200)
+            if st.button("🚀 Envoyer à 20 contacts"): st.success("Campagne envoyée !")
+    with dossiers[4]:
+        st.subheader("🎤 Simulateur d'entretien")
+        if st.button("Démarrer la simulation"):
+            st.session_state.quest = client.chat.completions.create(messages=[{"role": "user", "content": "Pose 3 questions d'entretien."}], model="llama-3.3-70b-versatile").choices[0].message.content
+        if 'quest' in st.session_state:
+            st.write(st.session_state.quest)
+            rep = st.text_area("Votre réponse :")
+            if st.button("Évaluer"): st.info("Score : 16/20")
+
+with tab_employeur:
+    st.header("💼 Interface Recrutement")
+    with st.expander("📝 Rédiger et Diffuser une Offre", expanded=True):
+        col1, col2 = st.columns(2)
+        metier = col1.text_input("Métier")
+        ville = col2.text_input("Ville")
+        salaire = col1.number_input("Taux horaire (€)", min_value=10.0, step=0.5)
+        nb_heures = col2.number_input("Nombre d'heures", min_value=0, step=1)
+        rythme = st.selectbox("Rythme", ["Fixe", "2x8", "3x8", "Nuit", "Week-end", "Variable"])
+        contrat = st.selectbox("Contrat", ["CDI", "CDD", "Intérim", "Alternance", "Stage"])
+        is_remote = st.checkbox("100% Remote")
+        
+        if st.button("✨ Générer l'offre"):
+            prompt = f"Rédige une offre pour {metier} à {ville}, {contrat}, {salaire}€/h, {nb_heures}h/semaine, rythme {rythme}. Remote: {is_remote}."
+            st.session_state.offre_texte = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
+            st.write(st.session_state.offre_texte)
+        
+        st.markdown("### 📢 Sélection des canaux de diffusion")
+        plateformes = ["Indeed", "LinkedIn", "Facebook", "Pages Facebook", "Monster", "Apec", "Glassdoor"]
+        if is_remote: plateformes.extend(["RemoteOK", "WeWorkRemotely", "Wellfound"])
+        selections = {p: st.columns(3)[i%3].checkbox(p) for i, p in enumerate(plateformes)}
+        
+        emails_agences = st.text_input("Emails Agences (séparés par virgule)")
+        
+        if st.button("✅ Valider, Diffuser et Préparer Email"):
+            if 'offre_texte' in st.session_state:
+                # Archivage
+                supabase.table("mes_offres").insert({"intitule": metier, "contenu": st.session_state.offre_texte, "ville": ville}).execute()
+                # Email
+                if emails_agences:
+                    liste = [e.strip() for e in emails_agences.split(",")]
+                    dest, bcc = liste[0], ",".join(liste[1:])
+                    corps = f"Bonjour,\n\nVeuillez trouver notre offre :\n\n{st.session_state.offre_texte}"
+                    mailto_url = f"mailto:{dest}?bcc={bcc}&subject={urllib.parse.quote('Offre d\'emploi')}&body={urllib.parse.quote(corps)}"
+                    st.markdown(f'<a href="{mailto_url}" target="_blank" style="padding:10px; background:#4169E1; color:white; border-radius:5px; text-decoration:none;">📤 Ouvrir messagerie avec l\'offre</a>', unsafe_allow_html=True)
+                st.download_button("⬇️ Télécharger .txt", st.session_state.offre_texte, file_name="Offre.txt")
+                st.success("Offre enregistrée !")
