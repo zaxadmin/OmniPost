@@ -3,6 +3,7 @@ import datetime
 import pandas as pd
 import io
 import re
+import json
 from groq import Groq
 from supabase import create_client
 from pypdf import PdfReader
@@ -23,7 +24,7 @@ def traduire_avec_ia(texte, langue_cible):
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
     return res.choices[0].message.content
 
-# --- FONCTIONS ---
+# --- FONCTIONS D'ORIGINE ---
 def creer_pdf_cv_pro(texte_ia, nom_fichier, style):
     pdf = FPDF()
     pdf.add_page()
@@ -40,106 +41,107 @@ def afficher_cgv():
     texte_cgv = "1. Accès Candidat 6€/3mois | Recruteur 39€/mois. 2. Limites Gratuit : 1 CV/mois, 1 campagne/mois. 3. Premium : 3 CVs/semaine, 20 mails/jour."
     st.markdown(traduire_avec_ia(texte_cgv, st.session_state.langue))
 
+# --- NOUVELLES FONCTIONS ---
+def obtenir_contenu_structure(txt_cv, metier):
+    prompt = f"Analyse pour le poste '{metier}'. Retourne uniquement un JSON structuré avec: 'header' (nom, titre_poste, contact), 'sidebar' (contenu), 'main' (titre, corps), 'mots_cles_ajoutes'. CV: {txt_cv}"
+    res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
+    return json.loads(res.choices[0].message.content.replace("```json", "").replace("```", ""))
+
+def appliquer_design_geometrique(pdf, data):
+    pdf.set_fill_color(52, 73, 94); pdf.rect(0, 0, 60, 300, 'F')
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_xy(5, 10); pdf.set_font("Arial", 'B', 16); pdf.cell(50, 10, data['header']['nom'], ln=True)
+    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 5, data['header']['contact'])
+    pdf.set_xy(5, 50); pdf.set_font("Arial", 'B', 14); pdf.cell(50, 10, "COMPÉTENCES", ln=True)
+    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 7, data['sidebar']['contenu'])
+    pdf.set_text_color(0, 0, 0); pdf.set_xy(70, 10); pdf.set_font("Arial", 'B', 18); pdf.cell(100, 10, data['header']['titre_poste'], ln=True)
+    pdf.set_xy(70, 30); pdf.set_font("Arial", 'B', 14); pdf.cell(100, 10, data['main']['titre'], ln=True)
+    pdf.set_xy(70, 45); pdf.set_font("Arial", size=11); pdf.multi_cell(130, 7, data['main']['corps'])
+
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
-st.markdown("<p style='color:#333333; font-size: 14px; margin-top: 0px;'>.zaxx.app</p>", unsafe_allow_html=True)
-
-# --- SÉLECTEUR DE 20 LANGUES ---
-langues = [
-    "Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", 
-    "العربية (Arabe)", "हिन्दी (Hindi)", "Bengali", "Português", "Русский", 
-    "日本語 (Japonais)", "Deutsch", "한국어 (Coréen)", "Tiếng Việt", "Italiano", 
-    "Türkçe", "Polski", "Nederlands", "Bahasa Indonesia", "ภาษาไทย (Thaï)"
-]
+langues = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", "العربية (Arabe)", "हिन्दी (Hindi)", "Bengali", "Português", "Русский", "日本語 (Japonais)", "Deutsch", "한국어 (Coréen)", "Tiếng Việt", "Italiano", "Türkçe", "Polski", "Nederlands", "Bahasa Indonesia", "ภาษาไทย (Thaï)"]
 st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue", langues, index=0)
 
-# Présentation
-st.markdown(f"<h4 style='color: #4169E1; margin: 20px 0;'>{traduire_avec_ia('L\'intelligence artificielle au service de votre trajectoire professionnelle.', st.session_state.langue)}</h4>", unsafe_allow_html=True)
-st.markdown(f"<div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1; margin-bottom: 20px;'><h4>{traduire_avec_ia('Bienvenue sur zipngo', st.session_state.langue)}</h4>{traduire_avec_ia('Optimisez vos démarches et facilitez vos interactions professionnelles grâce à notre écosystème intelligent, conçu pour accompagner efficacement chaque étape de vos projets de carrière.', st.session_state.langue)}</div>", unsafe_allow_html=True)
+# Présentation officielle
+st.markdown(f"""
+<div style='background-color: #eef2f7; padding: 25px; border-radius: 15px; border-left: 6px solid #4169E1;'>
+    <h3 style='color: #000080; margin-top: 0;'>{traduire_avec_ia("Bienvenue sur zipngo", st.session_state.langue)}</h3>
+    <p style='font-size: 16px;'>{traduire_avec_ia("L'application intelligente au service de votre trajectoire professionnelle. Optimisez vos démarches, facilitez vos interactions et accélérez votre réussite grâce à notre écosystème conçu pour accompagner chaque étape de votre carrière.", st.session_state.langue)}</p>
+</div>
+""", unsafe_allow_html=True)
 
 with st.expander(traduire_avec_ia("📜 Lire les CGV", st.session_state.langue)): afficher_cgv()
 st.checkbox(traduire_avec_ia("J'accepte les CGV", st.session_state.langue), key="accept_cgv")
 
-# --- ONGLETS ---
 tab_home, tab_candidat, tab_employeur = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["🏠 Accueil", "🚀 Candidat", "💼 Employeur"]])
 
-with tab_home:
-    st.write(traduire_avec_ia("Bienvenue dans votre espace d'accueil.", st.session_state.langue))
-
 with tab_candidat:
-    dossiers = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["📂 Candidatures", "📅 Entretiens", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing"]])
+    dossiers = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["📂 Candidatures", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing", "🎤 Entretien"]])
     
     with dossiers[0]:
-        st.subheader(traduire_avec_ia("📜 Historique des envois", st.session_state.langue))
+        st.subheader("📜 Historique des envois")
         try:
             response = supabase.table("sourcing").select("email_destinataire, date").order("date", desc=True).execute()
             if response.data: st.table(pd.DataFrame(response.data))
         except Exception as e: st.error(f"Erreur : {e}")
 
-    with dossiers[2]: # 📄 CVs & LMs
-        st.subheader(traduire_avec_ia("📄 Mes Documents & CVs", st.session_state.langue))
-        type_doc = st.selectbox(traduire_avec_ia("Type de document", st.session_state.langue), ["CV", "Lettre de Motivation"])
-        nom_doc = st.text_input(traduire_avec_ia("Nom du document", st.session_state.langue))
-        up_file = st.file_uploader(traduire_avec_ia("Uploader le fichier", st.session_state.langue), type=["pdf", "txt"])
-        
-        if st.button(traduire_avec_ia("💾 Enregistrer", st.session_state.langue)) and up_file and nom_doc:
-            contenu = up_file.getvalue()
-            supabase.table("cvs").insert({"nom_fichier": f"{nom_doc}_{type_doc}", "contenu": str(contenu), "type_document": type_doc}).execute()
-            st.success(traduire_avec_ia("✅ Document enregistré !", st.session_state.langue))
+    with dossiers[1]:
+        st.subheader("📄 Mes Documents & CVs")
+        type_doc = st.selectbox("Type", ["CV", "Lettre de Motivation"])
+        nom_doc = st.text_input("Nom du document")
+        up_file = st.file_uploader("Uploader le fichier", type=["pdf", "txt"])
+        if st.button("💾 Enregistrer") and up_file and nom_doc:
+            supabase.table("cvs").insert({"nom_fichier": f"{nom_doc}_{type_doc}", "contenu": str(up_file.getvalue()), "type_document": type_doc}).execute()
             st.rerun()
-
-        st.divider()
         data = supabase.table("cvs").select("nom_fichier, contenu").execute().data
         if data:
             for doc in data:
                 c1, c2 = st.columns([3, 1])
                 c1.write(f"📄 {doc['nom_fichier']}")
-                c2.download_button(traduire_avec_ia("⬇️ Télécharger", st.session_state.langue), data=doc['contenu'], file_name=f"{doc['nom_fichier']}.pdf")
+                c2.download_button("⬇️ Télécharger", data=doc['contenu'], file_name=f"{doc['nom_fichier']}.pdf")
 
-    with dossiers[3]: # RELOOKING
-        st.subheader(traduire_avec_ia("✨ Relooking & Scoring ATS", st.session_state.langue))
-        source = st.radio(traduire_avec_ia("Source", st.session_state.langue), [traduire_avec_ia("Uploader depuis mon ordinateur", st.session_state.langue), traduire_avec_ia("Sélectionner parmi mes CVs", st.session_state.langue)])
-        texte_cv = ""
-        if "Uploader" in source:
-            up = st.file_uploader(traduire_avec_ia("Upload", st.session_state.langue), type=["pdf"])
-            if up: texte_cv = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up.getvalue())).pages])
-        else:
-            data = supabase.table("cvs").select("nom_fichier, contenu").execute().data
-            if data:
-                choix = st.selectbox(traduire_avec_ia("Mes CVs", st.session_state.langue), [c['nom_fichier'] for c in data])
-                texte_cv = next(c['contenu'] for c in data if c['nom_fichier'] == choix)
-        
-        if texte_cv:
-            if st.button(traduire_avec_ia("🔍 Lancer le Scan & Scoring", st.session_state.langue)):
-                with st.spinner(traduire_avec_ia("Analyse...", st.session_state.langue)):
-                    res = client.chat.completions.create(messages=[{"role": "user", "content": f"Score ATS et relooking : {texte_cv}"}], model="llama-3.3-70b-versatile")
-                    st.session_state.analyse = res.choices[0].message.content
-            if 'analyse' in st.session_state:
-                st.markdown(st.session_state.analyse)
-                if st.button(traduire_avec_ia("💾 Sauvegarder", st.session_state.langue)):
-                    supabase.table("cvs").insert({"nom_fichier": f"ATS_{datetime.date.today()}", "contenu": st.session_state.analyse, "type_document": "Optimisé"}).execute()
-                    st.success(traduire_avec_ia("✅ Sauvegardé !", st.session_state.langue))
+    with dossiers[2]:
+        st.subheader("✨ Relooking & Scoring ATS")
+        metier = st.text_area("Intitulé du poste ou offre...")
+        up = st.file_uploader("Upload CV", type=["pdf"])
+        if up and metier and st.button("🚀 Optimiser & Designer"):
+            txt = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up.getvalue())).pages])
+            data = obtenir_contenu_structure(txt, metier)
+            pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, data)
+            st.session_state.pdf_final = pdf.output(dest='S').encode('latin-1')
+            st.success("✅ Mots-clés intégrés : " + ", ".join(data['mots_cles_ajoutes']))
+            st.download_button("⬇️ Télécharger CV Design", data=st.session_state.pdf_final, file_name=f"CV_{metier[:10]}.pdf")
 
-    with dossiers[4]: # SOURCING
-        st.subheader(traduire_avec_ia("🌐 Prospection Spontanée", st.session_state.langue))
-        cat = st.selectbox(traduire_avec_ia("Domaine", st.session_state.langue), ["Restauration", "Hôtellerie", "Santé", "Informatique"])
-        ville = st.text_input(traduire_avec_ia("Ville", st.session_state.langue))
-        if st.button(traduire_avec_ia("🔍 Rechercher 20 contacts", st.session_state.langue)):
-            res = client.chat.completions.create(messages=[{"role": "user", "content": f"20 emails {cat} à {ville}, liste séparée par virgules."}], model="llama-3.3-70b-versatile")
-            st.session_state.emails = res.choices[0].message.content
+    with dossiers[3]: # SOURCING (1+19 = 20)
+        st.subheader("🌐 Prospection Spontanée")
+        cat = st.selectbox("Domaine", ["Restauration", "Informatique", "Hôtellerie"])
+        if st.button("🔍 Rechercher 20 nouveaux contacts"):
+            deja = [i['email_destinataire'] for i in supabase.table("sourcing").select("email_destinataire").execute().data]
+            res = client.chat.completions.create(messages=[{"role": "user", "content": f"Donne 20 emails officiels pour {cat}. Exclus ces emails déjà utilisés : {','.join(deja)}. Liste séparée par virgules."}], model="llama-3.3-70b-versatile").choices[0].message.content
+            st.session_state.emails = [e.strip() for e in res.split(',')]
             st.rerun()
-        if 'emails' in st.session_state:
-            st.write(st.session_state.emails)
-            msg_defaut = "Madame, Monsieur, Intégrer votre équipe représente pour moi l'opportunité de mettre mon dynamisme au service de vos objectifs."
-            msg = st.text_area(traduire_avec_ia("Message", st.session_state.langue), value=traduire_avec_ia(msg_defaut, st.session_state.langue), height=250)
-            up = st.file_uploader(traduire_avec_ia("Uploader CV", st.session_state.langue), type=["pdf"])
-            if st.button(traduire_avec_ia("🚀 Valider et Envoyer", st.session_state.langue)) and up:
-                emails = [e.strip() for e in st.session_state.emails.split(',') if e.strip()]
-                resend.Emails.send({"from": "onboarding@resend.dev", "to": emails[0], "bcc": emails[1:20], "subject": "Candidature", "text": msg, "attachments": [{"filename": "CV.pdf", "content": list(up.getvalue())}]})
-                for e in emails: supabase.table("sourcing").insert({"email_destinataire": e, "date": str(datetime.date.today())}).execute()
-                st.success("✅ Envoyé !")
+        if 'emails' in st.session_state and len(st.session_state.emails) >= 20:
+            st.write(f"Cibles : {', '.join(st.session_state.emails)}")
+            msg = st.text_area("Message :", "Madame, Monsieur, je porte un vif intérêt à votre établissement. Fort d'une expérience dans le domaine, je suis en mesure d'apporter mon savoir-faire immédiatement. Vous trouverez ci-joint mon CV actualisé. Dans l'attente d'un échange, je vous prie d'agréer mes salutations distinguées.", height=200)
+            up_cv = st.file_uploader("CV en PJ", type=["pdf"])
+            if st.button("🚀 Envoyer à 20 contacts") and up_cv:
+                resend.Emails.send({"from": "contact@zipngo.zaxx.app", "to": st.session_state.emails[0], "bcc": st.session_state.emails[1:20], "subject": "Candidature Spontanée", "text": msg, "attachments": [{"filename": "Mon_CV.pdf", "content": list(up_cv.getvalue())}]})
+                for e in st.session_state.emails[:20]: supabase.table("sourcing").insert({"email_destinataire": e, "date": str(datetime.date.today())}).execute()
+                st.success("✅ Campagne envoyée (1 destinataire + 19 BCC) !")
                 st.rerun()
 
+    with dossiers[4]:
+        st.subheader("🎤 Simulateur d'entretien")
+        if st.button("Démarrer la simulation"):
+            st.session_state.quest = client.chat.completions.create(messages=[{"role": "user", "content": "Pose 3 questions d'entretien pour ce profil."}], model="llama-3.3-70b-versatile").choices[0].message.content
+        if 'quest' in st.session_state:
+            st.write(st.session_state.quest)
+            rep = st.text_area("Votre réponse :")
+            if st.button("Évaluer"):
+                score = client.chat.completions.create(messages=[{"role": "user", "content": f"Note cette réponse sur 20 : {rep}"}], model="llama-3.3-70b-versatile").choices[0].message.content
+                st.info(score)
+
 with tab_employeur:
-    st.header(traduire_avec_ia("Interface Employeur", st.session_state.langue))
-    st.info(traduire_avec_ia("Module en cours de déploiement.", st.session_state.langue))
+    st.header("Interface Employeur")
+    st.info("Module en cours de déploiement.")
