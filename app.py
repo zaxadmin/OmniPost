@@ -117,17 +117,17 @@ with tab_candidat:
 
     with dossiers[3]: # SOURCING
         st.subheader("🌐 Prospection Spontanée")
-        domaines = ["Restauration", "Informatique", "Hôtellerie", "Santé", "Commerce", "BTP", "Logistique", "Finance", "Marketing", "Éducation", "Industrie", "Tourisme", "Administration", "Services à la personne", "Agriculture", "Art & Design", "Droit", "Immobilier"]
+        domaines = ["Restauration & Fast-Food", "Informatique & Tech", "Hôtellerie & Tourisme", "Santé & Services à la personne", "Commerce & Distribution", "BTP & Immobilier", "Logistique & Transport", "Finance & Juridique", "Marketing, Com & Art", "Industrie & Agriculture", "Administration publique"]
         col1, col2, col3 = st.columns([1, 1, 1])
-        cat = col1.selectbox("Domaine", sorted(domaines))
+        cat = col1.selectbox("Domaine élargi", sorted(domaines))
         ville = col2.text_input("Ville cible")
         dist = col3.slider("Rayon (km)", 0, 100, 20)
         
         if st.button("🔍 Rechercher 20 nouveaux contacts") and ville:
             deja = [i['email_destinataire'] for i in supabase.table("sourcing").select("email_destinataire").execute().data]
-            prompt = f"Donne 20 emails officiels pour {cat} à {ville} dans un rayon de {dist}km. Exclus ceux déjà utilisés : {','.join(deja)}. Liste séparée par virgules."
+            prompt = f"Donne 20 adresses emails professionnelles uniquement pour le domaine '{cat}' à '{ville}' dans un rayon de {dist}km. Exclus ceux-ci : {','.join(deja)}. Format : retourne uniquement une liste d'emails séparés par des virgules, aucun texte supplémentaire."
             res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
-            st.session_state.emails = [e.strip() for e in res.split(',')]
+            st.session_state.emails = [e.strip() for e in res.replace('\n', '').split(',')]
             st.rerun()
             
         if 'emails' in st.session_state and len(st.session_state.emails) >= 20:
