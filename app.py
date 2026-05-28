@@ -72,15 +72,33 @@ with tab_candidat:
     with dossiers[0]:
         st.subheader(traduire_avec_ia("📜 Historique des envois", st.session_state.langue))
         try:
-            # Correction colonne : email_destinataire
             response = supabase.table("sourcing").select("email_destinataire, date").order("date", desc=True).execute()
             if response.data: st.table(pd.DataFrame(response.data))
         except Exception as e: st.error(f"Erreur : {e}")
 
+    with dossiers[2]: # 📄 CVs & LMs
+        st.subheader(traduire_avec_ia("📄 Mes Documents & CVs", st.session_state.langue))
+        type_doc = st.selectbox(traduire_avec_ia("Type de document", st.session_state.langue), ["CV", "Lettre de Motivation"])
+        nom_doc = st.text_input(traduire_avec_ia("Nom du document", st.session_state.langue))
+        up_file = st.file_uploader(traduire_avec_ia("Uploader le fichier", st.session_state.langue), type=["pdf", "txt"])
+        
+        if st.button(traduire_avec_ia("💾 Enregistrer", st.session_state.langue)) and up_file and nom_doc:
+            contenu = up_file.getvalue()
+            supabase.table("cvs").insert({"nom_fichier": f"{nom_doc}_{type_doc}", "contenu": str(contenu), "type_document": type_doc}).execute()
+            st.success(traduire_avec_ia("✅ Document enregistré !", st.session_state.langue))
+            st.rerun()
+
+        st.divider()
+        data = supabase.table("cvs").select("nom_fichier, contenu").execute().data
+        if data:
+            for doc in data:
+                c1, c2 = st.columns([3, 1])
+                c1.write(f"📄 {doc['nom_fichier']}")
+                c2.download_button(traduire_avec_ia("⬇️ Télécharger", st.session_state.langue), data=doc['contenu'], file_name=f"{doc['nom_fichier']}.pdf")
+
     with dossiers[3]: # RELOOKING
         st.subheader(traduire_avec_ia("✨ Relooking & Scoring ATS", st.session_state.langue))
         source = st.radio(traduire_avec_ia("Source", st.session_state.langue), [traduire_avec_ia("Uploader depuis mon ordinateur", st.session_state.langue), traduire_avec_ia("Sélectionner parmi mes CVs", st.session_state.langue)])
-        
         texte_cv = ""
         if "Uploader" in source:
             up = st.file_uploader(traduire_avec_ia("Upload", st.session_state.langue), type=["pdf"])
@@ -90,51 +108,37 @@ with tab_candidat:
             if data:
                 choix = st.selectbox(traduire_avec_ia("Mes CVs", st.session_state.langue), [c['nom_fichier'] for c in data])
                 texte_cv = next(c['contenu'] for c in data if c['nom_fichier'] == choix)
-
+        
         if texte_cv:
             if st.button(traduire_avec_ia("🔍 Lancer le Scan & Scoring", st.session_state.langue)):
                 with st.spinner(traduire_avec_ia("Analyse...", st.session_state.langue)):
-                    prompt = f"Analyse ce CV et donne un score ATS (X/100), les points à améliorer et RECRÉE le contenu optimisé : {texte_cv}"
-                    res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
+                    res = client.chat.completions.create(messages=[{"role": "user", "content": f"Score ATS et relooking : {texte_cv}"}], model="llama-3.3-70b-versatile")
                     st.session_state.analyse = res.choices[0].message.content
             if 'analyse' in st.session_state:
                 st.markdown(st.session_state.analyse)
-                match = re.search(r'(\d+)/100', st.session_state.analyse)
-                if match: st.progress(int(match.group(1)) / 100)
-                if st.button(traduire_avec_ia("💾 Sauvegarder la version optimisée", st.session_state.langue)):
-                    supabase.table("cvs").insert({"nom_fichier": f"ATS_Optimise_{datetime.date.today()}", "contenu": st.session_state.analyse}).execute()
-                    st.success(traduire_avec_ia("✅ Version optimisée sauvegardée !", st.session_state.langue))
+                if st.button(traduire_avec_ia("💾 Sauvegarder", st.session_state.langue)):
+                    supabase.table("cvs").insert({"nom_fichier": f"ATS_{datetime.date.today()}", "contenu": st.session_state.analyse, "type_document": "Optimisé"}).execute()
+                    st.success(traduire_avec_ia("✅ Sauvegardé !", st.session_state.langue))
 
     with dossiers[4]: # SOURCING
         st.subheader(traduire_avec_ia("🌐 Prospection Spontanée", st.session_state.langue))
         cat = st.selectbox(traduire_avec_ia("Domaine", st.session_state.langue), ["Restauration", "Hôtellerie", "Santé", "Informatique"])
         ville = st.text_input(traduire_avec_ia("Ville", st.session_state.langue))
         if st.button(traduire_avec_ia("🔍 Rechercher 20 contacts", st.session_state.langue)):
-            res = client.chat.completions.create(messages=[{"role": "user", "content": f"Donne 20 emails officiels pour {cat} à {ville}, format liste séparée par des virgules."}], model="llama-3.3-70b-versatile")
+            res = client.chat.completions.create(messages=[{"role": "user", "content": f"20 emails {cat} à {ville}, liste séparée par virgules."}], model="llama-3.3-70b-versatile")
             st.session_state.emails = res.choices[0].message.content
             st.rerun()
         if 'emails' in st.session_state:
             st.write(st.session_state.emails)
-            msg_defaut = "Madame, Monsieur, Intégrer votre équipe représente pour moi l'opportunité de mettre mon dynamisme et mon savoir-faire au service de vos objectifs. Vous trouverez ci-joint mon CV. Dans cette attente, je vous prie d'agréer mes salutations distinguées."
+            msg_defaut = "Madame, Monsieur, Intégrer votre équipe représente pour moi l'opportunité de mettre mon dynamisme au service de vos objectifs."
             msg = st.text_area(traduire_avec_ia("Message", st.session_state.langue), value=traduire_avec_ia(msg_defaut, st.session_state.langue), height=250)
             up = st.file_uploader(traduire_avec_ia("Uploader CV", st.session_state.langue), type=["pdf"])
-            
-            if st.button(traduire_avec_ia("🚀 Valider et Envoyer", st.session_state.langue)):
-                if up is not None:
-                    emails = [e.strip() for e in st.session_state.emails.split(',') if e.strip()]
-                    date_jour = str(datetime.date.today())
-                    file_data = up.getvalue()
-                    
-                    try:
-                        resend.Emails.send({"from": "onboarding@resend.dev", "to": emails[0], "bcc": emails[1:20], "subject": traduire_avec_ia("Candidature", st.session_state.langue), "text": msg, "attachments": [{"filename": "CV.pdf", "content": list(file_data)}]})
-                        # Correction colonne : email_destinataire
-                        for e in emails: supabase.table("sourcing").insert({"email_destinataire": e, "date": date_jour}).execute()
-                        st.success(traduire_avec_ia("✅ 20 emails ajoutés à l'historique aujourd'hui !", st.session_state.langue))
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erreur : {e}")
-                else:
-                    st.warning(traduire_avec_ia("Veuillez charger votre CV.", st.session_state.langue))
+            if st.button(traduire_avec_ia("🚀 Valider et Envoyer", st.session_state.langue)) and up:
+                emails = [e.strip() for e in st.session_state.emails.split(',') if e.strip()]
+                resend.Emails.send({"from": "onboarding@resend.dev", "to": emails[0], "bcc": emails[1:20], "subject": "Candidature", "text": msg, "attachments": [{"filename": "CV.pdf", "content": list(up.getvalue())}]})
+                for e in emails: supabase.table("sourcing").insert({"email_destinataire": e, "date": str(datetime.date.today())}).execute()
+                st.success("✅ Envoyé !")
+                st.rerun()
 
 with tab_employeur:
     st.header(traduire_avec_ia("Interface Employeur", st.session_state.langue))
