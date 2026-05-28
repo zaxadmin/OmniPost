@@ -147,35 +147,47 @@ with tab_candidat:
 with tab_employeur:
     st.header("💼 Interface Recrutement")
 
-    # --- NOUVEAU BLOC PRIORITAIRE ---
     with st.expander("📝 Rédiger et Diffuser une Offre", expanded=True):
         col1, col2 = st.columns(2)
         metier = col1.text_input("Métier")
-        diplome = col2.text_input("Diplôme requis")
-        xp = col1.selectbox("Expérience", ["Débutant", "Junior", "Sénior", "Expert"])
-        permis = col2.checkbox("Permis B requis")
-        horaires = col1.text_input("Horaires")
-        salaire = col2.text_input("Salaire")
-        contrat = col1.selectbox("Contrat", ["CDI", "CDD", "Intérim", "Alternance", "Stage"])
-        is_remote = col2.checkbox("100% Remote")
+        ville = col2.text_input("Ville")
+        # Pays auto-détecté par IA selon la ville
+        if ville:
+            pays = client.chat.completions.create(messages=[{"role": "user", "content": f"Quel est le pays de la ville de {ville} ? Réponds juste le nom du pays."}], model="llama-3.3-70b-versatile").choices[0].message.content
+            st.write(f"🌍 Pays détecté : **{pays}**")
         
-        if st.button("✨ Générer et Diffuser l'offre"):
-            prompt = f"Rédige une offre pour {metier}, {contrat}, {xp}. Diplôme: {diplome}. Permis B: {permis}. Salaire: {salaire}. Remote: {is_remote}."
-            offre = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
-            st.markdown("---")
-            st.write(offre)
-            
-            st.markdown("### 🚀 Dispatch automatique en cours...")
-            dests = ["Indeed", "LinkedIn", "France Travail", "Welcome to the Jungle"]
-            if is_remote: dests.extend(["RemoteOK", "Wellfound"])
-            for d in dests: st.write(f"✅ Offre publiée sur **{d}**")
+        salaire = col1.number_input("Salaire Taux Horaire (€)", min_value=10.0, step=0.5)
+        nb_heures = col2.number_input("Nombre d'heures par semaine", min_value=0, step=1)
+        horaire_type = st.selectbox("Organisation horaire", ["Fixe", "2x8", "3x8", "Nuit", "Week-end", "Variable"])
+        contrat = st.selectbox("Contrat", ["CDI", "CDD", "Intérim", "Alternance", "Stage"])
+        is_remote = st.checkbox("100% Remote")
 
-    # --- BLOCS DE SUIVI ---
-    with st.expander("📂 Candidatures (Triées par IA)"):
-        cands = supabase.table("candidatures").select("*").execute().data or []
-        for c in cands: st.write(f"👤 {c['nom']} - Remote Ready: {c.get('remote_ready', False)}")
-    
-    with st.expander("📊 Suivi Entretiens"):
-        if st.button("Archiver test"):
-            archiver_entretien("1", "Passé", "https://meet.jit.si/zipngo", "Profil valide.")
-            st.success("Archivé.")
+        if st.button("✨ Générer l'offre"):
+            prompt = f"Rédige une offre pour {metier} à {ville}, {contrat}, {salaire}€/h, {nb_heures}h/semaine, rythme: {horaire_type}. Remote: {is_remote}."
+            st.session_state.offre_texte = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
+            st.write(st.session_state.offre_texte)
+
+        # Dispatch sélectif
+        st.markdown("### 📢 Sélection des canaux de diffusion")
+        plateformes = ["Indeed", "LinkedIn", "France Travail", "Welcome to the Jungle", "Monster", "Apec", "Glassdoor"]
+        if is_remote: plateformes.extend(["RemoteOK", "WeWorkRemotely", "Wellfound"])
+        
+        selections = {}
+        cols = st.columns(3)
+        for i, plat in enumerate(plateformes):
+            selections[plat] = cols[i % 3].checkbox(plat)
+
+        if st.button("✅ Valider et Diffuser"):
+            if 'offre_texte' in st.session_state:
+                # 1. Sauvegarde dans "Mes offres" (Base de données)
+                supabase.table("mes_offres").insert({
+                    "intitule": metier, "contenu": st.session_state.offre_texte, "ville": ville
+                }).execute()
+                
+                # 2. Téléchargement local
+                st.download_button("⬇️ Télécharger l'offre (PDF)", st.session_state.offre_texte, file_name=f"Offre_{metier}.txt")
+                
+                # 3. Simulation Dispatch
+                for plat, actif in selections.items():
+                    if actif: st.write(f"🚀 Offre diffusée sur **{plat}**")
+                st.success("Offre enregistrée dans vos dossiers et diffusée !")
