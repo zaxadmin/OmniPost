@@ -113,10 +113,11 @@ with tab_candidat:
             st.success("✅ Mots-clés intégrés : " + ", ".join(data['mots_cles_ajoutes']))
             st.download_button("⬇️ Télécharger CV Design", data=st.session_state.pdf_final, file_name=f"CV_{metier[:10]}.pdf")
 
-    with dossiers[3]: # SOURCING AVEC VILLE ET DISTANCE
+    with dossiers[3]: # SOURCING
         st.subheader("🌐 Prospection Spontanée")
+        domaines = ["Restauration", "Informatique", "Hôtellerie", "Santé", "Commerce", "BTP", "Logistique", "Finance", "Marketing", "Éducation", "Industrie", "Tourisme", "Administration", "Services à la personne", "Agriculture", "Art & Design", "Droit", "Immobilier"]
         col1, col2, col3 = st.columns([1, 1, 1])
-        cat = col1.selectbox("Domaine", ["Restauration", "Informatique", "Hôtellerie"])
+        cat = col1.selectbox("Domaine", sorted(domaines))
         ville = col2.text_input("Ville cible")
         dist = col3.slider("Rayon (km)", 0, 100, 20)
         
@@ -128,11 +129,11 @@ with tab_candidat:
             st.rerun()
             
         if 'emails' in st.session_state and len(st.session_state.emails) >= 20:
-            st.write(f"Cibles à {ville} ({dist}km) : {', '.join(st.session_state.emails)}")
-            msg = st.text_area("Message :", f"Madame, Monsieur, je porte un vif intérêt à votre établissement à {ville}. Fort(e) d'une expérience dans le domaine, je suis en mesure d'apporter mon savoir-faire immédiatement. Vous trouverez ci-joint mon CV. Dans l'attente d'un échange, je vous prie d'agréer mes salutations distinguées.", height=200)
+            st.write(f"Cibles : {', '.join(st.session_state.emails)}")
+            msg = st.text_area("Message :", f"Madame, Monsieur, je porte un vif intérêt à votre établissement à {ville} dans le secteur de {cat}. Fort(e) d'une expérience pertinente, je vous propose ma candidature. Vous trouverez mon CV en pièce jointe.", height=200)
             up_cv = st.file_uploader("CV en PJ", type=["pdf"])
             if st.button("🚀 Envoyer à 20 contacts") and up_cv:
-                resend.Emails.send({"from": "contact@zipngo.zaxx.app", "to": st.session_state.emails[0], "bcc": st.session_state.emails[1:20], "subject": "Candidature Spontanée", "text": msg, "attachments": [{"filename": "Mon_CV.pdf", "content": list(up_cv.getvalue())}]})
+                resend.Emails.send({"from": "contact@zipngo.zaxx.app", "to": st.session_state.emails[0], "bcc": st.session_state.emails[1:20], "subject": f"Candidature - {cat}", "text": msg, "attachments": [{"filename": "Mon_CV.pdf", "content": list(up_cv.getvalue())}]})
                 for e in st.session_state.emails[:20]: supabase.table("sourcing").insert({"email_destinataire": e, "date": str(datetime.date.today())}).execute()
                 st.success("✅ Campagne envoyée (1 destinataire + 19 BCC) !")
                 st.rerun()
