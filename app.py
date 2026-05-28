@@ -113,17 +113,23 @@ with tab_candidat:
             st.success("✅ Mots-clés intégrés : " + ", ".join(data['mots_cles_ajoutes']))
             st.download_button("⬇️ Télécharger CV Design", data=st.session_state.pdf_final, file_name=f"CV_{metier[:10]}.pdf")
 
-    with dossiers[3]: # SOURCING (1+19 = 20)
+    with dossiers[3]: # SOURCING AVEC VILLE ET DISTANCE
         st.subheader("🌐 Prospection Spontanée")
-        cat = st.selectbox("Domaine", ["Restauration", "Informatique", "Hôtellerie"])
-        if st.button("🔍 Rechercher 20 nouveaux contacts"):
+        col1, col2, col3 = st.columns([1, 1, 1])
+        cat = col1.selectbox("Domaine", ["Restauration", "Informatique", "Hôtellerie"])
+        ville = col2.text_input("Ville cible")
+        dist = col3.slider("Rayon (km)", 0, 100, 20)
+        
+        if st.button("🔍 Rechercher 20 nouveaux contacts") and ville:
             deja = [i['email_destinataire'] for i in supabase.table("sourcing").select("email_destinataire").execute().data]
-            res = client.chat.completions.create(messages=[{"role": "user", "content": f"Donne 20 emails officiels pour {cat}. Exclus ces emails déjà utilisés : {','.join(deja)}. Liste séparée par virgules."}], model="llama-3.3-70b-versatile").choices[0].message.content
+            prompt = f"Donne 20 emails officiels pour {cat} à {ville} dans un rayon de {dist}km. Exclus ceux déjà utilisés : {','.join(deja)}. Liste séparée par virgules."
+            res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
             st.session_state.emails = [e.strip() for e in res.split(',')]
             st.rerun()
+            
         if 'emails' in st.session_state and len(st.session_state.emails) >= 20:
-            st.write(f"Cibles : {', '.join(st.session_state.emails)}")
-            msg = st.text_area("Message :", "Madame, Monsieur, je porte un vif intérêt à votre établissement. Fort d'une expérience dans le domaine, je suis en mesure d'apporter mon savoir-faire immédiatement. Vous trouverez ci-joint mon CV actualisé. Dans l'attente d'un échange, je vous prie d'agréer mes salutations distinguées.", height=200)
+            st.write(f"Cibles à {ville} ({dist}km) : {', '.join(st.session_state.emails)}")
+            msg = st.text_area("Message :", f"Madame, Monsieur, je porte un vif intérêt à votre établissement à {ville}. Fort(e) d'une expérience dans le domaine, je suis en mesure d'apporter mon savoir-faire immédiatement. Vous trouverez ci-joint mon CV. Dans l'attente d'un échange, je vous prie d'agréer mes salutations distinguées.", height=200)
             up_cv = st.file_uploader("CV en PJ", type=["pdf"])
             if st.button("🚀 Envoyer à 20 contacts") and up_cv:
                 resend.Emails.send({"from": "contact@zipngo.zaxx.app", "to": st.session_state.emails[0], "bcc": st.session_state.emails[1:20], "subject": "Candidature Spontanée", "text": msg, "attachments": [{"filename": "Mon_CV.pdf", "content": list(up_cv.getvalue())}]})
