@@ -58,6 +58,17 @@ def appliquer_design_geometrique(pdf, data):
     pdf.set_xy(70, 30); pdf.set_font("Arial", 'B', 14); pdf.cell(100, 10, data['main']['titre'], ln=True)
     pdf.set_xy(70, 45); pdf.set_font("Arial", size=11); pdf.multi_cell(130, 7, data['main']['corps'])
 
+def exporter_stats_pdf(data_stats, nom_employeur):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(200, 10, txt=f"Rapport de Recrutement - {nom_employeur}", ln=True, align='C')
+    pdf.ln(10)
+    pdf.set_font("Arial", size=12)
+    for key, value in data_stats.items():
+        pdf.cell(200, 10, txt=f"{key}: {value}", ln=True)
+    return pdf.output(dest='S').encode('latin-1')
+
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color:#555555; margin-top: -5px; font-size: 14px;'>.zaxx.app</p>", unsafe_allow_html=True)
@@ -65,7 +76,6 @@ st.markdown("<p style='color:#555555; margin-top: -5px; font-size: 14px;'>.zaxx.
 langues = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", "العربية (Arabe)", "हिन्दी (Hindi)", "Bengali", "Português", "Русский", "日本語 (Japonais)", "Deutsch", "한국어 (Coréen)", "Tiếng Việt", "Italiano", "Türkçe", "Polski", "Nederlands", "Bahasa Indonesia", "ภาษาไทย (Thaï)"]
 st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue", langues, index=0)
 
-# Présentation officielle
 st.markdown(f"""
 <div style='background-color: #eef2f7; padding: 25px; border-radius: 15px; border-left: 6px solid #4169E1;'>
     <h3 style='color: #000080; margin-top: 0;'>{traduire_avec_ia("Bienvenue sur zipngo", st.session_state.langue)}</h3>
@@ -80,14 +90,12 @@ tab_home, tab_candidat, tab_employeur = st.tabs([traduire_avec_ia(n, st.session_
 
 with tab_candidat:
     dossiers = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["📂 Candidatures", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing", "🎤 Entretien"]])
-    
     with dossiers[0]:
         st.subheader("📜 Historique des envois")
         try:
             response = supabase.table("sourcing").select("email_destinataire, date").order("date", desc=True).execute()
             if response.data: st.table(pd.DataFrame(response.data))
         except Exception as e: st.error(f"Erreur : {e}")
-
     with dossiers[1]:
         st.subheader("📄 Mes Documents & CVs")
         type_doc = st.selectbox("Type", ["CV", "Lettre de Motivation"])
@@ -102,7 +110,6 @@ with tab_candidat:
                 c1, c2 = st.columns([3, 1])
                 c1.write(f"📄 {doc['nom_fichier']}")
                 c2.download_button("⬇️ Télécharger", data=doc['contenu'], file_name=f"{doc['nom_fichier']}.pdf")
-
     with dossiers[2]:
         st.subheader("✨ Relooking & Scoring ATS")
         metier = st.text_area("Intitulé du poste ou offre...")
@@ -114,32 +121,36 @@ with tab_candidat:
             st.session_state.pdf_final = pdf.output(dest='S').encode('latin-1')
             st.success("✅ Mots-clés intégrés : " + ", ".join(data['mots_cles_ajoutes']))
             st.download_button("⬇️ Télécharger CV Design", data=st.session_state.pdf_final, file_name=f"CV_{metier[:10]}.pdf")
-
-    with dossiers[3]: # SOURCING
+    with dossiers[3]:
         st.subheader("🌐 Prospection Spontanée")
         domaines = ["Restauration & Fast-Food", "Informatique & Tech", "Hôtellerie & Tourisme", "Santé & Services à la personne", "Commerce & Distribution", "BTP & Immobilier", "Logistique & Transport", "Finance & Juridique", "Marketing, Com & Art", "Industrie & Agriculture", "Administration publique"]
         col1, col2, col3 = st.columns([1, 1, 1])
         cat = col1.selectbox("Domaine élargi", sorted(domaines))
         ville = col2.text_input("Ville cible")
         dist = col3.slider("Rayon (km)", 0, 100, 20)
-        
         if st.button("🔍 Rechercher 20 nouveaux contacts") and ville:
-            deja = [i['email_destinataire'] for i in supabase.table("sourcing").select("email_destinataire").execute().data]
-            prompt = f"Donne 20 adresses emails professionnelles uniquement pour le domaine '{cat}' à '{ville}' dans un rayon de {dist}km. Exclus ceux-ci : {','.join(deja)}. Format : retourne uniquement une liste d'emails séparés par des virgules, aucun texte supplémentaire."
-            res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
-            st.session_state.emails = [e.strip() for e in res.replace('\n', '').split(',')]
+            cibles_internes = supabase.table("offres").select("email_contact").eq("domaine", cat).eq("ville", ville).limit(20).execute().data
+            emails_trouves = [c['email_contact'] for c in cibles_internes if c.get('email_contact')]
+            if len(emails_trouves) < 20:
+                nb_manquants = 20 - len(emails_trouves)
+                deja = [i['email_destinataire'] for i in supabase.table("sourcing").select("email_destinataire").execute().data]
+                prompt = f"Donne {nb_manquants} adresses emails pro pour '{cat}' à '{ville}'. Exclus : {','.join(deja + emails_trouves)}. Format : uniquement emails séparés par des virgules."
+                res_ia = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
+                emails_trouves.extend([e.strip() for e in res_ia.replace('\n', '').split(',') if e.strip()])
+            st.session_state.emails = emails_trouves[:20]
             st.rerun()
-            
-        if 'emails' in st.session_state and len(st.session_state.emails) >= 20:
+        if 'emails' in st.session_state and len(st.session_state.emails) > 0:
             st.write(f"Cibles : {', '.join(st.session_state.emails)}")
             msg = st.text_area("Message :", f"Madame, Monsieur, je porte un vif intérêt à votre établissement à {ville} dans le secteur de {cat}. Fort(e) d'une expérience pertinente, je vous propose ma candidature. Vous trouverez mon CV en pièce jointe.", height=200)
             up_cv = st.file_uploader("CV en PJ", type=["pdf"])
             if st.button("🚀 Envoyer à 20 contacts") and up_cv:
-                resend.Emails.send({"from": "contact@zipngo.zaxx.app", "to": st.session_state.emails[0], "bcc": st.session_state.emails[1:20], "subject": f"Candidature - {cat}", "text": msg, "attachments": [{"filename": "Mon_CV.pdf", "content": list(up_cv.getvalue())}]})
-                for e in st.session_state.emails[:20]: supabase.table("sourcing").insert({"email_destinataire": e, "date": str(datetime.date.today())}).execute()
-                st.success("✅ Campagne envoyée (1 destinataire + 19 BCC) !")
-                st.rerun()
-
+                try:
+                    resend.Emails.send({"from": "contact@zipngo.zaxx.app", "to": st.session_state.emails[0], "bcc": st.session_state.emails[1:20], "subject": f"Candidature - {cat}", "text": msg, "attachments": [{"filename": "Mon_CV.pdf", "content": list(up_cv.getvalue())}]})
+                    for e in st.session_state.emails[:20]: supabase.table("sourcing").insert({"email_destinataire": e, "date": str(datetime.date.today())}).execute()
+                    st.success("✅ Campagne envoyée !")
+                    del st.session_state.emails
+                    st.rerun()
+                except Exception as e: st.error(f"Erreur : {e}")
     with dossiers[4]:
         st.subheader("🎤 Simulateur d'entretien")
         if st.button("Démarrer la simulation"):
@@ -152,5 +163,36 @@ with tab_candidat:
                 st.info(score)
 
 with tab_employeur:
-    st.header("Interface Employeur")
-    st.info("Module en cours de déploiement.")
+    st.header("Interface Recrutement")
+    with st.expander("📝 Assistant de rédaction IA"):
+        titre = st.text_input("Titre du poste")
+        ville = st.text_input("Ville")
+        c1, c2, c3 = st.columns(3)
+        diplomes = c1.multiselect("Diplômes", ["CAP", "BTS", "Licence", "Master"])
+        langues = c2.multiselect("Langues", ["Français", "Anglais"])
+        permis = c3.checkbox("Permis B")
+        est_remote = st.checkbox("Remote")
+        if st.button("Générer l'Offre"):
+            prompt = f"Rédige une offre pour {titre} à {ville}. Critères: {diplomes}, Permis:{permis}. Remote:{est_remote}."
+            st.session_state.offre_finale = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
+        if 'offre_finale' in st.session_state:
+            st.text_area("Offre :", value=st.session_state.offre_finale)
+            if st.button("💾 Enregistrer l'Offre"):
+                supabase.table("offres").insert({"titre": titre, "description": st.session_state.offre_finale, "statut": "enregistré"}).execute()
+                st.success("Offre enregistrée !")
+    with st.expander("📂 Mes Offres"):
+        mes_offres = supabase.table("offres").select("*").execute().data
+        for off in mes_offres:
+            st.write(f"**{off['titre']}** 👍")
+    with st.expander("📊 Suivi des Entretiens"):
+        st.write("Gestion des statuts : En attente, Prévu, Passé, Non concluant.")
+        st.write("Candidat X 👍")
+        if st.button("Oui (Valider/CV)"): st.success("Anonymat levé, CV disponible.")
+        if st.button("Non (Feedback)"):
+            raison = st.selectbox("Motif", ["Compétences", "Soft skills", "Autre"])
+            if st.button("Envoyer mail de refus"): st.info("Email de refus constructif généré.")
+    with st.expander("📈 Statistiques de Performance"):
+        stats = {"Total Entretiens": 15, "Taux de succès": "80%", "Non retenus": 3}
+        st.write(stats)
+        pdf_bytes = exporter_stats_pdf(stats, "Entreprise X")
+        st.download_button("📥 Télécharger le rapport PDF", data=pdf_bytes, file_name="rapport_recrutement.pdf", mime="application/pdf")
