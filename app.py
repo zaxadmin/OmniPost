@@ -4,6 +4,7 @@ import pandas as pd
 import io
 import re
 import json
+import urllib.parse
 from groq import Groq
 from supabase import create_client
 from pypdf import PdfReader
@@ -75,7 +76,6 @@ langues = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandari
 if 'langue' not in st.session_state: st.session_state.langue = "Français"
 st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue", langues, index=0)
 
-# Présentation officielle intacte
 st.markdown(f"""
 <div style='background-color: #eef2f7; padding: 25px; border-radius: 15px; border-left: 6px solid #4169E1;'>
     <h3 style='color: #000080; margin-top: 0;'>{traduire_avec_ia("Bienvenue sur zipngo", st.session_state.langue)}</h3>
@@ -129,65 +129,4 @@ with tab_candidat:
         ville = col2.text_input("Ville cible")
         if st.button("🔍 Rechercher 20 nouveaux contacts"):
             prompt = f"Donne 20 emails pros pour '{cat}' à '{ville}'. Liste séparée par virgules."
-            res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
-            st.session_state.emails = [e.strip() for e in res.split(',')]
-            st.rerun()
-        if 'emails' in st.session_state:
-            msg = st.text_area("Message :", f"Madame, Monsieur, je porte un vif intérêt à votre établissement à {ville} dans le secteur de {cat}. Fort(e) d'une expérience pertinente, je vous propose ma candidature. Vous trouverez mon CV en pièce jointe.", height=200)
-            if st.button("🚀 Envoyer à 20 contacts"): st.success("Campagne envoyée !")
-    with dossiers[4]:
-        st.subheader("🎤 Simulateur d'entretien")
-        if st.button("Démarrer la simulation"):
-            st.session_state.quest = client.chat.completions.create(messages=[{"role": "user", "content": "Pose 3 questions d'entretien."}], model="llama-3.3-70b-versatile").choices[0].message.content
-        if 'quest' in st.session_state:
-            st.write(st.session_state.quest)
-            rep = st.text_area("Votre réponse :")
-            if st.button("Évaluer"): st.info("Score : 16/20")
-
-with tab_employeur:
-    st.header("💼 Interface Recrutement")
-
-    with st.expander("📝 Rédiger et Diffuser une Offre", expanded=True):
-        col1, col2 = st.columns(2)
-        metier = col1.text_input("Métier")
-        ville = col2.text_input("Ville")
-        # Pays auto-détecté par IA selon la ville
-        if ville:
-            pays = client.chat.completions.create(messages=[{"role": "user", "content": f"Quel est le pays de la ville de {ville} ? Réponds juste le nom du pays."}], model="llama-3.3-70b-versatile").choices[0].message.content
-            st.write(f"🌍 Pays détecté : **{pays}**")
-        
-        salaire = col1.number_input("Salaire Taux Horaire (€)", min_value=10.0, step=0.5)
-        nb_heures = col2.number_input("Nombre d'heures par semaine", min_value=0, step=1)
-        horaire_type = st.selectbox("Organisation horaire", ["Fixe", "2x8", "3x8", "Nuit", "Week-end", "Variable"])
-        contrat = st.selectbox("Contrat", ["CDI", "CDD", "Intérim", "Alternance", "Stage"])
-        is_remote = st.checkbox("100% Remote")
-
-        if st.button("✨ Générer l'offre"):
-            prompt = f"Rédige une offre pour {metier} à {ville}, {contrat}, {salaire}€/h, {nb_heures}h/semaine, rythme: {horaire_type}. Remote: {is_remote}."
-            st.session_state.offre_texte = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
-            st.write(st.session_state.offre_texte)
-
-        # Dispatch sélectif
-        st.markdown("### 📢 Sélection des canaux de diffusion")
-        plateformes = ["Indeed", "LinkedIn", "France Travail", "Welcome to the Jungle", "Monster", "Apec", "Glassdoor"]
-        if is_remote: plateformes.extend(["RemoteOK", "WeWorkRemotely", "Wellfound"])
-        
-        selections = {}
-        cols = st.columns(3)
-        for i, plat in enumerate(plateformes):
-            selections[plat] = cols[i % 3].checkbox(plat)
-
-        if st.button("✅ Valider et Diffuser"):
-            if 'offre_texte' in st.session_state:
-                # 1. Sauvegarde dans "Mes offres" (Base de données)
-                supabase.table("mes_offres").insert({
-                    "intitule": metier, "contenu": st.session_state.offre_texte, "ville": ville
-                }).execute()
-                
-                # 2. Téléchargement local
-                st.download_button("⬇️ Télécharger l'offre (PDF)", st.session_state.offre_texte, file_name=f"Offre_{metier}.txt")
-                
-                # 3. Simulation Dispatch
-                for plat, actif in selections.items():
-                    if actif: st.write(f"🚀 Offre diffusée sur **{plat}**")
-                st.success("Offre enregistrée dans vos dossiers et diffusée !")
+            res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-
