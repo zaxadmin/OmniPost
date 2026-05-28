@@ -72,7 +72,8 @@ with tab_candidat:
     with dossiers[0]:
         st.subheader(traduire_avec_ia("📜 Historique des envois", st.session_state.langue))
         try:
-            response = supabase.table("sourcing").select("email, date").order("date", desc=True).execute()
+            # Correction colonne : email_destinataire
+            response = supabase.table("sourcing").select("email_destinataire, date").order("date", desc=True).execute()
             if response.data: st.table(pd.DataFrame(response.data))
         except Exception as e: st.error(f"Erreur : {e}")
 
@@ -117,13 +118,23 @@ with tab_candidat:
             msg_defaut = "Madame, Monsieur, Intégrer votre équipe représente pour moi l'opportunité de mettre mon dynamisme et mon savoir-faire au service de vos objectifs. Vous trouverez ci-joint mon CV. Dans cette attente, je vous prie d'agréer mes salutations distinguées."
             msg = st.text_area(traduire_avec_ia("Message", st.session_state.langue), value=traduire_avec_ia(msg_defaut, st.session_state.langue), height=250)
             up = st.file_uploader(traduire_avec_ia("Uploader CV", st.session_state.langue), type=["pdf"])
-            if st.button(traduire_avec_ia("🚀 Valider et Envoyer", st.session_state.langue)) and up:
-                emails = [e.strip() for e in st.session_state.emails.split(',') if e.strip()]
-                date_jour = str(datetime.date.today())
-                resend.Emails.send({"from": "onboarding@resend.dev", "to": emails[0], "bcc": emails[1:20], "subject": traduire_avec_ia("Candidature", st.session_state.langue), "text": msg, "attachments": [{"filename": "CV.pdf", "content": list(up.getvalue())}]})
-                for e in emails: supabase.table("sourcing").insert({"email": e, "date": date_jour}).execute()
-                st.success(traduire_avec_ia("✅ 20 emails ajoutés à l'historique aujourd'hui !", st.session_state.langue))
-                st.rerun()
+            
+            if st.button(traduire_avec_ia("🚀 Valider et Envoyer", st.session_state.langue)):
+                if up is not None:
+                    emails = [e.strip() for e in st.session_state.emails.split(',') if e.strip()]
+                    date_jour = str(datetime.date.today())
+                    file_data = up.getvalue()
+                    
+                    try:
+                        resend.Emails.send({"from": "onboarding@resend.dev", "to": emails[0], "bcc": emails[1:20], "subject": traduire_avec_ia("Candidature", st.session_state.langue), "text": msg, "attachments": [{"filename": "CV.pdf", "content": list(file_data)}]})
+                        # Correction colonne : email_destinataire
+                        for e in emails: supabase.table("sourcing").insert({"email_destinataire": e, "date": date_jour}).execute()
+                        st.success(traduire_avec_ia("✅ 20 emails ajoutés à l'historique aujourd'hui !", st.session_state.langue))
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erreur : {e}")
+                else:
+                    st.warning(traduire_avec_ia("Veuillez charger votre CV.", st.session_state.langue))
 
 with tab_employeur:
     st.header(traduire_avec_ia("Interface Employeur", st.session_state.langue))
