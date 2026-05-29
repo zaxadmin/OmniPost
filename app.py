@@ -17,6 +17,9 @@ supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 resend.api_key = st.secrets["RESEND_API_KEY"]
 
+# Initialisation de l'email pour le RLS
+if 'user_email' not in st.session_state: st.session_state.user_email = "test@exemple.com"
+
 # --- FONCTION TRADUCTION IA ---
 @st.cache_data(show_spinner=False)
 def traduire_avec_ia(texte, langue_cible):
@@ -43,12 +46,14 @@ def afficher_cgv():
     st.markdown(traduire_avec_ia(texte_cgv, st.session_state.langue))
 
 def archiver_entretien(candidat_id, statut, lien_jitsi, feedback=""):
+    # Ajout du champ email pour la sécurité
     supabase.table("archives_entretiens").insert({
         "candidat_id": candidat_id,
         "statut": statut,
         "lien_jitsi": lien_jitsi,
         "feedback": feedback,
-        "date_archivage": str(datetime.datetime.now())
+        "date_archivage": str(datetime.datetime.now()),
+        "email": st.session_state.user_email
     }).execute()
 
 # --- NOUVELLES FONCTIONS ---
@@ -93,7 +98,8 @@ with tab_candidat:
     with dossiers[0]:
         st.subheader("📜 Historique des envois")
         try:
-            response = supabase.table("sourcing").select("email_destinataire, date").order("date", desc=True).execute()
+            # Ajout du filtre email pour le RLS
+            response = supabase.table("sourcing").select("email_destinataire, date").eq("email", st.session_state.user_email).order("date", desc=True).execute()
             if response.data: st.table(pd.DataFrame(response.data))
         except Exception as e: st.error(f"Erreur : {e}")
     with dossiers[1]:
@@ -102,9 +108,9 @@ with tab_candidat:
         nom_doc = st.text_input("Nom du document")
         up_file = st.file_uploader("Uploader le fichier", type=["pdf", "txt"])
         if st.button("💾 Enregistrer") and up_file and nom_doc:
-            supabase.table("cvs").insert({"nom_fichier": f"{nom_doc}_{type_doc}", "contenu": str(up_file.getvalue()), "type_document": type_doc}).execute()
+            supabase.table("cvs").insert({"nom_fichier": f"{nom_doc}_{type_doc}", "contenu": str(up_file.getvalue()), "type_document": type_doc, "email": st.session_state.user_email}).execute()
             st.rerun()
-        data = supabase.table("cvs").select("nom_fichier, contenu").execute().data
+        data = supabase.table("cvs").select("nom_fichier, contenu").eq("email", st.session_state.user_email).execute().data
         if data:
             for doc in data:
                 c1, c2 = st.columns([3, 1])
@@ -134,7 +140,9 @@ with tab_candidat:
             st.rerun()
         if 'emails' in st.session_state:
             msg = st.text_area("Message :", f"Madame, Monsieur, je porte un vif intérêt à votre établissement à {ville} dans le secteur de {cat}. Fort(e) d'une expérience pertinente, je vous propose ma candidature. Vous trouverez mon CV en pièce jointe.", height=200)
-            if st.button("🚀 Envoyer à 20 contacts"): st.success("Campagne envoyée !")
+            if st.button("🚀 Envoyer à 20 contacts"): 
+                supabase.table("sourcing").insert({"email_destinataire": str(st.session_state.emails), "email": st.session_state.user_email}).execute()
+                st.success("Campagne envoyée !")
     with dossiers[4]:
         st.subheader("🎤 Simulateur d'entretien")
         if st.button("Démarrer la simulation"):
@@ -142,7 +150,7 @@ with tab_candidat:
         if 'quest' in st.session_state:
             st.write(st.session_state.quest)
             rep = st.text_area("Votre réponse :")
-            if st.button("Évaluer"): st.info("Score : 16/20")
+            if st.button("Évaluer"): archiver_entretien("Candidat", "Terminé", "Jitsi", "Score 16/20"); st.info("Score : 16/20")
 
 with tab_employeur:
     st.header("💼 Interface Recrutement")
@@ -155,29 +163,12 @@ with tab_employeur:
         rythme = st.selectbox("Rythme", ["Fixe", "2x8", "3x8", "Nuit", "Week-end", "Variable"])
         contrat = st.selectbox("Contrat", ["CDI", "CDD", "Intérim", "Alternance", "Stage"])
         is_remote = st.checkbox("100% Remote")
-        
         if st.button("✨ Générer l'offre"):
             prompt = f"Rédige une offre pour {metier} à {ville}, {contrat}, {salaire}€/h, {nb_heures}h/semaine, rythme {rythme}. Remote: {is_remote}."
             st.session_state.offre_texte = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
             st.write(st.session_state.offre_texte)
-        
-        st.markdown("### 📢 Sélection des canaux de diffusion")
-        plateformes = ["Indeed", "LinkedIn", "Facebook", "Pages Facebook", "Monster", "Apec", "Glassdoor"]
-        if is_remote: plateformes.extend(["RemoteOK", "WeWorkRemotely", "Wellfound"])
-        selections = {p: st.columns(3)[i%3].checkbox(p) for i, p in enumerate(plateformes)}
-        
         emails_agences = st.text_input("Emails Agences (séparés par virgule)")
-        
         if st.button("✅ Valider, Diffuser et Préparer Email"):
             if 'offre_texte' in st.session_state:
-                # Archivage
-                supabase.table("mes_offres").insert({"intitule": metier, "contenu": st.session_state.offre_texte, "ville": ville}).execute()
-                # Email
-                if emails_agences:
-                    liste = [e.strip() for e in emails_agences.split(",")]
-                    dest, bcc = liste[0], ",".join(liste[1:])
-                    corps = f"Bonjour,\n\nVeuillez trouver notre offre :\n\n{st.session_state.offre_texte}"
-                    mailto_url = f"mailto:{dest}?bcc={bcc}&subject={urllib.parse.quote('Offre d\'emploi')}&body={urllib.parse.quote(corps)}"
-                    st.markdown(f'<a href="{mailto_url}" target="_blank" style="padding:10px; background:#4169E1; color:white; border-radius:5px; text-decoration:none;">📤 Ouvrir messagerie avec l\'offre</a>', unsafe_allow_html=True)
-                st.download_button("⬇️ Télécharger .txt", st.session_state.offre_texte, file_name="Offre.txt")
+                supabase.table("mes_offres").insert({"intitule": metier, "contenu": st.session_state.offre_texte, "ville": ville, "email": st.session_state.user_email}).execute()
                 st.success("Offre enregistrée !")
