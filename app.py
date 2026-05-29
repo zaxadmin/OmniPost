@@ -98,7 +98,6 @@ with tab_candidat:
     with dossiers[0]:
         st.subheader("📜 Historique des envois")
         try:
-            # Ajout du filtre email pour le RLS
             response = supabase.table("sourcing").select("email_destinataire, date").eq("email", st.session_state.user_email).order("date", desc=True).execute()
             if response.data: st.table(pd.DataFrame(response.data))
         except Exception as e: st.error(f"Erreur : {e}")
@@ -140,9 +139,12 @@ with tab_candidat:
             st.rerun()
         if 'emails' in st.session_state:
             msg = st.text_area("Message :", f"Madame, Monsieur, je porte un vif intérêt à votre établissement à {ville} dans le secteur de {cat}. Fort(e) d'une expérience pertinente, je vous propose ma candidature. Vous trouverez mon CV en pièce jointe.", height=200)
-            if st.button("🚀 Envoyer à 20 contacts"): 
+            dest, bcc = st.session_state.emails[0], ",".join(st.session_state.emails[1:])
+            mailto = f"mailto:{dest}?bcc={bcc}&subject={urllib.parse.quote('Candidature - zipngo')}&body={urllib.parse.quote(msg)}"
+            st.markdown(f'<a href="{mailto}" style="padding:10px; background:#4169E1; color:white; border-radius:5px; text-decoration:none;">📤 Envoyer via mon email (Levée d\'anonymat)</a>', unsafe_allow_html=True)
+            if st.button("💾 Enregistrer"): 
                 supabase.table("sourcing").insert({"email_destinataire": str(st.session_state.emails), "email": st.session_state.user_email}).execute()
-                st.success("Campagne envoyée !")
+                st.success("Campagne enregistrée !")
     with dossiers[4]:
         st.subheader("🎤 Simulateur d'entretien")
         if st.button("Démarrer la simulation"):
@@ -150,7 +152,11 @@ with tab_candidat:
         if 'quest' in st.session_state:
             st.write(st.session_state.quest)
             rep = st.text_area("Votre réponse :")
-            if st.button("Évaluer"): archiver_entretien("Candidat", "Terminé", "Jitsi", "Score 16/20"); st.info("Score : 16/20")
+            if st.button("Évaluer et lever l'anonymat"):
+                lien = f"https://meet.jit.si/zipngo_{st.session_state.user_email.split('@')[0]}"
+                archiver_entretien("Candidat", "Terminé", lien, "Score 16/20")
+                st.info(f"Lien entretien : {lien}")
+                st.success("Données révélées à l'employeur ! 👍")
 
 with tab_employeur:
     st.header("💼 Interface Recrutement")
@@ -168,7 +174,11 @@ with tab_employeur:
             st.session_state.offre_texte = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
             st.write(st.session_state.offre_texte)
         emails_agences = st.text_input("Emails Agences (séparés par virgule)")
-        if st.button("✅ Valider, Diffuser et Préparer Email"):
+        if emails_agences:
+            dest = emails_agences.split(',')[0]
+            mailto = f"mailto:{dest}?subject={urllib.parse.quote('Offre d\'emploi')}&body={urllib.parse.quote(st.session_state.get('offre_texte', ''))}"
+            st.markdown(f'<a href="{mailto}" style="padding:10px; background:#28a745; color:white; border-radius:5px; text-decoration:none;">📤 Diffuser via mon email (Levée d\'anonymat)</a>', unsafe_allow_html=True)
+        if st.button("✅ Valider"):
             if 'offre_texte' in st.session_state:
                 supabase.table("mes_offres").insert({"intitule": metier, "contenu": st.session_state.offre_texte, "ville": ville, "email": st.session_state.user_email}).execute()
                 st.success("Offre enregistrée !")
