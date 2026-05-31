@@ -16,6 +16,19 @@ supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 resend.api_key = st.secrets["RESEND_API_KEY"]
 
+# --- SIDEBAR AUTH, CGV & LANGUES ---
+st.sidebar.title("🔐 Accès & Paramètres")
+email_auth = st.sidebar.text_input("📧 Votre email pour Magic Link")
+if st.sidebar.button("Envoyer lien de connexion"):
+    try:
+        supabase.auth.sign_in_with_otp({"email": email_auth})
+        st.sidebar.success("Vérifiez vos emails !")
+    except Exception: st.sidebar.error("Erreur d'envoi")
+
+langues = ["Français", "English (US)", "Malagasy", "Español", "Deutsch", "Italiano", "Português", "Nederlands", "中文", "日本語", "한국어", "العربية", "हिन्दी", "Русский", "Türkçe", "Polski", "Svenska", "Dansk", "Suomi", "Norsk"]
+st.session_state.langue = st.sidebar.selectbox("🌐 Sélectionner une langue", langues)
+cgv = st.sidebar.checkbox("J'accepte les CGV")
+
 # --- FONCTIONS ---
 def traduire_avec_ia(texte, langue_cible):
     if langue_cible == "Français": return texte
@@ -50,8 +63,10 @@ def trier_candidats_auto(offre_data):
 
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
-st.markdown("<p style='color:#555555; margin-top: -5px; font-size: 14px;'>.zaxx.app</p>", unsafe_allow_html=True)
-st.session_state.langue = st.sidebar.selectbox("🌐 Langue", ["Français", "English (US)", "Malagasy"])
+
+if not cgv:
+    st.warning("Veuillez accepter les CGV dans la barre latérale pour commencer.")
+    st.stop()
 
 tab_candidat, tab_employeur = st.tabs(["🚀 Espace Candidat", "💼 Espace Recruteur"])
 
@@ -69,10 +84,9 @@ with tab_candidat:
             data = obtenir_contenu_structure(txt, metier)
             pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, data)
             st.download_button("⬇️ Télécharger CV", data=pdf.output(dest='S').encode('latin-1'), file_name="CV.pdf")
-    with dossiers[3]: # SOURCING
-        st.subheader("🌐 Prospection Spontanée")
-        domaines = ["Restauration", "Informatique", "BTP", "Commerce"]
-        cat = st.selectbox("Domaine", domaines)
+    with dossiers[3]:
+        st.subheader("🌐 Sourcing (Recherche & Messagerie)")
+        cat = st.selectbox("Domaine", ["Restauration", "Informatique", "BTP", "Commerce"])
         ville = st.text_input("Ville cible")
         if st.button("🔍 Rechercher 20 contacts"):
             prompt = f"Donne 20 emails pros pour '{cat}' à '{ville}'. Format : liste d'emails séparés par virgules."
@@ -81,14 +95,8 @@ with tab_candidat:
             st.rerun()
         if 'emails' in st.session_state:
             st.table(pd.DataFrame(st.session_state.emails, columns=["Emails identifiés"]))
-            st.info("💡 Cliquez sur le bouton ci-dessous pour ouvrir votre messagerie. N'oubliez pas d'attacher votre CV !")
-            
-            dest = st.session_state.emails[0]
-            bcc = ",".join(st.session_state.emails[1:20])
-            obj = urllib.parse.quote("Candidature spontanée")
-            body = urllib.parse.quote("Madame, Monsieur,\n\nJe vous adresse ma candidature pour rejoindre vos équipes.\n\nCordialement.")
-            mailto_link = f"mailto:{dest}?bcc={bcc}&subject={obj}&body={body}"
-            
+            dest, bcc = st.session_state.emails[0], ",".join(st.session_state.emails[1:20])
+            mailto_link = f"mailto:{dest}?bcc={bcc}&subject=Candidature&body=Madame, Monsieur, Veuillez trouver mon CV ci-joint."
             st.markdown(f"<a href='{mailto_link}' style='padding: 10px; background: #4169E1; color: white; border-radius: 5px; text-decoration: none;'>📧 Ouvrir Messagerie</a>", unsafe_allow_html=True)
 
 with tab_employeur:
@@ -97,13 +105,12 @@ with tab_employeur:
         col1, col2 = st.columns(2)
         titre = col1.text_input("Intitulé du poste")
         ville = col2.text_input("Ville")
-        if st.button("✨ Publier et Dispatcher les profils"):
+        if st.button("✨ Publier et Dispatcher"):
             offre_full = f"{titre} à {ville}"
             supabase.table("offres").insert({"titre": titre, "details": offre_full}).execute()
             trier_candidats_auto(offre_full)
             st.success("Base dispatchée !")
             st.rerun()
-
     tiroirs = st.tabs(["🔥 Matchs", "📂 Vivier", "📅 Entretiens"])
     with tiroirs[0]:
         for c in supabase.table("candidats").select("*").gte("score", 50).execute().data:
@@ -114,13 +121,4 @@ with tab_employeur:
 
 # --- FOOTER ---
 st.markdown("---")
-st.markdown("""
-<div style='text-align: center; font-family: sans-serif;'>
-    <p>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>zaxx.app</b></p>
-    <p>Besoin d'assistance ? 
-       <a href='mailto:creationsites06@gmail.com' style='text-decoration: none;'>
-           📧 creationsites06@gmail.com
-       </a>
-    </p>
-</div>
-""", unsafe_allow_html=True)
+st.markdown("""<div style='text-align: center;'>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>zaxx.app</b></div>""", unsafe_allow_html=True)
