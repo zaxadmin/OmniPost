@@ -26,7 +26,7 @@ def traduire_avec_ia(texte, langue_cible):
 def obtenir_contenu_structure(txt_cv, metier):
     prompt = f"Analyse pour le poste '{metier}'. Retourne uniquement un JSON structuré avec: 'header', 'sidebar', 'main', 'mots_cles_ajoutes'. CV: {txt_cv}"
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
-    # Ligne corrigée et unifiée pour éviter l'erreur de syntaxe
+    # Ligne unifiée et corrigée pour éviter l'erreur de syntaxe
     return json.loads(res.choices[0].message.content.replace("```json", "").replace("```", ""))
 
 def appliquer_design_geometrique(pdf, data):
@@ -51,6 +51,7 @@ def trier_candidats_auto(offre_data):
 
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
+st.markdown("<p style='color:#555555; margin-top: -5px; font-size: 14px;'>.zaxx.app</p>", unsafe_allow_html=True)
 st.session_state.langue = st.sidebar.selectbox("🌐 Langue", ["Français", "English (US)", "Malagasy"])
 
 tab_candidat, tab_employeur = st.tabs(["🚀 Espace Candidat", "💼 Espace Recruteur"])
@@ -70,40 +71,49 @@ with tab_candidat:
             pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, data)
             st.download_button("⬇️ Télécharger CV", data=pdf.output(dest='S').encode('latin-1'), file_name="CV.pdf")
     with dossiers[3]: # SOURCING
-        cat = st.selectbox("Domaine", ["Restauration", "Informatique", "BTP", "Commerce"])
+        st.subheader("🌐 Prospection Spontanée")
+        st.info("Utilisation d'IA pour identifier des cibles professionnelles.")
+        domaines = ["Restauration", "Informatique", "BTP", "Commerce"]
+        cat = st.selectbox("Domaine", domaines)
         ville = st.text_input("Ville cible")
         if st.button("🔍 Rechercher 20 nouveaux contacts") and ville:
-            deja = [i['email_destinataire'] for i in supabase.table("sourcing").select("email_destinataire").execute().data]
-            prompt = f"Donne 20 emails pros pour '{cat}' à '{ville}'. Exclus: {','.join(deja)}. Format : liste d'emails séparés par virgules."
+            prompt = f"Génère une liste de 20 adresses emails professionnelles pour le secteur '{cat}' à '{ville}'. Utilise un format conforme aux usages légaux (ex: nom.prenom@entreprise.fr). Retourne uniquement la liste séparée par des virgules."
             res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
             st.session_state.emails = [e.strip() for e in res.split(',')]
             st.rerun()
         if 'emails' in st.session_state:
             up_cv = st.file_uploader("CV en PJ", type=["pdf"])
-            if st.button("🚀 Envoyer à 20 contacts") and up_cv:
-                resend.Emails.send({"from": "contact@zipngo.zaxx.app", "to": st.session_state.emails[0], "bcc": st.session_state.emails[1:20], "subject": "Candidature", "text": "Ma candidature.", "attachments": [{"filename": "CV.pdf", "content": list(up_cv.getvalue())}]})
+            if st.button("🚀 Envoyer à la liste") and up_cv:
+                resend.Emails.send({"from": "contact@zipngo.zaxx.app", "to": st.session_state.emails[0], "bcc": st.session_state.emails[1:20], "subject": "Candidature", "text": "...", "attachments": [{"filename": "CV.pdf", "content": list(up_cv.getvalue())}]})
                 for e in st.session_state.emails[:20]: supabase.table("sourcing").insert({"email_destinataire": e, "date": str(datetime.date.today())}).execute()
-                st.success("Campagne envoyée !")
+                st.success("Campagne envoyée avec succès !")
 
 with tab_employeur:
     st.subheader("📢 Création et Dispatch automatique")
-    titre = st.text_input("Intitulé du poste")
-    if st.button("✨ Publier et Dispatcher"):
-        trier_candidats_auto(titre)
-        st.success("Base dispatchée !")
-        st.rerun()
+    with st.container():
+        col1, col2 = st.columns(2)
+        titre = col1.text_input("Intitulé du poste")
+        ville = col2.text_input("Ville")
+        if st.button("✨ Publier et Dispatcher les profils"):
+            offre_full = f"{titre} à {ville}"
+            supabase.table("offres").insert({"titre": titre, "details": offre_full}).execute()
+            trier_candidats_auto(offre_full)
+            st.success("Base dispatchée !")
+            st.rerun()
+
     tiroirs = st.tabs(["🔥 Matchs", "📂 Vivier", "📅 Entretiens"])
     with tiroirs[0]:
         for c in supabase.table("candidats").select("*").gte("score", 50).execute().data:
-            if st.button(f"Offrir Entretien: {c.get('nom_candidat')}", key=f"m_{c['id']}"): 
-                supabase.table("candidats").update({"statut": "Entretien"}).eq("id", c['id']).execute()
-                st.rerun()
+            with st.expander(f"{c.get('nom_candidat')} - Score: {c.get('score')}%"):
+                if st.button(f"👍 Offrir Entretien", key=f"m_{c['id']}"): 
+                    supabase.table("candidats").update({"statut": "Entretien"}).eq("id", c['id']).execute()
+                    st.rerun()
 
 # --- FOOTER ---
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; font-family: sans-serif;'>
-    <p>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>CréationSites</b></p>
+    <p>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>zaxx.app</b></p>
     <p>Besoin d'assistance ? 
        <a href='mailto:creationsites06@gmail.com' style='text-decoration: none;'>
            📧 creationsites06@gmail.com
