@@ -72,6 +72,22 @@ if not profil:
             supabase.table("profils").insert({"email": user.user.email, "role": "recruteur", "details": {"nom": nom, "siret": siret, "tel": tel, "email_recep": email_r}}).execute()
             st.rerun()
     st.stop()
+# --- AJOUTEZ CE BLOC JUSTE APRÈS VOTRE LOGIQUE D'ONBOARDING ---
+
+# Si vous êtes l'admin, on affiche les deux espaces pour tester
+if user.user.email == "creationsites06@gmail.com":
+    st.info("🛠️ Mode Administrateur activé : accès total aux deux espaces.")
+    tab_test_c, tab_test_r = st.tabs(["🚀 Espace Candidat (Admin)", "💼 Espace Recruteur (Admin)"])
+    
+    with tab_test_c:
+        # [Insérer ici tout le bloc de code de l'interface Candidat]
+        st.write("Interface Candidat complète...")
+        
+    with tab_test_r:
+        # [Insérer ici tout le bloc de code de l'interface Recruteur]
+        st.write("Interface Recruteur complète...")
+    
+    st.stop() # Empêche l'affichage du reste du code pour éviter les doublons
 
 # --- ESPACE UTILISATEUR ---
 role = profil[0]['role']
