@@ -26,7 +26,6 @@ def traduire_avec_ia(texte, langue_cible):
 def obtenir_contenu_structure(txt_cv, metier):
     prompt = f"Analyse pour le poste '{metier}'. Retourne uniquement un JSON structuré avec: 'header', 'sidebar', 'main', 'mots_cles_ajoutes'. CV: {txt_cv}"
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
-    # Ligne unifiée et corrigée pour éviter l'erreur de syntaxe
     return json.loads(res.choices[0].message.content.replace("```json", "").replace("```", ""))
 
 def appliquer_design_geometrique(pdf, data):
@@ -72,21 +71,25 @@ with tab_candidat:
             st.download_button("⬇️ Télécharger CV", data=pdf.output(dest='S').encode('latin-1'), file_name="CV.pdf")
     with dossiers[3]: # SOURCING
         st.subheader("🌐 Prospection Spontanée")
-        st.info("Utilisation d'IA pour identifier des cibles professionnelles.")
         domaines = ["Restauration", "Informatique", "BTP", "Commerce"]
         cat = st.selectbox("Domaine", domaines)
         ville = st.text_input("Ville cible")
-        if st.button("🔍 Rechercher 20 nouveaux contacts") and ville:
-            prompt = f"Génère une liste de 20 adresses emails professionnelles pour le secteur '{cat}' à '{ville}'. Utilise un format conforme aux usages légaux (ex: nom.prenom@entreprise.fr). Retourne uniquement la liste séparée par des virgules."
+        if st.button("🔍 Rechercher 20 contacts"):
+            prompt = f"Donne 20 emails pros pour '{cat}' à '{ville}'. Format : liste d'emails séparés par virgules."
             res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
             st.session_state.emails = [e.strip() for e in res.split(',')]
             st.rerun()
         if 'emails' in st.session_state:
-            up_cv = st.file_uploader("CV en PJ", type=["pdf"])
-            if st.button("🚀 Envoyer à la liste") and up_cv:
-                resend.Emails.send({"from": "contact@zipngo.zaxx.app", "to": st.session_state.emails[0], "bcc": st.session_state.emails[1:20], "subject": "Candidature", "text": "...", "attachments": [{"filename": "CV.pdf", "content": list(up_cv.getvalue())}]})
-                for e in st.session_state.emails[:20]: supabase.table("sourcing").insert({"email_destinataire": e, "date": str(datetime.date.today())}).execute()
-                st.success("Campagne envoyée avec succès !")
+            st.table(pd.DataFrame(st.session_state.emails, columns=["Emails identifiés"]))
+            st.info("💡 Cliquez sur le bouton ci-dessous pour ouvrir votre messagerie. N'oubliez pas d'attacher votre CV !")
+            
+            dest = st.session_state.emails[0]
+            bcc = ",".join(st.session_state.emails[1:20])
+            obj = urllib.parse.quote("Candidature spontanée")
+            body = urllib.parse.quote("Madame, Monsieur,\n\nJe vous adresse ma candidature pour rejoindre vos équipes.\n\nCordialement.")
+            mailto_link = f"mailto:{dest}?bcc={bcc}&subject={obj}&body={body}"
+            
+            st.markdown(f"<a href='{mailto_link}' style='padding: 10px; background: #4169E1; color: white; border-radius: 5px; text-decoration: none;'>📧 Ouvrir Messagerie</a>", unsafe_allow_html=True)
 
 with tab_employeur:
     st.subheader("📢 Création et Dispatch automatique")
