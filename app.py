@@ -108,4 +108,13 @@ with tab_employeur:
 
 # --- FOOTER ---
 st.markdown("---")
-st.markdown("<div style='text-align:center;'>Créé par <b>Liliane RAKOTOBE</b> | <a href='mailto:creationsites06@gmail.com'>📧</a></div>", unsafe_allow_html=True)
+st.markdown("""
+<div style='text-align: center; font-family: sans-serif;'>
+    <p>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>CréationSites</b></p>
+    <p>Besoin d'assistance ? 
+       <a href='mailto:creationsites06@gmail.com' style='text-decoration: none;'>
+           📧 creationsites06@gmail.com
+       </a>
+    </p>
+</div>
+""", unsafe_allow_html=True)
