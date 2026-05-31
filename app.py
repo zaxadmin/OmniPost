@@ -37,31 +37,57 @@ cgv = st.sidebar.checkbox("J'accepte les CGV")
 
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
-st.markdown("### Votre ATS intelligent pour booster vos candidatures et recrutements.")
+st.markdown("""
+<div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px; border-left: 5px solid #4169E1; margin-bottom: 20px;'>
+    <h3 style='margin-top: 0;'>🚀 Boostez votre carrière avec zipngo</h3>
+    <p>La solution tout-en-un pour <b>optimiser vos CVs</b>, <b>cibler les meilleures entreprises</b> et <b>réussir vos entretiens</b> grâce à l'intelligence artificielle.</p>
+</div>
+""", unsafe_allow_html=True)
 
 if not cgv:
     st.warning("Veuillez accepter les CGV dans la barre latérale pour commencer.")
     st.stop()
 
-tab_candidat, tab_employeur = st.tabs(["🚀 Espace Candidat", "💼 Espace Recruteur"])
+# --- LOGIQUE D'ONBOARDING ET SÉPARATION DES RÔLES ---
+user = supabase.auth.get_user()
+profil = None
+if user:
+    profil = supabase.table("profils").select("*").eq("email", user.user.email).execute().data
 
-with tab_candidat:
-    st.info("💡 **Mode d'emploi** : Gérez vos CVs, sourcez des opportunités et préparez vos entretiens.")
+if not profil:
+    st.subheader("Bienvenue ! Configurez votre profil pour continuer :")
+    choix = st.radio("Vous êtes :", ["Candidat", "Recruteur"])
+    if choix == "Candidat":
+        cv_up = st.file_uploader("Uploadez votre CV", type=["pdf"])
+        email_c = st.text_input("Email de contact")
+        if st.button("Valider mon profil Candidat"):
+            supabase.table("profils").insert({"email": user.user.email, "role": "candidat", "details": {"email": email_c}}).execute()
+            st.rerun()
+    else:
+        nom = st.text_input("Nom de l'entreprise")
+        siret = st.text_input("SIRET / SIREN")
+        tel = st.text_input("Téléphone")
+        email_r = st.text_input("Email de réception des candidatures")
+        if st.button("Valider mon profil Recruteur"):
+            supabase.table("profils").insert({"email": user.user.email, "role": "recruteur", "details": {"nom": nom, "siret": siret, "tel": tel, "email_recep": email_r}}).execute()
+            st.rerun()
+    st.stop()
+
+# --- ESPACE UTILISATEUR ---
+role = profil[0]['role']
+
+if role == "candidat":
     dossiers = st.tabs(["📂 Candidatures", "📄 CVs", "✨ Relooking", "🌐 Sourcing", "🎤 Entretien"])
-    
-    with dossiers[1]: # GESTION DES CVS
+    with dossiers[1]:
         st.subheader("📄 Mes documents")
         col_up, col_down = st.columns(2)
         with col_up:
             st.write("📤 **CV Originaux uploadés**")
-            # Logique de récupération des fichiers depuis Supabase Storage
             st.file_uploader("Ajouter un nouveau CV", type=["pdf"])
         with col_down:
             st.write("⬇️ **CV Relookés téléchargeables**")
-            # Exemple de bouton de téléchargement pour fichier relooké
             st.download_button("Télécharger CV Optimisé", data=b"data", file_name="Mon_CV_Optimise.pdf")
-
-    with dossiers[3]: # SOURCING
+    with dossiers[3]:
         st.subheader("🌐 Sourcing (Recherche & Messagerie)")
         cat = st.selectbox("Domaine", ["Restauration", "Informatique", "BTP", "Commerce"])
         ville = st.text_input("Ville cible")
@@ -75,8 +101,7 @@ with tab_candidat:
             dest, bcc = st.session_state.emails[0], ",".join(st.session_state.emails[1:20])
             mailto_link = f"mailto:{dest}?bcc={bcc}&subject=Candidature&body=Madame, Monsieur, Veuillez trouver mon CV ci-joint."
             st.markdown(f"<a href='{mailto_link}' style='padding: 10px; background: #4169E1; color: white; border-radius: 5px; text-decoration: none;'>📧 Ouvrir Messagerie</a>", unsafe_allow_html=True)
-
-    with dossiers[4]: # ENTRETIEN
+    with dossiers[4]:
         st.subheader("🎤 Entraînement et Historique")
         sub_t1, sub_t2 = st.tabs(["🤖 Entraînement IA", "📅 Historique"])
         with sub_t1:
@@ -87,15 +112,15 @@ with tab_candidat:
         with sub_t2:
             st.write("Retrouvez ici vos prochains rendez-vous et vos retours d'entretiens passés.")
 
-with tab_employeur:
-    st.subheader("📢 Création et Dispatch automatique")
-    # Logique Recruteur conservée...
+elif role == "recruteur":
+    st.subheader("💼 Espace Recruteur")
+    st.info("📢 **Gestion des recrutements** : Gérez vos offres et triez vos candidats.")
 
 # --- FOOTER ---
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; font-family: sans-serif;'>
     <p>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>zaxx.app</b></p>
-    <p>Besoin d'assistance ? <a href='mailto:creationsites06@gmail.com'>📧 creationsites06@gmail.com</a></p>
+    <p>Contact <a href='mailto:creationsites06@gmail.com'>📧 </a></p>
 </div>
 """, unsafe_allow_html=True)
