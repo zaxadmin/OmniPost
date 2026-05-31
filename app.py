@@ -16,7 +16,7 @@ supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 resend.api_key = st.secrets["RESEND_API_KEY"]
 
-# --- FONCTIONS D'ORIGINE ---
+# --- FONCTIONS ---
 def traduire_avec_ia(texte, langue_cible):
     if langue_cible == "Français": return texte
     prompt = f"Traduis le texte suivant en {langue_cible}. Renvoie uniquement le texte traduit : {texte}"
@@ -26,6 +26,7 @@ def traduire_avec_ia(texte, langue_cible):
 def obtenir_contenu_structure(txt_cv, metier):
     prompt = f"Analyse pour le poste '{metier}'. Retourne uniquement un JSON structuré avec: 'header', 'sidebar', 'main', 'mots_cles_ajoutes'. CV: {txt_cv}"
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
+    # Ligne corrigée ci-dessous
     return json.loads(res.choices[0].message.content.replace("```json", "").replace("
 ```", ""))
 
@@ -51,6 +52,7 @@ def trier_candidats_auto(offre_data):
 
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
+st.markdown("<p style='color:#555555; margin-top: -5px; font-size: 14px;'>.zaxx.app</p>", unsafe_allow_html=True)
 st.session_state.langue = st.sidebar.selectbox("🌐 Langue", ["Français", "English (US)", "Malagasy"])
 
 tab_candidat, tab_employeur = st.tabs(["🚀 Espace Candidat", "💼 Espace Recruteur"])
@@ -69,7 +71,7 @@ with tab_candidat:
             data = obtenir_contenu_structure(txt, metier)
             pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, data)
             st.download_button("⬇️ Télécharger CV", data=pdf.output(dest='S').encode('latin-1'), file_name="CV.pdf")
-    with dossiers[3]: # BLOC SOURCING INTÉGRÉ
+    with dossiers[3]: # SOURCING
         st.subheader("🌐 Prospection Spontanée")
         domaines = ["Restauration", "Informatique", "BTP", "Commerce"]
         cat = st.selectbox("Domaine", domaines)
@@ -89,19 +91,33 @@ with tab_candidat:
 
 with tab_employeur:
     st.subheader("📢 Création et Dispatch automatique")
-    titre = st.text_input("Intitulé du poste")
-    if st.button("✨ Publier et Dispatcher"):
-        trier_candidats_auto(titre)
-        st.success("Base dispatchée !")
-        st.rerun()
+    with st.container():
+        col1, col2 = st.columns(2)
+        titre = col1.text_input("Intitulé du poste")
+        ville = col2.text_input("Ville")
+        if st.button("✨ Publier et Dispatcher les profils"):
+            offre_full = f"{titre} à {ville}"
+            supabase.table("offres").insert({"titre": titre, "details": offre_full}).execute()
+            trier_candidats_auto(offre_full)
+            st.success("Base dispatchée !")
+            st.rerun()
+
     tiroirs = st.tabs(["🔥 Matchs", "📂 Vivier", "📅 Entretiens"])
     with tiroirs[0]:
         for c in supabase.table("candidats").select("*").gte("score", 50).execute().data:
-            if st.button(f"Offrir Entretien: {c.get('nom_candidat')}", key=f"m_{c['id']}"): 
-                supabase.table("candidats").update({"statut": "Entretien"}).eq("id", c['id']).execute()
-                st.rerun()
+            with st.expander(f"{c.get('nom_candidat')} - Score: {c.get('score')}%"):
+                if st.button(f"👍 Offrir Entretien", key=f"m_{c['id']}"): 
+                    supabase.table("candidats").update({"statut": "Entretien"}).eq("id", c['id']).execute()
+                    st.rerun()
 
 # --- FOOTER ---
 st.markdown("---")
-st.markdown("""<div style='text-align: center;'>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>zaxx.app</b><br>
-<a href='mailto:creationsites06@gmail.com' style='text-decoration: none;'>📧</div>""", unsafe_allow_html=True)
+st.markdown("""
+<div style='text-align: center; font-family: sans-serif;'>
+    <p>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>zaxx.app</b></p>
+    <p>Contact<a href='mailto:creationsites06@gmail.com' style='text-decoration: none;'>
+           📧 
+       </a>
+    </p>
+</div>
+""", unsafe_allow_html=True)
