@@ -110,10 +110,10 @@ with tab_employeur:
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; font-family: sans-serif;'>
-    <p>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>zaxx.app</b></p>
+    <p>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>CréationSites</b></p>
     <p>Contact
        <a href='mailto:creationsites06@gmail.com' style='text-decoration: none;'>
-           📧
+           📧 
        </a>
     </p>
 </div>
