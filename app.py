@@ -26,9 +26,8 @@ def traduire_avec_ia(texte, langue_cible):
 def obtenir_contenu_structure(txt_cv, metier):
     prompt = f"Analyse pour le poste '{metier}'. Retourne uniquement un JSON structuré avec: 'header', 'sidebar', 'main', 'mots_cles_ajoutes'. CV: {txt_cv}"
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
-    # Ligne corrigée ci-dessous
-    return json.loads(res.choices[0].message.content.replace("```json", "").replace("
-```", ""))
+    # Ligne corrigée et unifiée pour éviter l'erreur de syntaxe
+    return json.loads(res.choices[0].message.content.replace("```json", "").replace("```", ""))
 
 def appliquer_design_geometrique(pdf, data):
     pdf.set_fill_color(52, 73, 94); pdf.rect(0, 0, 60, 300, 'F')
@@ -52,7 +51,6 @@ def trier_candidats_auto(offre_data):
 
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
-st.markdown("<p style='color:#555555; margin-top: -5px; font-size: 14px;'>.zaxx.app</p>", unsafe_allow_html=True)
 st.session_state.langue = st.sidebar.selectbox("🌐 Langue", ["Français", "English (US)", "Malagasy"])
 
 tab_candidat, tab_employeur = st.tabs(["🚀 Espace Candidat", "💼 Espace Recruteur"])
@@ -72,9 +70,7 @@ with tab_candidat:
             pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, data)
             st.download_button("⬇️ Télécharger CV", data=pdf.output(dest='S').encode('latin-1'), file_name="CV.pdf")
     with dossiers[3]: # SOURCING
-        st.subheader("🌐 Prospection Spontanée")
-        domaines = ["Restauration", "Informatique", "BTP", "Commerce"]
-        cat = st.selectbox("Domaine", domaines)
+        cat = st.selectbox("Domaine", ["Restauration", "Informatique", "BTP", "Commerce"])
         ville = st.text_input("Ville cible")
         if st.button("🔍 Rechercher 20 nouveaux contacts") and ville:
             deja = [i['email_destinataire'] for i in supabase.table("sourcing").select("email_destinataire").execute().data]
@@ -91,32 +87,26 @@ with tab_candidat:
 
 with tab_employeur:
     st.subheader("📢 Création et Dispatch automatique")
-    with st.container():
-        col1, col2 = st.columns(2)
-        titre = col1.text_input("Intitulé du poste")
-        ville = col2.text_input("Ville")
-        if st.button("✨ Publier et Dispatcher les profils"):
-            offre_full = f"{titre} à {ville}"
-            supabase.table("offres").insert({"titre": titre, "details": offre_full}).execute()
-            trier_candidats_auto(offre_full)
-            st.success("Base dispatchée !")
-            st.rerun()
-
+    titre = st.text_input("Intitulé du poste")
+    if st.button("✨ Publier et Dispatcher"):
+        trier_candidats_auto(titre)
+        st.success("Base dispatchée !")
+        st.rerun()
     tiroirs = st.tabs(["🔥 Matchs", "📂 Vivier", "📅 Entretiens"])
     with tiroirs[0]:
         for c in supabase.table("candidats").select("*").gte("score", 50).execute().data:
-            with st.expander(f"{c.get('nom_candidat')} - Score: {c.get('score')}%"):
-                if st.button(f"👍 Offrir Entretien", key=f"m_{c['id']}"): 
-                    supabase.table("candidats").update({"statut": "Entretien"}).eq("id", c['id']).execute()
-                    st.rerun()
+            if st.button(f"Offrir Entretien: {c.get('nom_candidat')}", key=f"m_{c['id']}"): 
+                supabase.table("candidats").update({"statut": "Entretien"}).eq("id", c['id']).execute()
+                st.rerun()
 
 # --- FOOTER ---
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; font-family: sans-serif;'>
-    <p>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>zaxx.app</b></p>
-    <p>Contact<a href='mailto:creationsites06@gmail.com' style='text-decoration: none;'>
-           📧 
+    <p>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>CréationSites</b></p>
+    <p>Besoin d'assistance ? 
+       <a href='mailto:creationsites06@gmail.com' style='text-decoration: none;'>
+           📧 creationsites06@gmail.com
        </a>
     </p>
 </div>
