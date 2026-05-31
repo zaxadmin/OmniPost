@@ -16,7 +16,7 @@ try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     resend.api_key = st.secrets["RESEND_API_KEY"]
 except:
-    st.error("Erreur de configuration.")
+    st.error("Erreur de configuration système.")
 
 # --- FONCTIONS D'ORIGINE ---
 @st.cache_data(show_spinner=False)
@@ -37,15 +37,21 @@ def appliquer_design_geometrique(pdf, data):
     pdf.set_text_color(0, 0, 0); pdf.set_xy(70, 10); pdf.set_font("Arial", 'B', 18); pdf.cell(100, 10, data['header']['titre_poste'], ln=True)
     pdf.set_xy(70, 30); pdf.set_font("Arial", 'B', 14); pdf.cell(100, 10, data['main']['titre'], ln=True)
 
-# --- MOTEUR DE TRI AUTO ---
+# --- MOTEUR DE TRI AUTO (Syntaxe corrigée) ---
 def trier_candidats_auto(offre_data):
     profils = supabase.table("candidats").select("*").execute().data
     for p in profils:
-        prompt = f"Compare le CV: {p.get('cv_text')} et l'Offre: {offre_data}. Score 0-100. JSON: {{"score": 0}}"
+        # Utilisation de .format() pour protéger les accolades du JSON
+        prompt = "Compare le CV: {} et l'Offre: {}. Score 0-100. Retourne un JSON strictement comme ceci: {{\"score\": 0}}".format(
+            p.get('cv_text', 'Non disponible'), 
+            offre_data
+        )
         res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
-        score = json.loads(res.choices[0].message.content).get('score', 0)
-        statut = "Matchs" if score >= 50 else "Vivier"
-        supabase.table("candidats").update({"statut": statut, "score": score}).eq("id", p['id']).execute()
+        try:
+            score = json.loads(res.choices[0].message.content.replace("```json", "").replace("```", "")).get('score', 0)
+            statut = "Matchs" if score >= 50 else "Vivier"
+            supabase.table("candidats").update({"statut": statut, "score": score}).eq("id", p['id']).execute()
+        except: continue
 
 # --- AUTHENTIFICATION ---
 if 'user_email' not in st.session_state:
@@ -86,8 +92,9 @@ with tab_employeur:
             st.success("Analyse terminée. Matchs et Vivier mis à jour.")
     
     with tiroirs[0]: # Matchs
-        for c in supabase.table("candidats").select("*").gte("score", 50).execute().data:
-            if st.button(f"👍 Entretien avec {c['nom_candidat']}"): pass
+        data_match = supabase.table("candidats").select("*").gte("score", 50).execute().data
+        for c in data_match:
+            if st.button(f"👍 Entretien avec {c.get('nom_candidat', 'Candidat')}"): pass
 
 # --- FOOTER ---
 st.markdown("---")
