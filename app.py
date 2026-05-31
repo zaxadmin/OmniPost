@@ -17,29 +17,17 @@ client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 resend.api_key = st.secrets["RESEND_API_KEY"]
 
 # --- FONCTIONS D'ORIGINE ---
-@st.cache_data(show_spinner=False)
 def traduire_avec_ia(texte, langue_cible):
     if langue_cible == "Français": return texte
     prompt = f"Traduis le texte suivant en {langue_cible}. Renvoie uniquement le texte traduit : {texte}"
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
     return res.choices[0].message.content
 
-def creer_pdf_cv_pro(texte_ia, nom_fichier, style):
-    pdf = FPDF()
-    pdf.add_page()
-    if style == "Classique": pdf.set_font("Times", 'B', 16)
-    elif style == "Moderne": pdf.set_font("Arial", 'B', 18)
-    else: pdf.set_font("Courier", 'B', 16)
-    pdf.cell(200, 10, txt="Mon CV Optimisé", ln=True, align='C')
-    pdf.ln(10)
-    pdf.set_font("Arial", size=11)
-    pdf.multi_cell(0, 7, txt=texte_ia)
-    pdf.output(nom_fichier)
-
 def obtenir_contenu_structure(txt_cv, metier):
     prompt = f"Analyse pour le poste '{metier}'. Retourne uniquement un JSON structuré avec: 'header', 'sidebar', 'main', 'mots_cles_ajoutes'. CV: {txt_cv}"
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
-    return json.loads(res.choices[0].message.content.replace("```json", "").replace("```", ""))
+    return json.loads(res.choices[0].message.content.replace("```json", "").replace("
+```", ""))
 
 def appliquer_design_geometrique(pdf, data):
     pdf.set_fill_color(52, 73, 94); pdf.rect(0, 0, 60, 300, 'F')
@@ -50,13 +38,10 @@ def appliquer_design_geometrique(pdf, data):
     pdf.set_xy(70, 30); pdf.set_font("Arial", 'B', 14); pdf.cell(100, 10, data['main']['titre'], ln=True)
     pdf.set_xy(70, 45); pdf.set_font("Arial", size=11); pdf.multi_cell(130, 7, data['main']['corps'])
 
-# --- MOTEUR DE TRI AUTOMATIQUE ---
 def trier_candidats_auto(offre_data):
     profils = supabase.table("candidats").select("*").execute().data
     for p in profils:
-        prompt = "Compare le CV: {} et l'Offre: {}. Score 0-100. Retourne un JSON strictement comme ceci: {{\"score\": 0}}".format(
-            p.get('cv_text', 'Non disponible'), offre_data
-        )
+        prompt = "Compare le CV: {} et l'Offre: {}. Score 0-100. Retourne un JSON strictement comme ceci: {{\"score\": 0}}".format(p.get('cv_text', 'Non disponible'), offre_data)
         res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
         try:
             score = json.loads(res.choices[0].message.content.replace("```json", "").replace("```", "")).get('score', 0)
@@ -66,12 +51,16 @@ def trier_candidats_auto(offre_data):
 
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
-st.markdown("<p style='color:#555555; margin-top: -5px; font-size: 14px;'>.zaxx.app</p>", unsafe_allow_html=True)
+st.session_state.langue = st.sidebar.selectbox("🌐 Langue", ["Français", "English (US)", "Malagasy"])
 
 tab_candidat, tab_employeur = st.tabs(["🚀 Espace Candidat", "💼 Espace Recruteur"])
 
 with tab_candidat:
     dossiers = st.tabs(["📂 Candidatures", "📄 CVs", "✨ Relooking", "🌐 Sourcing", "🎤 Entretien"])
+    with dossiers[0]:
+        st.subheader("📂 Historique des envois")
+        res = supabase.table("sourcing").select("email_destinataire, date").execute()
+        if res.data: st.table(pd.DataFrame(res.data))
     with dossiers[2]:
         metier = st.text_input("Poste visé")
         up = st.file_uploader("Upload CV", type=["pdf"])
@@ -80,41 +69,39 @@ with tab_candidat:
             data = obtenir_contenu_structure(txt, metier)
             pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, data)
             st.download_button("⬇️ Télécharger CV", data=pdf.output(dest='S').encode('latin-1'), file_name="CV.pdf")
+    with dossiers[3]: # BLOC SOURCING INTÉGRÉ
+        st.subheader("🌐 Prospection Spontanée")
+        domaines = ["Restauration", "Informatique", "BTP", "Commerce"]
+        cat = st.selectbox("Domaine", domaines)
+        ville = st.text_input("Ville cible")
+        if st.button("🔍 Rechercher 20 nouveaux contacts") and ville:
+            deja = [i['email_destinataire'] for i in supabase.table("sourcing").select("email_destinataire").execute().data]
+            prompt = f"Donne 20 emails pros pour '{cat}' à '{ville}'. Exclus: {','.join(deja)}. Format : liste d'emails séparés par virgules."
+            res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
+            st.session_state.emails = [e.strip() for e in res.split(',')]
+            st.rerun()
+        if 'emails' in st.session_state:
+            up_cv = st.file_uploader("CV en PJ", type=["pdf"])
+            if st.button("🚀 Envoyer à 20 contacts") and up_cv:
+                resend.Emails.send({"from": "contact@zipngo.zaxx.app", "to": st.session_state.emails[0], "bcc": st.session_state.emails[1:20], "subject": "Candidature", "text": "Ma candidature.", "attachments": [{"filename": "CV.pdf", "content": list(up_cv.getvalue())}]})
+                for e in st.session_state.emails[:20]: supabase.table("sourcing").insert({"email_destinataire": e, "date": str(datetime.date.today())}).execute()
+                st.success("Campagne envoyée !")
 
 with tab_employeur:
     st.subheader("📢 Création et Dispatch automatique")
-    with st.container():
-        col1, col2 = st.columns(2)
-        titre = col1.text_input("Intitulé du poste")
-        ville = col2.text_input("Ville")
-        remote = st.checkbox("Télétravail possible")
-        skills = st.text_area("Compétences requises")
-        
-        if st.button("✨ Publier et Dispatcher les profils"):
-            offre_full = f"{titre} à {ville}, Remote: {remote}, Skills: {skills}"
-            supabase.table("offres").insert({"titre": titre, "details": offre_full}).execute()
-            trier_candidats_auto(offre_full)
-            st.success("Offre publiée et base de candidats dispatchée !")
-            st.rerun()
-
-    tiroirs = st.tabs(["🔥 Matchs", "📂 Vivier", "👤 Profils", "📅 Entretiens", "🗄️ Archives"])
+    titre = st.text_input("Intitulé du poste")
+    if st.button("✨ Publier et Dispatcher"):
+        trier_candidats_auto(titre)
+        st.success("Base dispatchée !")
+        st.rerun()
+    tiroirs = st.tabs(["🔥 Matchs", "📂 Vivier", "📅 Entretiens"])
     with tiroirs[0]:
         for c in supabase.table("candidats").select("*").gte("score", 50).execute().data:
-            with st.expander(f"{c.get('nom_candidat')} - Score: {c.get('score')}%"):
-                if st.button(f"👍 Offrir Entretien", key=f"m_{c['id']}"): st.success("Entretien proposé !")
-    with tiroirs[1]:
-        for c in supabase.table("candidats").select("*").lt("score", 50).execute().data:
-            st.write(f"- {c.get('nom_candidat')} (Score: {c.get('score')}%)")
+            if st.button(f"Offrir Entretien: {c.get('nom_candidat')}", key=f"m_{c['id']}"): 
+                supabase.table("candidats").update({"statut": "Entretien"}).eq("id", c['id']).execute()
+                st.rerun()
 
 # --- FOOTER ---
 st.markdown("---")
-st.markdown("""
-<div style='text-align: center; font-family: sans-serif;'>
-    <p>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>CréationSites</b></p>
-    <p>Contact
-       <a href='mailto:creationsites06@gmail.com' style='text-decoration: none;'>
-           📧 
-       </a>
-    </p>
-</div>
-""", unsafe_allow_html=True)
+st.markdown("""<div style='text-align: center;'>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>zaxx.app</b><br>
+<a href='mailto:creationsites06@gmail.com' style='text-decoration: none;'>📧</div>""", unsafe_allow_html=True)
