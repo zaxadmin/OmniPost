@@ -39,11 +39,23 @@ def appliquer_design_geometrique(pdf, data):
 st.markdown("<h1 style='color:#000080;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 
 with st.sidebar:
+    # --- CORRECTION DU TOKEN ---
+    params = st.query_params
+    if "access_token" in params:
+        try:
+            supabase.auth.set_session(access_token=params["access_token"], refresh_token=None)
+            st.query_params.clear()
+            st.rerun()
+        except Exception as e: st.error(f"Erreur : {e}")
+    
     session = supabase.auth.get_session()
     if session:
         st.success(f"Connecté : {session.user.email}")
         profil = st.radio("Accéder en tant que :", ["Candidat", "Employeur"])
         if st.button("Déconnexion"): supabase.auth.sign_out(); st.rerun()
+        st.markdown("---")
+        st.link_button("Premium Candidat (6€)", "https://buy.stripe.com/9B6fZa08JeJZ9UScUQeIw04")
+        st.link_button("Premium Recruteur (39€)", "https://buy.stripe.com/7sY9AM3kVfO3aYW6wseIw03")
     else:
         email_in = st.text_input("Votre email")
         if st.button("Envoyer mon lien magique"): envoyer_lien_magique(email_in)
@@ -57,6 +69,17 @@ if profil == "Candidat":
     with tabs[1]:
         nom = st.text_input("Nom du fichier"); up = st.file_uploader("Upload", type=["pdf"])
         if st.button("💾 Enregistrer"): supabase.table("cvs").insert({"user_id": session.user.id, "nom_fichier": nom, "contenu": up.getvalue().hex()}).execute()
+    with tabs[2]:
+        metier = st.text_area("Intitulé du poste...")
+        up_cv = st.file_uploader("Upload CV", type=["pdf"])
+        if up_cv and metier and st.button("🚀 Optimiser & Designer"):
+            txt = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up_cv.getvalue())).pages])
+            data = obtenir_contenu_structure(txt, metier)
+            pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, data)
+            pdf_bytes = pdf.output(dest='S')
+            supabase.table("cvs").insert({"user_id": session.user.id, "nom_fichier": f"Relooké_{metier}", "contenu": pdf_bytes.hex()}).execute()
+            st.success("CV enregistré !")
+            st.download_button("⬇️ Télécharger", pdf_bytes.encode('latin-1'), "CV_Optimise.pdf")
     with tabs[3]:
         st.subheader("🌐 Sourcing")
         domaine = st.text_input("Métier"); ville = st.text_input("Ville")
