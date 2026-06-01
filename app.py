@@ -39,7 +39,7 @@ def appliquer_design_geometrique(pdf, data):
 st.markdown("<h1 style='color:#000080;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 
 with st.sidebar:
-    # --- GESTION DU TOKEN ---
+    # --- GESTION DU TOKEN (CORRECTE) ---
     params = st.query_params
     if "access_token" in params:
         try:
@@ -51,35 +51,31 @@ with st.sidebar:
     session = supabase.auth.get_session()
     if session:
         st.success(f"Connecté : {session.user.email}")
-        
-        # --- SÉLECTEUR DE PROFIL AVEC ACCÈS ADMIN ---
-        # Si c'est l'email admin, on permet le choix libre sans restriction
-        options = ["Candidat", "Employeur"]
-        profil = st.radio("Accéder en tant que :", options)
-            
+        # Accès administrateur total
+        profil = st.radio("Accéder en tant que :", ["Candidat", "Employeur"])
         if st.button("Déconnexion"): supabase.auth.sign_out(); st.rerun()
         st.markdown("---")
         st.link_button("Premium Candidat (6€)", "https://buy.stripe.com/9B6fZa08JeJZ9UScUQeIw04")
-        st.link_button("Premium Recruteur (39€)", "https://buy.streaming.com/7sY9AM3kVfO3aYW6wseIw03")
+        st.link_button("Premium Recruteur (39€)", "https://buy.stripe.com/7sY9AM3kVfO3aYW6wseIw03")
     else:
         email_in = st.text_input("Votre email")
         if st.button("Envoyer mon lien magique"): envoyer_lien_magique(email_in)
         profil = None
 
+# --- LOGIQUE D'ACCÈS ILLIMITÉ (ADMIN) ---
+is_admin = session and session.user.email == "creationsites06@gmail.com"
+
 if profil == "Candidat":
     tabs = st.tabs(["📂 Candidatures", "📄 CVs", "✨ Relooking", "🌐 Sourcing", "🎤 Entretien"])
     with tabs[0]:
         st.subheader("📋 Historique des candidatures")
-        # Accès admin illimité si l'email correspond
         if session:
             query = supabase.table("candidatures").select("*")
-            if session.user.email != "creationsites06@gmail.com":
-                query = query.eq("user_id", session.user.id)
+            if not is_admin: query = query.eq("user_id", session.user.id)
             st.table(pd.DataFrame(query.execute().data))
-            
     with tabs[1]:
         nom = st.text_input("Nom du fichier"); up = st.file_uploader("Upload", type=["pdf"])
-        if st.button("💾 Enregistrer"): supabase.table("cvs").insert({"user_id": session.user.id, "nom_fichier": nom, "contenu": up.getvalue().hex()}).execute()
+        if up and st.button("💾 Enregistrer"): supabase.table("cvs").insert({"user_id": session.user.id, "nom_fichier": nom, "contenu": up.getvalue().hex()}).execute()
     with tabs[2]:
         metier = st.text_area("Intitulé du poste...")
         up_cv = st.file_uploader("Upload CV", type=["pdf"])
@@ -89,8 +85,7 @@ if profil == "Candidat":
             pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, data)
             pdf_bytes = pdf.output(dest='S')
             supabase.table("cvs").insert({"user_id": session.user.id, "nom_fichier": f"Relooké_{metier}", "contenu": pdf_bytes.hex()}).execute()
-            st.success("CV enregistré !")
-            st.download_button("⬇️ Télécharger", pdf_bytes.encode('latin-1'), "CV_Optimise.pdf")
+            st.success("CV enregistré !"); st.download_button("⬇️ Télécharger", pdf_bytes.encode('latin-1'), "CV_Optimise.pdf")
     with tabs[3]:
         st.subheader("🌐 Sourcing")
         domaine = st.text_input("Métier"); ville = st.text_input("Ville")
@@ -102,7 +97,7 @@ if profil == "Candidat":
             st.markdown(f'<a href="{link}" target="_blank">📤 Ouvrir messagerie</a>', unsafe_allow_html=True)
     with tabs[4]:
         st.subheader("📅 Réservation Planning")
-        agendas = supabase.table("agenda").select("*").eq("statut", "disponible").execute()
+        agendas = supabase.table("agenda").select("*").execute()
         for slot in agendas.data:
             if st.button(f"Réserver {slot['creneau']}", key=f"s_{slot['id']}"):
                 res = supabase.rpc("reserver_creneau", {"p_agenda_id": slot['id'], "p_candidat_id": session.user.id, "p_candidature_id": None}).execute()
