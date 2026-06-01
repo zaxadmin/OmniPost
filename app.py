@@ -1,5 +1,4 @@
-import streamlit as st
-import datetime, pandas as pd, io, json
+import streamlit as st, datetime, pandas as pd, io, json, re
 from groq import Groq
 from supabase import create_client
 from pypdf import PdfReader
@@ -18,34 +17,27 @@ def envoyer_lien_magique(email):
     except Exception as e: st.error(f"Erreur : {e}")
 
 def obtenir_contenu_structure(txt_cv, metier):
-    # Prompt renforcé pour éviter les erreurs de clés manquantes
     prompt = f"""Analyse ce CV pour le poste '{metier}'. 
-    Retourne TOUJOURS un JSON strictement structuré avec ces clés exactes:
-    {{"header": {{"nom": "Nom Complet", "titre_poste": "Titre", "contact": "Tel/Email"}}, 
-      "sidebar": {{"contenu": "Compétences clés"}}, 
-      "main": {{"titre": "Résumé", "corps": "Expériences détaillées"}}, 
-      "mots_cles_ajoutes": "liste de mots clés"}}
-    CV original: {txt_cv}"""
-    
+    Retourne UNIQUEMENT un objet JSON. Structure: 
+    {{"header": {{"nom": "...", "titre_poste": "...", "contact": "..."}}, 
+      "sidebar": {{"contenu": "..."}}, 
+      "main": {{"titre": "...", "corps": "..."}}, 
+      "mots_cles_ajoutes": "..."}}
+    CV: {txt_cv}"""
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
-    # Nettoyage et parsing
-    return json.loads(res.choices[0].message.content.replace("```json", "").replace("```", ""))
+    content = res.choices[0].message.content.strip()
+    # Extraction robuste du JSON
+    json_match = re.search(r'\{.*\}', content, re.DOTALL)
+    return json.loads(json_match.group()) if json_match else json.loads(content)
 
 def appliquer_design_geometrique(pdf, data):
-    # Sécurisation avec .get() pour éviter le KeyError si l'IA oublie une clé
-    h = data.get('header', {})
-    s = data.get('sidebar', {})
-    m = data.get('main', {})
-    
+    h, s, m = data.get('header', {}), data.get('sidebar', {}), data.get('main', {})
     pdf.set_fill_color(52, 73, 94); pdf.rect(0, 0, 60, 300, 'F')
     pdf.set_text_color(255, 255, 255)
-    
-    pdf.set_xy(5, 10); pdf.set_font("Arial", 'B', 16); pdf.cell(50, 10, h.get('nom', 'Inconnu'), ln=True)
-    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 5, h.get('contact', 'Non renseigné'))
-    
+    pdf.set_xy(5, 10); pdf.set_font("Arial", 'B', 16); pdf.cell(50, 10, h.get('nom', 'N/A'), ln=True)
+    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 5, h.get('contact', ''))
     pdf.set_xy(5, 50); pdf.set_font("Arial", 'B', 14); pdf.cell(50, 10, "COMPÉTENCES", ln=True)
     pdf.set_font("Arial", size=10); pdf.multi_cell(50, 7, s.get('contenu', ''))
-    
     pdf.set_text_color(0, 0, 0); pdf.set_xy(70, 10); pdf.set_font("Arial", 'B', 18); pdf.cell(100, 10, h.get('titre_poste', ''), ln=True)
     pdf.set_xy(70, 30); pdf.set_font("Arial", 'B', 14); pdf.cell(100, 10, m.get('titre', ''), ln=True)
     pdf.set_xy(70, 45); pdf.set_font("Arial", size=11); pdf.multi_cell(130, 7, m.get('corps', ''))
@@ -54,16 +46,19 @@ def appliquer_design_geometrique(pdf, data):
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 
 with st.sidebar:
-    params = st.query_params
-    if "access_token" in params or "type" in params: st.rerun()
+    if "access_token" in st.query_params: st.rerun()
     session = supabase.auth.get_session()
-    if session: 
-        st.success(f"Connecté : {session.user.email}")
+    if session: st.success(f"Connecté : {session.user.email}")
     else:
         email_in = st.text_input("Votre email")
         if st.button("Envoyer mon lien"): envoyer_lien_magique(email_in)
+    st.markdown("---")
+    st.link_button("Premium Candidat (6€)", "https://buy.stripe.com/9B6fZa08JeJZ9UScUQeIw04")
+    st.link_button("Premium Recruteur (39€)", "https://buy.stripe.com/7sY9AM3kVfO3aYW6wseIw03")
 
 tabs = st.tabs(["🏠 Accueil", "🚀 Candidat", "💼 Employeur", "🔄 Matching"])
+
+with tabs[0]: st.write("Optimisez votre carrière avec zipngo.")
 
 with tabs[1]:
     dossiers = st.tabs(["📂 Candidatures", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing", "🎤 Entretien"])
@@ -74,8 +69,7 @@ with tabs[1]:
             user = supabase.auth.get_user()
             if user and user.user:
                 supabase.table("cvs").insert({"user_id": user.user.id, "nom_fichier": nom, "contenu": str(up.getvalue())}).execute()
-                st.success("CV enregistré !")
-            else: st.error("Connexion requise.")
+                st.success("Enregistré !")
     with dossiers[2]:
         metier = st.text_area("Intitulé du poste...")
         up_cv = st.file_uploader("Upload CV", type=["pdf"])
@@ -84,7 +78,20 @@ with tabs[1]:
             data = obtenir_contenu_structure(txt, metier)
             pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, data)
             st.download_button("⬇️ Télécharger CV", data=pdf.output(dest='S').encode('latin-1'), file_name="CV_Optimise.pdf")
+    with dossiers[3]:
+        if st.button("🔍 Lancer Sourcing"): st.success("Recherche active...")
+    with dossiers[4]:
+        if st.button("👍 Débloquer l'agenda"): st.session_state.agenda = True
 
-# Footer
+with tabs[2]:
+    metier = st.text_input("Métier")
+    if st.button("✅ Diffuser"):
+        user = supabase.auth.get_user()
+        if user and user.user:
+            supabase.table("mes_offres").insert({"user_id": user.user.id, "intitule": metier}).execute()
+
+with tabs[3]:
+    if st.button("👍 Valider fin entretien"): st.success("Anonymat levé.")
+
 st.markdown("---")
-st.markdown("<div style='text-align: center;'><a href='mailto:creationsites06@gmail.com'>📧</a></div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center;'>Créatrice : <b>Liliane RAKOTOBE</b> <a href='mailto:creationsites06@gmail.com'>📧</a></div>", unsafe_allow_html=True)
