@@ -26,8 +26,7 @@ def afficher_cgv():
 def obtenir_contenu_structure(txt_cv, metier):
     prompt = f"Analyse pour le poste '{metier}'. Retourne uniquement un JSON structuré avec: 'header' (nom, titre_poste, contact), 'sidebar' (contenu), 'main' (titre, corps), 'mots_cles_ajoutes'. CV: {txt_cv}"
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
-    return json.loads(res.choices[0].message.content.replace("```json", "").replace("
-```", ""))
+    return json.loads(res.choices[0].message.content.replace("```json", "").replace("```", ""))
 
 def appliquer_design_geometrique(pdf, data):
     pdf.set_fill_color(52, 73, 94); pdf.rect(0, 0, 60, 300, 'F')
@@ -51,8 +50,8 @@ st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue", langue
 st.markdown(f"""
 <div style='background-color: #eef2f7; padding: 25px; border-radius: 15px; border-left: 6px solid #4169E1;'>
     <h3 style='color: #000080; margin-top: 0;'>{traduire_avec_ia("Bienvenue sur zipngo", st.session_state.langue)}</h3>
-    <p style='font-size: 16px;'>{traduire_avec_ia("L'application intelligente au service de votre trajectoire professionnelle. Optimisez vos démarches, facilitez vos interactions et accélérez votre réussite grâce à notre écosystème conçu pour accompagner chaque étape de votre carrière.", st.session_state.langue)}</p>
-    <p style='font-size: 14px;'><strong>{traduire_avec_ia("Le Système du Pouce 👍 :", st.session_state.langue)}</strong> {traduire_avec_ia("Cliquez sur le pouce pour débloquer l'agenda, planifier votre visio, et le valider à deux pour lever l'anonymat et échanger vos coordonnées.", st.session_state.langue)}</p>
+    <p style='font-size: 16px;'>{traduire_avec_ia("L'application intelligente au service de votre trajectoire professionnelle. Optimisez vos démarches, facilitez vos interactions et accélérez votre réussite.", st.session_state.langue)}</p>
+    <p style='font-size: 14px;'><strong>{traduire_avec_ia("Le Système du Pouce 👍 :", st.session_state.langue)}</strong> {traduire_avec_ia("Cliquez sur le pouce pour débloquer l'agenda, planifier votre visio, et le valider à deux pour lever l'anonymat.", st.session_state.langue)}</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -70,31 +69,14 @@ with tab_home:
 
 with tab_candidat:
     dossiers = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["📂 Candidatures", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing", "🎤 Entretien"]])
-    with dossiers[0]:
-        response = supabase.table("sourcing").select("email_destinataire, date").order("date", desc=True).execute()
-        if response.data: st.table(pd.DataFrame(response.data))
     with dossiers[1]:
         type_doc = st.selectbox("Type", ["CV", "Lettre de Motivation"])
         nom_doc = st.text_input("Nom du document")
         up_file = st.file_uploader("Uploader", type=["pdf", "txt"])
         if st.button("💾 Enregistrer") and up_file and nom_doc:
-            supabase.table("cvs").insert({"nom_fichier": f"{nom_doc}_{type_doc}", "contenu": str(up_file.getvalue()), "type_document": type_doc}).execute()
+            user = supabase.auth.get_user()
+            supabase.table("cvs").insert({"user_id": user.user.id, "nom_fichier": f"{nom_doc}_{type_doc}", "contenu": str(up_file.getvalue()), "type_document": type_doc}).execute()
             st.rerun()
-    with dossiers[2]:
-        metier = st.text_area("Intitulé du poste...")
-        up = st.file_uploader("Upload CV", type=["pdf"])
-        if up and metier and st.button("🚀 Optimiser & Designer"):
-            txt = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up.getvalue())).pages])
-            data = obtenir_contenu_structure(txt, metier)
-            pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, data)
-            st.session_state.pdf_final = pdf.output(dest='S').encode('latin-1')
-            st.download_button("⬇️ Télécharger CV Design", data=st.session_state.pdf_final, file_name=f"CV_{metier[:10]}.pdf")
-    with dossiers[3]:
-        doms = ["Restauration", "Informatique", "Hôtellerie", "Santé", "Commerce", "BTP", "Logistique", "Finance", "Marketing"]
-        cat = st.selectbox("Domaine", doms)
-        ville = st.text_input("Ville cible")
-        is_remote = st.checkbox("Recherche uniquement en Remote")
-        if st.button("🔍 Rechercher"): st.success("Recherche lancée...")
     with dossiers[4]:
         st.subheader("🎤 Simulateur d'entretien")
         if st.button("👍 Débloquer l'agenda"): st.session_state.agenda = True
@@ -103,12 +85,13 @@ with tab_employeur:
     st.header("💼 Interface Recrutement")
     metier = st.text_input("Métier")
     ville = st.text_input("Ville")
-    if st.button("✨ Générer l'offre"): st.write("Offre générée...")
-    if st.button("✅ Valider et Diffuser"): supabase.table("mes_offres").insert({"intitule": metier, "ville": ville}).execute()
+    if st.button("✅ Valider et Diffuser"):
+        user = supabase.auth.get_user()
+        supabase.table("mes_offres").insert({"user_id": user.user.id, "intitule": metier, "ville": ville}).execute()
 
 with tab_matching:
     st.subheader("🔄 Matching Bidirectionnel")
-    if st.button("👍 Valider fin entretien"): st.success("Anonymat levé, coordonnées accessibles.")
+    if st.button("👍 Valider fin entretien"): st.success("Anonymat levé.")
 
 # --- FOOTER ---
 st.markdown("---")
