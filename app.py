@@ -39,7 +39,7 @@ def appliquer_design_geometrique(pdf, data):
 st.markdown("<h1 style='color:#000080;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 
 with st.sidebar:
-    # --- CORRECTION DU TOKEN ---
+    # --- GESTION DU TOKEN ---
     params = st.query_params
     if "access_token" in params:
         try:
@@ -51,7 +51,13 @@ with st.sidebar:
     session = supabase.auth.get_session()
     if session:
         st.success(f"Connecté : {session.user.email}")
-        profil = st.radio("Accéder en tant que :", ["Candidat", "Employeur"])
+        
+        # --- SÉLECTEUR DE PROFIL AVEC ACCÈS ADMIN ---
+        if session.user.email == "creationsites06@gmail.com":
+            profil = st.radio("Accéder en tant que :", ["Candidat", "Employeur"])
+        else:
+            profil = st.radio("Accéder en tant que :", ["Candidat", "Employeur"])
+            
         if st.button("Déconnexion"): supabase.auth.sign_out(); st.rerun()
         st.markdown("---")
         st.link_button("Premium Candidat (6€)", "https://buy.stripe.com/9B6fZa08JeJZ9UScUQeIw04")
