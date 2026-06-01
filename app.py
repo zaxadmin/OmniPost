@@ -44,14 +44,25 @@ def appliquer_design_geometrique(pdf, data):
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color:#555555; margin-top: -5px; font-size: 14px;'>.zaxx.app</p>", unsafe_allow_html=True)
 
-# Connexion & Sidebar
+# Connexion & Sidebar avec gestion du Jeton (Auth fix)
 with st.sidebar:
+    # Détection automatique du lien magique dans l'URL
+    params = st.query_params
+    if "access_token" in params or "type" in params:
+        st.info("Validation de votre connexion en cours...")
+        st.rerun()
+
     session = supabase.auth.get_session()
-    if session: st.success(f"Connecté : {session.user.email}")
+    if session: 
+        st.success(f"Connecté : {session.user.email}")
+        if st.button("Se déconnecter"):
+            supabase.auth.sign_out()
+            st.rerun()
     else:
         st.subheader("🔑 Connexion Lien Magique")
         email_in = st.text_input("Votre email")
         if st.button("Envoyer mon lien"): envoyer_lien_magique(email_in)
+    
     st.markdown("---")
     st.markdown("### 💎 Accès Premium")
     st.link_button("Premium Candidat (6€)", "https://buy.stripe.com/9B6fZa08JeJZ9UScUQeIw04")
@@ -78,7 +89,7 @@ with tabs[1]:
                     supabase.table("cvs").insert({"user_id": user.user.id, "nom_fichier": nom, "contenu": str(up.getvalue())}).execute()
                     st.success("CV enregistré !")
                 except Exception as e: st.error(f"Erreur : {e}")
-            else: st.error("Veuillez vous connecter d'abord.")
+            else: st.error("Connexion requise pour enregistrer un CV.")
     with dossiers[2]:
         metier = st.text_area("Intitulé du poste...")
         up_cv = st.file_uploader("Upload CV original", type=["pdf"])
