@@ -80,7 +80,7 @@ with tabs[2]:
             if cgv_cv and up and nom:
                 user = supabase.auth.get_user()
                 supabase.table("cvs").insert({"user_id": user.user.id, "nom_fichier": nom, "contenu": up.getvalue().hex()}).execute()
-            elif not cgv_cv: st.error("Vérillez accepter les CGV.")
+            elif not cgv_cv: st.error("Vérifiez accepter les CGV.")
         
         user = supabase.auth.get_user()
         if user and user.user:
@@ -124,12 +124,16 @@ with tabs[2]:
         
         st.markdown("---")
         st.subheader("📅 Mes propositions")
-        res_match = supabase.table("candidatures").select("*").eq("user_id", user.user.id).eq("statut", "match").execute()
-        for match in res_match.data:
-            st.success(f"Recruteur intéressé ! 👍")
-            heure = st.selectbox(f"Choisir créneau", ["09:00", "14:00"], key=match['id'])
-            if st.button("Confirmer", key=f"btn_{match['id']}"):
-                supabase.table("candidatures").update({"statut": f"RDV {heure}"}).eq("id", match['id']).execute()
+        user = supabase.auth.get_user()
+        if user and user.user:
+            res_match = supabase.table("candidatures").select("*").eq("user_id", user.user.id).eq("statut", "match").execute()
+            for match in res_match.data:
+                st.success(f"Recruteur intéressé ! 👍")
+                heure = st.selectbox(f"Choisir créneau", ["09:00", "14:00"], key=match['id'])
+                if st.button("Confirmer", key=f"btn_{match['id']}"):
+                    supabase.table("candidatures").update({"statut": f"RDV {heure}"}).eq("id", match['id']).execute()
+        else:
+            st.info("Veuillez vous connecter pour voir vos propositions de rendez-vous.")
 
 with tabs[3]:
     metier = st.text_input("Métier")
@@ -146,6 +150,6 @@ with tabs[4]:
 
 st.markdown("---")
 with st.expander("📜 Conditions Générales de Vente (CGV)"):
-    st.markdown("Nos services sont fournis 'en l'état'.")
+    st.markdown("Nos services sont fournis 'en l'état'. L'utilisation de zipngo implique l'acceptation de ces conditions.")
 
 st.markdown("<div style='text-align: center;'>Créatrice : <b>Liliane RAKOTOBE</b> <a href='mailto:creationsites06@gmail.com'>📧</a></div>", unsafe_allow_html=True)
