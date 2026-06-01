@@ -25,7 +25,7 @@ def envoyer_lien_magique(email):
     except Exception as e: st.error(f"Erreur : {e}")
 
 def obtenir_contenu_structure(txt_cv, metier):
-    prompt = f"Analyse pour le poste '{metier}'. Retourne uniquement un JSON structuré avec: 'header' (nom, titre_poste, contact), 'sidebar' (contenu), 'main' (titre, corps), 'mots_cles_ajoutes'. CV: {txt_cv}"
+    prompt = f"Analyse pour le poste '{metier}'. Retourne uniquement un JSON structuré avec: 'header', 'sidebar', 'main', 'mots_cles_ajoutes'. CV: {txt_cv}"
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
     return json.loads(res.choices[0].message.content.replace("```json", "").replace("```", ""))
 
@@ -95,6 +95,14 @@ with tabs[2]:
 with tabs[3]:
     if st.button("👍 Valider fin entretien"): st.success("Anonymat levé.")
 
-# Footer
+# Footer avec mailto
 st.markdown("---")
-st.markdown("<div style='text-align: center;'>Créatrice : <b>Liliane RAKOTOBE</b></div>", unsafe_allow_html=True)
+st.markdown(
+    """
+    <div style='text-align: center; color: #555555; padding: 20px;'>
+        <p>Créatrice : <b>Liliane RAKOTOBE</b></p>
+        <p><a href='mailto:creationsites06@gmail.com' style='text-decoration: none; font-size: 24px;'>📧</a></p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
