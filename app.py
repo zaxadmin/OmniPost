@@ -46,9 +46,12 @@ st.markdown("<p style='color:#555555; margin-top: -5px; font-size: 14px;'>.zaxx.
 
 # Connexion & Sidebar
 with st.sidebar:
-    st.subheader("🔑 Connexion Lien Magique")
-    email_in = st.text_input("Votre email")
-    if st.button("Envoyer mon lien"): envoyer_lien_magique(email_in)
+    session = supabase.auth.get_session()
+    if session: st.success(f"Connecté : {session.user.email}")
+    else:
+        st.subheader("🔑 Connexion Lien Magique")
+        email_in = st.text_input("Votre email")
+        if st.button("Envoyer mon lien"): envoyer_lien_magique(email_in)
     st.markdown("---")
     st.markdown("### 💎 Accès Premium")
     st.link_button("Premium Candidat (6€)", "https://buy.stripe.com/9B6fZa08JeJZ9UScUQeIw04")
@@ -68,9 +71,14 @@ with tabs[1]:
     with dossiers[1]:
         nom = st.text_input("Nom du document")
         up = st.file_uploader("Upload", type=["pdf", "txt"])
-        if st.button("💾 Enregistrer") and up and nom:
+        if st.button("💾 Enregistrer"):
             user = supabase.auth.get_user()
-            supabase.table("cvs").insert({"user_id": user.user.id, "nom_fichier": nom, "contenu": str(up.getvalue())}).execute()
+            if user and user.user:
+                try:
+                    supabase.table("cvs").insert({"user_id": user.user.id, "nom_fichier": nom, "contenu": str(up.getvalue())}).execute()
+                    st.success("CV enregistré !")
+                except Exception as e: st.error(f"Erreur : {e}")
+            else: st.error("Veuillez vous connecter d'abord.")
     with dossiers[2]:
         metier = st.text_area("Intitulé du poste...")
         up_cv = st.file_uploader("Upload CV original", type=["pdf"])
@@ -90,7 +98,12 @@ with tabs[2]:
     metier = st.text_input("Métier")
     if st.button("✅ Diffuser l'offre"):
         user = supabase.auth.get_user()
-        supabase.table("mes_offres").insert({"user_id": user.user.id, "intitule": metier}).execute()
+        if user and user.user:
+            try:
+                supabase.table("mes_offres").insert({"user_id": user.user.id, "intitule": metier}).execute()
+                st.success("Offre diffusée !")
+            except Exception as e: st.error(f"Erreur : {e}")
+        else: st.error("Connexion requise.")
 
 with tabs[3]:
     if st.button("👍 Valider fin entretien"): st.success("Anonymat levé.")
