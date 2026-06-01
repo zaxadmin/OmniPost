@@ -80,7 +80,7 @@ with tabs[2]:
             if cgv_cv and up and nom:
                 user = supabase.auth.get_user()
                 supabase.table("cvs").insert({"user_id": user.user.id, "nom_fichier": nom, "contenu": up.getvalue().hex()}).execute()
-            elif not cgv_cv: st.error("Vérifiez accepter les CGV.")
+            elif not cgv_cv: st.error("Veuillez accepter les CGV.")
         
         user = supabase.auth.get_user()
         if user and user.user:
@@ -117,39 +117,47 @@ with tabs[2]:
 
     with dossiers[4]:
         st.subheader("🎤 Entraînement & Planning")
-        reponse = st.text_area("Répondez à cette question : 'Quels sont vos points forts ?'")
-        if st.button("Analyser ma réponse"):
-            fb = client.chat.completions.create(messages=[{"role": "user", "content": f"Feedback entretien : {reponse}"}], model="llama-3.3-70b-versatile")
-            st.write(fb.choices[0].message.content)
-        
-        st.markdown("---")
-        st.subheader("📅 Mes propositions")
         user = supabase.auth.get_user()
         if user and user.user:
-            res_match = supabase.table("candidatures").select("*").eq("user_id", user.user.id).eq("statut", "match").execute()
-            for match in res_match.data:
-                st.success(f"Recruteur intéressé ! 👍")
-                heure = st.selectbox(f"Choisir créneau", ["09:00", "14:00"], key=match['id'])
-                if st.button("Confirmer", key=f"btn_{match['id']}"):
-                    supabase.table("candidatures").update({"statut": f"RDV {heure}"}).eq("id", match['id']).execute()
-        else:
-            st.info("Veuillez vous connecter pour voir vos propositions de rendez-vous.")
+            res_rdv = supabase.table("candidatures").select("*").eq("user_id", user.user.id).eq("statut", "en_attente_rdv").execute()
+            for rdv in res_rdv.data:
+                dispos = json.loads(rdv.get('dispos_recruteur', '[]'))
+                choix = st.radio(f"Le recruteur propose :", dispos, key=f"radio_{rdv['id']}")
+                if st.button("Confirmer", key=f"conf_{rdv['id']}"):
+                    supabase.table("candidatures").update({"statut": "RDV_FIXE", "heure_choisie": choix}).eq("id", rdv['id']).execute()
+                    st.rerun()
+        else: st.info("Veuillez vous connecter.")
 
 with tabs[3]:
-    metier = st.text_input("Métier")
-    cgv_offres = st.checkbox("J'accepte les CGV pour diffuser")
-    if st.button("✅ Diffuser"):
-        if cgv_offres:
-            user = supabase.auth.get_user()
-            if user and user.user:
-                supabase.table("mes_offres").insert({"user_id": user.user.id, "intitule": metier}).execute()
-        else: st.error("Veuillez accepter les CGV.")
+    st.subheader("💼 Espace Employeur")
+    # Section Rédaction IA
+    with st.expander("📝 Rédiger offre"):
+        metier = st.text_input("Poste")
+        ville = st.text_input("Ville/Remote")
+        if st.button("✨ Générer IA"):
+            prompt = f"Rédige annonce pour {metier} à {ville}."
+            st.session_state.annonce = client.chat.completions.create(messages=[{"role":"user", "content":prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
+            st.write(st.session_state.annonce)
+    
+    # Tiroirs
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("🎯 Matches")
+        user = supabase.auth.get_user()
+        if user and user.user:
+            res = supabase.table("candidatures").select("*").eq("user_id", user.user.id).eq("statut", "match").execute()
+            for cand in res.data:
+                with st.container(border=True):
+                    creneaux = st.multiselect("Proposer créneaux", ["09:00", "14:00"], key=f"s_{cand['id']}")
+                    if st.button("👍 Valider (Pouce)", key=f"p_{cand['id']}"):
+                        supabase.table("candidatures").update({"statut": "en_attente_rdv", "dispos_recruteur": json.dumps(creneaux)}).eq("id", cand['id']).execute()
+    with c2:
+        st.subheader("📂 Vivier")
+        st.write("Candidats en attente de traitement.")
 
 with tabs[4]:
     if st.button("👍 Valider fin entretien"): st.success("Anonymat levé.")
 
 st.markdown("---")
-with st.expander("📜 Conditions Générales de Vente (CGV)"):
-    st.markdown("Nos services sont fournis 'en l'état'. L'utilisation de zipngo implique l'acceptation de ces conditions.")
-
-st.markdown("<div style='text-align: center;'>Créatrice : <b>Liliane RAKOTOBE</b> <a href='mailto:creationsites06@gmail.com'>📧</a></div>", unsafe_allow_html=True)
+with st.expander("📜 CGV"): st.markdown("Nos services sont fournis 'en l'état'.")
+st.markdown("<div style='text-align: center;'>Créatrice : <b>Liliane RAKOTOBE</b></div>", unsafe_allow_html=True)
