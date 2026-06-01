@@ -1,4 +1,4 @@
-import streamlit as st, datetime, pandas as pd, io, json, re
+import streamlit as st, datetime, pandas as pd, io, json, re, urllib.parse
 from groq import Groq
 from supabase import create_client
 from pypdf import PdfReader
@@ -87,7 +87,21 @@ with tabs[1]:
             pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, data)
             st.download_button("⬇️ Télécharger CV", data=pdf.output(dest='S').encode('latin-1'), file_name="CV_Optimise.pdf")
     with dossiers[3]:
-        if st.button("🔍 Lancer Sourcing"): st.success("Recherche active...")
+        st.subheader("🌐 Sourcing Assisté")
+        domaine = st.text_input("Métier ciblé", placeholder="Infirmière, ASH...")
+        ville = st.text_input("Ville")
+        modele = f"Madame, Monsieur,\n\nActuellement à la recherche d'une opportunité en tant que {domaine} dans la région de {ville}, je me permets de vous adresser ma candidature.\n\nTrès intéressé(e) par vos activités, je souhaiterais vivement mettre mes compétences au service de vos équipes.\n\nVous trouverez mon CV ci-joint. Je reste à votre entière disposition pour un entretien.\n\nCordialement,\n\n[Votre Nom]\n[Votre Téléphone]"
+        emails_input = st.text_area("Collez ici les 20 emails (séparés par une virgule ou ligne)")
+        if st.button("✅ Préparer l'envoi"):
+            emails = [e.strip() for e in re.split(r'[,\n]+', emails_input) if '@' in e][:20]
+            if emails:
+                dest, cc_cache = emails[0], ",".join(emails[1:])
+                full_link = f"mailto:{dest}?bcc={cc_cache}&subject=Candidature-{domaine}&body=" + urllib.parse.quote(modele)
+                st.markdown(f'<a href="{full_link}" target="_blank" style="padding: 10px; background: #4169E1; color: white; text-decoration: none; border-radius: 5px;">📤 Ouvrir ma messagerie</a>', unsafe_allow_html=True)
+                user = supabase.auth.get_user()
+                if user and user.user:
+                    supabase.table("candidatures").insert({"user_id": user.user.id, "intitule_poste": domaine, "statut": "Email préparé"}).execute()
+            else: st.error("Veuillez coller au moins un email.")
     with dossiers[4]:
         if st.button("👍 Débloquer l'agenda"): st.session_state.agenda = True
 
