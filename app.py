@@ -11,21 +11,7 @@ client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 LANGUES = ["Français", "Anglais", "Espagnol", "Allemand", "Italien", "Portugais", "Chinois", "Japonais", "Russe", "Arabe", "Néerlandais", "Suédois", "Polonais", "Turc", "Coréen", "Hindi", "Vietnamien", "Thaï", "Indonésien", "Grec"]
 
-# --- GESTION DE SESSION (CORRIGÉE) ---
-def check_session():
-    params = st.query_params
-    # Vérifie si un jeton est présent
-    if "access_token" in params:
-        try:
-            supabase.auth.set_session(access_token=params["access_token"], refresh_token=params.get("refresh_token"))
-            st.query_params.clear() # On nettoie l'URL
-            st.rerun() # Rechargement propre pour initialiser la session
-        except Exception:
-            st.error("Session expirée ou invalide.")
-    
-    return supabase.auth.get_session()
-
-# --- FONCTIONS MÉTIER ---
+# --- FONCTIONS ---
 def obtenir_contenu_structure(txt_cv, metier):
     prompt = f"Analyse ce CV pour {metier}. Retourne JSON: {{header, sidebar, main, mots_cles_ajoutes}}. CV: {txt_cv}"
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
@@ -45,54 +31,37 @@ def appliquer_design_geometrique(pdf, data):
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='text-align: center; color:#000080;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 
-session = check_session()
+# Sélection directe de l'espace sans auth
+role = st.sidebar.radio("Choisissez votre espace :", ["Candidat", "Employeur"])
 
-if not session:
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        email = st.text_input("Email")
-        role = st.radio("Espace souhaité :", ["Candidat", "Employeur"], horizontal=True)
-        if st.button("Envoyer le lien de connexion"):
-            try:
-                supabase.auth.sign_in_with_otp({
-                    "email": email, 
-                    "options": {"data": {"role": role}, "email_redirect_to": "https://zipngo.streamlit.app/"}
-                })
-                st.info("Lien magique envoyé par email !")
-            except Exception as e:
-                st.error(f"Erreur : {e}")
-else:
-    role = session.user.user_metadata.get("role", "Candidat")
-    st.write(f"Connecté en tant que : **{role}**")
-    if st.button("Déconnexion"): supabase.auth.sign_out(); st.rerun()
+if role == "Candidat":
+    st.subheader("👤 Espace Candidat")
+    tabs = st.tabs(["📂 Candidatures", "📄 CVs", "✨ Relooking", "🌐 Sourcing", "🎤 Entretien"])
+    with tabs[0]:
+        st.subheader("📋 Historique des candidatures")
+        st.table(pd.DataFrame(supabase.table("candidatures").select("*").execute().data))
+    with tabs[1]:
+        nom = st.text_input("Nom du fichier"); up = st.file_uploader("Upload", type=["pdf"])
+        if up and st.button("💾 Enregistrer"): supabase.table("cvs").insert({"nom_fichier": nom, "contenu": up.getvalue().hex()}).execute()
+    with tabs[2]:
+        metier = st.text_area("Intitulé du poste..."); up_cv = st.file_uploader("Upload CV", type=["pdf"])
+        if up_cv and metier and st.button("🚀 Optimiser & Designer"):
+            txt = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up_cv.getvalue())).pages])
+            pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, obtenir_contenu_structure(txt, metier))
+            st.download_button("⬇️ Télécharger", pdf.output(dest='S').encode('latin-1'), "CV_Optimise.pdf")
+    with tabs[3]:
+        domaine = st.text_input("Métier"); emails_input = st.text_area("Emails")
+        if st.button("✅ Préparer l'envoi"):
+            st.markdown(f'<a href="mailto:?bcc={emails_input.replace(chr(10),",")}&subject=Candidature&body=Poste {domaine}">📤 Ouvrir messagerie</a>', unsafe_allow_html=True)
+    with tabs[4]:
+        for slot in supabase.table("agenda").select("*").execute().data:
+            if st.button(f"Réserver {slot['creneau']}", key=slot['id']): st.success("RDV pris !")
 
-    is_admin = session.user.email == "creationsites06@gmail.com"
-
-    if role == "Candidat":
-        tabs = st.tabs(["📂 Candidatures", "📄 CVs", "✨ Relooking", "🌐 Sourcing", "🎤 Entretien"])
-        with tabs[0]:
-            st.table(pd.DataFrame(supabase.table("candidatures").select("*").execute().data))
-        with tabs[1]:
-            nom = st.text_input("Nom du fichier"); up = st.file_uploader("Upload", type=["pdf"])
-            if up and st.button("💾 Enregistrer"): supabase.table("cvs").insert({"user_id": session.user.id, "nom_fichier": nom, "contenu": up.getvalue().hex()}).execute()
-        with tabs[2]:
-            metier = st.text_area("Intitulé du poste..."); up_cv = st.file_uploader("Upload CV", type=["pdf"])
-            if up_cv and metier and st.button("🚀 Optimiser & Designer"):
-                txt = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up_cv.getvalue())).pages])
-                pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, obtenir_contenu_structure(txt, metier))
-                st.download_button("⬇️ Télécharger", pdf.output(dest='S').encode('latin-1'), "CV_Optimise.pdf")
-        with tabs[3]:
-            domaine = st.text_input("Métier"); emails_input = st.text_area("Emails")
-            if st.button("✅ Préparer"):
-                st.markdown(f'<a href="mailto:?bcc={emails_input.replace(chr(10),",")}&subject=Candidature&body=Poste {domaine}">📤 Ouvrir</a>', unsafe_allow_html=True)
-        with tabs[4]:
-            for slot in supabase.table("agenda").select("*").execute().data:
-                if st.button(f"Réserver {slot['creneau']}", key=slot['id']): st.success("RDV pris !")
-
-    elif role == "Employeur":
-        st.subheader("💼 Espace Employeur")
-        metier = st.text_input("Poste")
-        if st.button("✨ Générer IA"):
-            st.write(client.chat.completions.create(messages=[{"role":"user", "content":f"Annonce pour {metier}"}], model="llama-3.3-70b-versatile").choices[0].message.content)
+elif role == "Employeur":
+    st.subheader("💼 Espace Employeur")
+    metier = st.text_input("Poste")
+    langue = st.selectbox("Langue", LANGUES)
+    if st.button("✨ Générer IA"):
+        st.write(client.chat.completions.create(messages=[{"role":"user", "content":f"Annonce pour {metier} en {langue}"}], model="llama-3.3-70b-versatile").choices[0].message.content)
 
 st.markdown("<div style='text-align: center;'>Créatrice : <b>Liliane RAKOTOBE</b></div>", unsafe_allow_html=True)
