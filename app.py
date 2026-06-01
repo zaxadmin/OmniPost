@@ -30,31 +30,39 @@ def appliquer_design_geometrique(pdf, data):
     pdf.set_xy(70, 45); pdf.set_font("Arial", size=11); pdf.multi_cell(130, 7, m.get('corps', ''))
 
 # --- UI PRINCIPALE ---
-st.markdown("<h1 style='color:#000080;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color:#000080;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 
-with st.sidebar:
-    session = supabase.auth.get_session()
+session = supabase.auth.get_session()
+
+if not session:
+    # --- PAGE DE CONNEXION CENTRÉE ---
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.subheader("Accès Espace Candidat / Employeur")
+        choix = st.radio("Mode", ["Connexion", "Inscription"], horizontal=True)
+        email = st.text_input("Email")
+        password = st.text_input("Mot de passe", type="password")
+        
+        if choix == "Connexion":
+            if st.button("Se connecter"):
+                try:
+                    supabase.auth.sign_in_with_password({"email": email, "password": password})
+                    st.rerun()
+                except: st.error("Erreur de connexion")
+        else:
+            if st.button("Créer mon compte"):
+                try:
+                    supabase.auth.sign_up({"email": email, "password": password})
+                    st.success("Compte créé ! Vérifiez votre email.")
+                except: st.error("Erreur d'inscription")
+else:
+    # --- APP APRÈS CONNEXION ---
+    st.success(f"Connecté : {session.user.email}")
+    if st.button("Déconnexion"): supabase.auth.sign_out(); st.rerun()
     
-    if not session:
-        st.subheader("Connexion")
-        email_login = st.text_input("Email")
-        password_login = st.text_input("Mot de passe", type="password")
-        if st.button("Se connecter"):
-            try:
-                supabase.auth.sign_in_with_password({"email": email_login, "password": password_login})
-                st.rerun()
-            except Exception as e: st.error("Email ou mot de passe incorrect")
-        profil = None
-    else:
-        st.success(f"Connecté : {session.user.email}")
-        profil = st.radio("Accéder en tant que :", ["Candidat", "Employeur"])
-        if st.button("Déconnexion"): supabase.auth.sign_out(); st.rerun()
-        st.markdown("---")
+    profil = st.radio("Choisissez votre espace de travail :", ["Candidat", "Employeur"], horizontal=True)
+    is_admin = session.user.email == "creationsites06@gmail.com"
 
-# --- LOGIQUE D'ACCÈS ILLIMITÉ (ADMIN) ---
-is_admin = session and session.user.email == "creationsites06@gmail.com"
-
-if profil:
     if profil == "Candidat":
         tabs = st.tabs(["📂 Candidatures", "📄 CVs", "✨ Relooking", "🌐 Sourcing", "🎤 Entretien"])
         with tabs[0]:
@@ -100,7 +108,5 @@ if profil:
             if st.button("✨ Générer IA"):
                 st.session_state.annonce = client.chat.completions.create(messages=[{"role":"user", "content":f"Annonce pour {metier} en {langue}"}], model="llama-3.3-70b-versatile").choices[0].message.content
                 st.write(st.session_state.annonce)
-else:
-    st.info("Veuillez vous connecter avec votre email et mot de passe.")
 
 st.markdown("<div style='text-align: center;'>Créatrice : <b>Liliane RAKOTOBE</b></div>", unsafe_allow_html=True)
