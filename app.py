@@ -26,7 +26,6 @@ def obtenir_contenu_structure(txt_cv, metier):
     CV: {txt_cv}"""
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
     content = res.choices[0].message.content.strip()
-    # Extraction robuste du JSON
     json_match = re.search(r'\{.*\}', content, re.DOTALL)
     return json.loads(json_match.group()) if json_match else json.loads(content)
 
@@ -62,6 +61,15 @@ with tabs[0]: st.write("Optimisez votre carrière avec zipngo.")
 
 with tabs[1]:
     dossiers = st.tabs(["📂 Candidatures", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing", "🎤 Entretien"])
+    with dossiers[0]:
+        st.subheader("📋 Historique des candidatures")
+        user = supabase.auth.get_user()
+        if user and user.user:
+            try:
+                res = supabase.table("candidatures").select("*").eq("user_id", user.user.id).execute()
+                if res.data: st.table(pd.DataFrame(res.data))
+                else: st.info("Aucune candidature.")
+            except: st.warning("Vérifiez la table 'candidatures' dans Supabase.")
     with dossiers[1]:
         nom = st.text_input("Nom du doc")
         up = st.file_uploader("Upload", type=["pdf", "txt"])
