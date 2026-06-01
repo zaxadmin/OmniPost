@@ -1,4 +1,5 @@
 import streamlit as st, pandas as pd, io, json, re
+import streamlit.components.v1 as components
 from groq import Groq
 from supabase import create_client
 from pypdf import PdfReader
@@ -10,6 +11,18 @@ supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 LANGUES = ["Français", "Anglais", "Espagnol", "Allemand", "Italien", "Portugais", "Chinois", "Japonais", "Russe", "Arabe", "Néerlandais", "Suédois", "Polonais", "Turc", "Coréen", "Hindi", "Vietnamien", "Thaï", "Indonésien", "Grec"]
+
+# --- CAPTURE DU TOKEN (GARDDIEN DE SESSION) ---
+components.html("""
+    <script>
+        // Si le jeton est dans le hash (#) après le chargement
+        if (window.location.hash) {
+            const hash = window.location.hash.substring(1);
+            // Redirige vers l'app avec le jeton en paramètre propre (?)
+            window.location.href = window.location.origin + "/?" + hash;
+        }
+    </script>
+""", height=0)
 
 # --- FONCTIONS ---
 def obtenir_contenu_structure(txt_cv, metier):
@@ -31,13 +44,13 @@ def appliquer_design_geometrique(pdf, data):
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='text-align: center; color:#000080;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 
-# Gestion du Magic Link
+# Gestion de la validation de session
 params = st.query_params
 if "access_token" in params:
     try:
-        supabase.auth.set_session(access_token=params["access_token"], refresh_token=None)
+        supabase.auth.set_session(access_token=params["access_token"], refresh_token=params.get("refresh_token"))
         st.query_params.clear(); st.rerun()
-    except: st.error("Lien invalide.")
+    except: st.error("Lien invalide ou expiré.")
 
 session = supabase.auth.get_session()
 
