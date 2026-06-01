@@ -1,101 +1,82 @@
 import streamlit as st
-import pandas as pd
-import io
-import json
+import datetime, pandas as pd, io, json
 from groq import Groq
 from supabase import create_client
 from pypdf import PdfReader
 from fpdf import FPDF
+import urllib.parse
 import resend
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="zipngo | Connexion Professionnelle", layout="wide")
+st.set_page_config(page_title="zipngo | ATS Premium", layout="wide")
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 resend.api_key = st.secrets["RESEND_API_KEY"]
 
-# --- SIDEBAR ---
-st.sidebar.title("🔐 Accès & Paramètres")
-email_auth = st.sidebar.text_input("📧 Votre email pour Magic Link")
-if st.sidebar.button("Envoyer lien de connexion"):
-    try:
-        supabase.auth.sign_in_with_otp({"email": email_auth})
-        st.sidebar.success("Vérifiez vos emails !")
-    except Exception: st.sidebar.error("Erreur d'envoi")
+# --- FONCTIONS ---
+@st.cache_data(show_spinner=False)
+def traduire_avec_ia(texte, langue_cible):
+    if langue_cible == "Français": return texte
+    prompt = f"Traduis le texte suivant en {langue_cible}. Renvoie uniquement le texte traduit : {texte}"
+    res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
+    return res.choices[0].message.content
 
-langues = ["Français", "English (US)", "Malagasy", "Español", "Deutsch", "Italiano", "Português", "Nederlands", "中文", "日本語", "한국어", "العربية", "हिन्दी", "Русский", "Türkçe", "Polski", "Svenska", "Dansk", "Suomi", "Norsk"]
-st.session_state.langue = st.sidebar.selectbox("🌐 Sélectionner une langue", langues)
-cgv = st.sidebar.checkbox("J'accepte les CGV")
+def afficher_cgv():
+    st.markdown("### Conditions Générales de Vente")
+    st.markdown("1. **Accès Candidat** : 6€ / 3 mois. 2. **Accès Recruteur** : 39€ / mois. 3. **Limites Gratuit** : 1 CV/mois, 1 campagne/mois. 4. **Premium** : 3 CVs/semaine, 20 mails/jour.")
 
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
+st.markdown("<p style='color:#555555; margin-top: -5px; font-size: 14px;'>.zaxx.app</p>", unsafe_allow_html=True)
 
-st.markdown("""
-<div style='background-color: #f0f2f6; padding: 25px; border-radius: 15px; border-left: 6px solid #4169E1; margin-bottom: 20px;'>
-    <h2 style='color: #000080; margin-top: 0;'>zipngo : Simplifiez vos rencontres professionnelles</h2>
-    <p style='font-size: 1.1em;'>Trouver le bon talent ou le poste idéal ne devrait pas être un parcours du combattant.</p>
-    <p><b>zipngo</b> est l'espace qui connecte vos ambitions en rendant chaque étape simple, fluide et rapide. Gagnez en sérénité et concentrez-vous sur l'essentiel : <b>la rencontre.</b></p>
+langues = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", "العربية (Arabe)", "हिन्दी (Hindi)", "Bengali", "Português", "Русский", "日本語 (Japonais)", "Deutsch", "한국어 (Coréen)", "Tiếng Việt", "Italiano", "Türkçe", "Polski", "Nederlands", "Bahasa Indonesia", "ภาษาไทย (Thaï)"]
+if 'langue' not in st.session_state: st.session_state.langue = "Français"
+st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue", langues, index=0)
+
+# Présentation officielle
+st.markdown(f"""
+<div style='background-color: #eef2f7; padding: 25px; border-radius: 15px; border-left: 6px solid #4169E1;'>
+    <h3 style='color: #000080; margin-top: 0;'>{traduire_avec_ia("Bienvenue sur zipngo", st.session_state.langue)}</h3>
+    <p style='font-size: 16px;'>{traduire_avec_ia("L'application intelligente au service de votre trajectoire professionnelle. Optimisez vos démarches, facilitez vos interactions et accélérez votre réussite grâce à notre écosystème conçu pour accompagner chaque étape de votre carrière.", st.session_state.langue)}</p>
+    <p style='font-size: 14px;'><strong>{traduire_avec_ia("Le Système du Pouce 👍 :", st.session_state.langue)}</strong> {traduire_avec_ia("Cliquez sur le pouce pour débloquer l'agenda, planifier votre visio, et le valider à deux pour lever l'anonymat et échanger vos coordonnées.", st.session_state.langue)}</p>
 </div>
 """, unsafe_allow_html=True)
 
-if not cgv:
-    st.warning("Veuillez accepter les CGV dans la barre latérale pour commencer.")
-    st.stop()
+# Barre latérale Premium
+st.sidebar.markdown("### 💎 Accès Premium")
+st.sidebar.link_button("Premium Candidat (6€/3mois)", "https://buy.stripe.com/9B6fZa08JeJZ9UScUQeIw04")
+st.sidebar.link_button("Premium Recruteur (39€/mois)", "https://buy.stripe.com/7sY9AM3kVfO3aYW6wseIw03")
 
-# --- FONCTIONS DES ESPACES ---
-def render_candidat():
-    dossiers = st.tabs(["📂 Candidatures", "📄 CVs", "✨ Relooking", "🌐 Sourcing", "🎤 Entretien"])
-    with dossiers[1]:
-        st.subheader("📄 Mes documents")
-        col_up, col_down = st.columns(2)
-        col_up.file_uploader("Ajouter un nouveau CV", type=["pdf"])
-        col_down.download_button("Télécharger CV Optimisé", data=b"data", file_name="Mon_CV_Optimise.pdf")
-    with dossiers[3]:
-        st.subheader("🌐 Sourcing (Recherche & Messagerie)")
-        cat = st.selectbox("Domaine", ["Restauration", "Informatique", "BTP", "Commerce"])
-        ville = st.text_input("Ville cible")
-        if st.button("🔍 Rechercher 20 contacts"): st.rerun()
+tab_home, tab_candidat, tab_employeur, tab_matching = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["🏠 Accueil", "🚀 Candidat", "💼 Employeur", "🔄 Matching"]])
+
+with tab_home:
+    with st.expander(traduire_avec_ia("📜 Lire les CGV", st.session_state.langue)): afficher_cgv()
+    st.checkbox(traduire_avec_ia("J'accepte les CGV", st.session_state.langue), key="accept_cgv")
+
+with tab_candidat:
+    dossiers = st.tabs(["📂 Candidatures", "📄 CVs", "✨ Relooking CV", "🌐 Sourcing", "🎤 Entretien"])
     with dossiers[4]:
-        st.subheader("🎤 Entraînement et Historique")
-        st.tabs(["🤖 Entraînement", "📅 Historique"])
+        st.subheader("🎤 Simulateur d'entretien")
+        if st.button("👍 Débloquer l'agenda"): st.session_state.agenda = True
+        if st.session_state.get('agenda'): st.write("Agenda ouvert.")
 
-def render_recruteur():
-    st.subheader("💼 Espace Recruteur")
-    st.info("📢 **Gestion des recrutements** : Gérez vos offres et triez vos candidats.")
+with tab_employeur:
+    st.header("💼 Interface Recrutement")
+    st.link_button("Souscrire Premium Recruteur", "https://buy.stripe.com/7sY9AM3kVfO3aYW6wseIw03")
 
-# --- LOGIQUE D'ONBOARDING ET ACCÈS ---
-user = supabase.auth.get_user()
-profil = supabase.table("profils").select("*").eq("email", user.user.email).execute().data if user else None
-
-if not profil and user:
-    st.subheader("Bienvenue ! Configurez votre profil :")
-    choix = st.radio("Vous êtes :", ["Candidat", "Recruteur"])
-    if st.button("Valider"):
-        role = choix.lower()
-        supabase.table("profils").insert({"email": user.user.email, "role": role}).execute()
-        st.rerun()
-    st.stop()
-
-# --- AFFICHAGE FINAL ---
-if user and user.user.email == "creationsites06@gmail.com":
-    st.info("🛠️ Mode Administrateur activé")
-    t1, t2 = st.tabs(["🚀 Espace Candidat", "💼 Espace Recruteur"])
-    with t1: render_candidat()
-    with t2: render_recruteur()
-elif profil:
-    role = profil[0]['role']
-    if role == "candidat": render_candidat()
-    else: render_recruteur()
+with tab_matching:
+    st.subheader("🔄 Matching Bidirectionnel")
+    if st.button("👍 Valider fin entretien"): 
+        st.success("Anonymat levé, coordonnées accessibles.")
 
 # --- FOOTER ---
 st.markdown("---")
-st.markdown("""
-<div style='text-align: center; font-family: sans-serif;'>
-    <p>Créé par <b>Liliane RAKOTOBE</b> | Propulsé par <b>zaxx.app</b></p>
-    <p>Contact
-        <a href='mailto:creationsites06@gmail.com' style='text-decoration: none;'>
-            📧
-        </a>
-    </p>
-</div>
-""", unsafe_allow_html=True)
+st.markdown(
+    """
+    <div style='text-align: center; color: #555555; padding: 20px;'>
+        <p>Créatrice : <b>Liliane RAKOTOBE</b></p>
+        <p><a href='mailto:creationsites06@gmail.com' style='text-decoration: none; font-size: 24px;'>📧</a></p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
