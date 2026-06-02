@@ -44,14 +44,14 @@ if role == "Candidat":
         nom = st.text_input("Nom du fichier"); up = st.file_uploader("Upload", type=["pdf"])
         if up and st.button("💾 Enregistrer"):
             try:
-                # Tentative d'insertion avec gestion d'erreur
+                # Tentative d'insertion avec user_id forcé à "anonyme"
                 supabase.table("cvs").insert({
                     "nom_fichier": nom, 
-                    "contenu": up.getvalue().hex()
+                    "contenu": up.getvalue().hex(),
+                    "user_id": "anonyme"
                 }).execute()
                 st.success("Enregistré avec succès !")
             except Exception as e:
-                # Affiche l'erreur détaillée pour vous aider à diagnostiquer
                 st.error(f"Détail de l'erreur Supabase : {e}")
     with tabs[2]:
         metier = st.text_area("Intitulé du poste..."); up_cv = st.file_uploader("Upload CV", type=["pdf"])
