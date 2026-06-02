@@ -162,6 +162,8 @@ with tab_candidat:
             response = supabase.table("sourcing").select("email_destinataire, date").order("date", desc=True).execute()
             if response.data: st.table(pd.DataFrame(response.data))
         except Exception as e: st.error(f"Erreur : {e}")
+    
+    # --- DOSSIER 1 : CVS (AVEC AJOUT DE LA SUPPRESSION) ---
     with dossiers[1]:
         st.subheader("📄 Mes Documents & CVs")
         type_doc = st.selectbox("Type", ["CV", "Lettre de Motivation"])
@@ -170,12 +172,25 @@ with tab_candidat:
         if st.button("💾 Enregistrer") and up_file and nom_doc:
             supabase.table("cvs").insert({"nom_fichier": f"{nom_doc}_{type_doc}", "contenu": str(up_file.getvalue()), "type_document": type_doc}).execute()
             st.rerun()
+        
         data = supabase.table("cvs").select("id, nom_fichier, contenu").execute().data
         if data:
+            st.markdown("---")
             for doc in data:
-                c1, c2 = st.columns([3, 1])
+                c1, c2, c3 = st.columns([3, 1, 1])
                 c1.write(f"📄 {doc['nom_fichier']}")
-                c2.download_button("⬇️ Télécharger", data=doc['contenu'], file_name=f"{doc['nom_fichier']}.pdf")
+                c2.download_button("⬇️ Télécharger", data=doc['contenu'], file_name=f"{doc['nom_fichier']}.pdf", key=f"dl_{doc['id']}")
+                
+                # Ajout de l'action de suppression avec identifiant unique
+                if c3.button("🗑️ Supprimer", key=f"del_{doc['id']}", help="Supprimer définitivement ce document"):
+                    try:
+                        # Suppression également des correspondances associées au CV pour éviter les erreurs de contraintes SQL
+                        supabase.table("matching_offres_candidats").delete().eq("candidat_id", doc['id']).execute()
+                        supabase.table("cvs").delete().eq("id", doc['id']).execute()
+                        st.success(f"Document supprimé !")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erreur lors de la suppression : {e}")
                 
     # --- INTERFACE CANDIDAT : SCAN & OPTIMISATION ATS ---
     with dossiers[2]:
@@ -185,13 +200,9 @@ with tab_candidat:
         
         if up and metier and st.button("🚀 Lancer l'optimisation ATS"):
             with st.spinner("Analyse sémantique et scan de conformité en cours..."):
-                # Extraction du texte du PDF
                 txt = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up.getvalue())).pages])
-                
-                # Sauvegarde du texte brut extrait pour utilisation ultérieure (Coordonnées du Sourcing)
                 st.session_state.texte_cv_brut = txt
                 
-                # Génération du rapport complet par l'IA
                 prompt_ats = f"""
                 Tu es un auditeur de systèmes ATS et un coach en recrutement expert. Analyse le CV suivant pour le poste '{metier}'.
                 Génère un bilan d'optimisation textuel structuré de manière rigoureuse en suivant exactement ces sections :
@@ -212,21 +223,16 @@ with tab_candidat:
 
         if 'rapport_ats' in st.session_state:
             st.success("🎯 Analyse et optimisation terminées avec succès !")
-            
-            # Affichage du rapport structuré à l'écran
             st.markdown(st.session_state.rapport_ats)
-            
             st.markdown("---")
             st.subheader("💾 Zone de Copie & Sauvegarde")
             st.info("Le champ ci-dessous contient l'intégralité du rapport rédigé. Vous pouvez le modifier ou le copier-coller librement.")
             
-            # Zone permettant le copier/coller facile
             texte_a_copier = st.text_area(
                 "Texte intégral brut (Prêt pour Copier-Coller) :", 
                 value=st.session_state.rapport_ats, 
                 height=400
             )
-            
             st.download_button(
                 "⬇️ Télécharger le Rapport d'Optimisation (.txt)", 
                 data=texte_a_copier, 
@@ -258,7 +264,7 @@ with tab_candidat:
                         res = client.chat.completions.create(
                             messages=[{"role": "user", "content": prompt_scrap}], 
                             model="llama-3.3-70b-versatile",
-                            temperature=0.0  # Bloque l'imagination pour le scraping légal
+                            temperature=0.0
                         )
                         emails_bruts = res.choices[0].message.content.strip()
                         st.session_state.emails = [e.strip() for e in emails_bruts.split(',') if "@" in e]
@@ -268,24 +274,20 @@ with tab_candidat:
                         
         if 'emails' in st.session_state and st.session_state.emails:
             st.success(f"✅ {len(st.session_state.emails)} adresses emails extraites par scraping légal et validées.")
-            
             with st.expander("📋 Consulter les entreprises ciblées (Données Publiques)"):
                 st.write(st.session_state.emails)
                 
             st.markdown("---")
             st.subheader("✉️ Préparation de votre envoi groupé sécurisé")
             
-            # Valeurs par défaut issues de l'identité du candidat
             nom_candidat = "Liliane OTOBE"
             tel_candidat = "[Votre Numéro de Téléphone]"
             
-            # Extraction automatique du numéro de téléphone depuis le scan de CV brut s'il existe
             if 'texte_cv_brut' in st.session_state:
                 telephones = re.findall(r'(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}', st.session_state.texte_cv_brut)
                 if telephones:
                     tel_candidat = telephones[0]
                     
-            # Rédaction d'un texte générique de candidature spontanée engageant
             corps_modele = f"""Madame, Monsieur,
 
 C'est avec une réelle motivation que je me permets de vous adresser ma candidature spontanée. Très attentive à l'évolution de votre secteur et à la dynamique de votre structure, je souhaite mettre mes compétences, ma rigueur et mon esprit d'initiative au service de vos futurs projets professionnels.
@@ -302,18 +304,14 @@ Cordialement,
 📞 Téléphone : {tel_candidat}"""
 
             msg = st.text_area("Message :", value=corps_modele, height=280)
-            
             if st.button("🚀 Envoyer à 20 contacts"): 
                 st.success("Campagne envoyée !")
                 
-            # Distribution : 1er destinataire en To, les 19 autres cachés (Bcc) pour la confidentialité
             destinataire_principal = st.session_state.emails[0]
             copies_cachees = ",".join(st.session_state.emails[1:])
             objet_mail = "Candidature spontanée"
             
-            # Encodage URL standard conforme pour mailto
             mailto_url = f"mailto:{destinataire_principal}?bcc={copies_cachees}&subject={urllib.parse.quote(objet_mail)}&body={urllib.parse.quote(msg)}"
-            
             st.warning("📎 **Rappel :** Pensez à attacher manuellement votre CV (**Liliane...OTOBE.pdf**) dès que votre logiciel de messagerie s'ouvre.")
             
             st.markdown(f"""
@@ -365,7 +363,7 @@ with tab_employeur:
         rok_key = st.text_input("Remote OK API Key", type="password", value=current_config.get("remote_ok_api_key", ""))
 
         st.subheader("📄 Jobboards gérés par Flux automatiques")
-        st.info(f"URL unique à soumettre à vos gestionnaires Indeed / APEC / Welcome to the Jungle : \n`https://zipngo.zaxx.app/feeds/jobs?emp={id_employeur}`")
+        st.info(f"URL unique à soumettre à vos gestionnaires Indeed / APEC / Welcome to the Jungle : \n`[https://zipngo.zaxx.app/feeds/jobs?emp=](https://zipngo.zaxx.app/feeds/jobs?emp=){id_employeur}`")
 
         if st.button("💾 Enregistrer mes identifiants"):
             data_config = {
