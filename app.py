@@ -44,7 +44,9 @@ if role == "Candidat":
     
     with tabs[0]:
         st.subheader("📋 Historique")
-        st.table(pd.DataFrame(supabase.table("candidatures").select("*").execute().data))
+        try:
+            st.table(pd.DataFrame(supabase.table("candidatures").select("*").execute().data))
+        except: st.write("Aucune donnée.")
         
     with tabs[1]:
         nom = st.text_input("Nom du fichier"); up = st.file_uploader("Upload", type=["pdf"])
@@ -59,11 +61,10 @@ if role == "Candidat":
         
         metier = st.text_area("Intitulé du poste visé...")
         up_cv = st.file_uploader("Upload CV actuel", type=["pdf"])
-        style_choisi = st.selectbox("Style graphique", ["Classique", "Moderne", "Épuré"])
         
         if up_cv and metier and st.button("🔍 Scanner mon CV"):
             txt = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up_cv.getvalue())).pages])
-            prompt = f"Analyse ce CV pour '{metier}'. Score ATS (0-100), feedback, et structure JSON: {{'header':{{'nom','contact','titre_poste'}}, 'sidebar':{{'contenu'}}, 'main':{{'titre','corps'}}}} CV: {txt}"
+            prompt = f"Analyse ce CV pour '{metier}'. Retourne uniquement un JSON strict: {{'score': 0-100, 'feedback': '...', 'header': {{'nom', 'contact', 'titre_poste'}}, 'sidebar': {{'contenu'}}, 'main': {{'titre', 'corps'}}}} CV: {txt}"
             res = client.chat.completions.create(messages=[{"role":"user", "content":prompt}], model="llama-3.3-70b-versatile")
             st.session_state.cv_data = json.loads(re.search(r'\{.*\}', res.choices[0].message.content.strip(), re.DOTALL).group())
             
@@ -71,6 +72,7 @@ if role == "Candidat":
             st.metric("Score ATS", f"{st.session_state.cv_data.get('score', 'N/A')}/100")
             st.info(st.session_state.cv_data.get('feedback', ''))
             
+            style_choisi = st.selectbox("Style graphique", ["Classique", "Moderne", "Épuré"])
             if st.button("✅ Valider et Télécharger"):
                 pdf = FPDF()
                 pdf.add_page()
@@ -81,8 +83,10 @@ if role == "Candidat":
         domaine = st.text_input("Métier"); emails_input = st.text_area("Emails")
         if st.button("✅ Préparer l'envoi"): st.markdown(f'<a href="mailto:?bcc={emails_input.replace(chr(10),",")}&subject=Candidature&body=Poste {domaine}">📤 Ouvrir messagerie</a>', unsafe_allow_html=True)
     with tabs[4]:
-        for slot in supabase.table("agenda").select("*").execute().data:
-            if st.button(f"Réserver {slot['creneau']}", key=slot['id']): st.success("RDV pris !")
+        try:
+            for slot in supabase.table("agenda").select("*").execute().data:
+                if st.button(f"Réserver {slot['creneau']}", key=slot['id']): st.success("RDV pris !")
+        except: st.write("Agenda non disponible.")
 
 elif role == "Employeur":
     st.subheader("💼 Espace Employeur")
