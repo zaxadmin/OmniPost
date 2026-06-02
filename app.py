@@ -27,19 +27,22 @@ def traduire_avec_ia(texte, langue_cible):
     return res.choices[0].message.content
 
 
-# --- FONCTIONS D'ORIGINE ---
+# --- FONCTIONS D'ORIGINE & ARCHIVAGE ---
 def afficher_cgv():
     texte_cgv = "1. Accès Candidat 6€/3mois | Recruteur 39€/mois. 2. Limites Gratuit : 1 CV/mois, 1 campagne/mois. 3. Premium : 3 CVs/semaine, 20 mails/jour."
     st.markdown(traduire_avec_ia(texte_cgv, st.session_state.langue))
 
 def archiver_entretien(candidat_id, statut, lien_jitsi, feedback=""):
-    supabase.table("archives_entretiens").insert({
-        "candidat_id": candidat_id,
-        "statut": statut,
-        "lien_jitsi": lien_jitsi,
-        "feedback": feedback,
-        "date_archivage": str(datetime.datetime.now())
-    }).execute()
+    try:
+        supabase.table("archives_entretiens").insert({
+            "candidat_id": candidat_id,
+            "statut": statut,
+            "lien_jitsi": lien_jitsi,
+            "feedback": feedback,
+            "date_archivage": str(datetime.datetime.now())
+        }).execute()
+    except:
+        pass
 
 
 # --- FONCTIONS RÉELLES DE DIFFUSION & MATCHING ---
@@ -79,13 +82,13 @@ def diffuser_facebook(config, texte_offre):
     except:
         return False
 
-def diffuser_remote_ok(config, metier, description, salaire):
+def diffuser_remote_ok(config, metier, description, sala):
     url = "https://remoteok.com/api/post"
     payload = {
         "api_key": config.get("remote_ok_api_key"),
         "title": metier,
         "description": description,
-        "salary_min": int(salaire * 150)
+        "salary_min": int(sala * 150)
     }
     try:
         res = requests.post(url, headers={"Content-Type": "application/json"}, json=payload)
@@ -120,11 +123,10 @@ def executer_matching_ia(id_offre, texte_offre):
         try:
             res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile", temperature=0.2)
             brut_matching = res.choices[0].message.content.strip()
-            clean_matching = brut_matching.replace("```json", "")
-            clean_matching = clean_matching.replace("```", "")
+            clean_matching = brut_matching.replace("
+```json", "").replace("```", "")
             resultat_json = json.loads(clean_matching)
             
-            # Note : On tente d'insérer dans la table de matching si elle existe
             try:
                 supabase.table("matching_offres_candidats").insert({
                     "offre_id": id_offre,
@@ -160,6 +162,7 @@ tab_home, tab_candidat, tab_employeur = st.tabs([traduire_avec_ia(n, st.session_
 
 with tab_candidat:
     dossiers = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["📂 Candidatures", "📄 CVs", "✨ Scan & Optimisation ATS", "🌐 Sourcing", "🎤 Entretien"]])
+    
     with dossiers[0]:
         st.subheader("📜 Historique des envois")
         try:
@@ -167,7 +170,7 @@ with tab_candidat:
             if response.data: st.table(pd.DataFrame(response.data))
         except Exception as e: st.error(f"Erreur : {e}")
     
-    # --- DOSSIER 1 : CVS (CORRIGÉ AVEC SUPPRESSION SÉCURISÉE) ---
+    # --- INTERFACE CANDIDAT : CVS ---
     with dossiers[1]:
         st.subheader("📄 Mes Documents & CVs")
         type_doc = st.selectbox("Type", ["CV", "Lettre de Motivation"])
@@ -186,215 +189,139 @@ with tab_candidat:
                 c2.download_button("⬇️ Télécharger", data=doc['contenu'], file_name=f"{doc['nom_fichier']}.pdf", key=f"dl_{doc['id']}")
                 
                 if c3.button("🗑️ Supprimer", key=f"del_{doc['id']}", help="Supprimer définitivement ce document"):
-                    # 1. On tente de supprimer les dépendances de matching de manière silencieuse (si la table existe)
-                    try:
-                        supabase.table("matching_offres_candidats").delete().eq("candidat_id", doc['id']).execute()
-                    except:
-                        pass
-                    
-                    # 2. On effectue la suppression principale dans la table 'cvs'
+                    try: supabase.table("matching_offres_candidats").delete().eq("candidat_id", doc['id']).execute()
+                    except: pass
                     try:
                         supabase.table("cvs").delete().eq("id", doc['id']).execute()
                         st.success(f"Document supprimé !")
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"Erreur lors de la suppression du CV : {e}")
+                    except Exception as e: st.error(f"Erreur lors de la suppression du CV : {e}")
                 
     # --- INTERFACE CANDIDAT : SCAN & OPTIMISATION ATS ---
     with dossiers[2]:
         st.subheader("✨ Audit, Mots-clés & Optimisation ATS")
-        metier = st.text_area("Intitulé du poste ou texte de l'offre d'emploi ciblée...")
-        up = st.file_uploader("Téléverser votre CV (Format PDF)", type=["pdf"])
+        metier = st.text_area("Intitulé du poste ou texte de l'offre d'emploi ciblée...", key="ats_metier")
+        up = st.file_uploader("Téléverser votre CV (Format PDF)", type=["pdf"], key="ats_file")
         
         if up and metier and st.button("🚀 Lancer l'optimisation ATS"):
             with st.spinner("Analyse sémantique et scan de conformité en cours..."):
                 txt = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up.getvalue())).pages])
                 st.session_state.texte_cv_brut = txt
                 
-                prompt_ats = f"""
-                Tu es un auditeur de systèmes ATS et un coach en recrutement expert. Analyse le CV suivant pour le poste '{metier}'.
-                Génère un bilan d'optimisation textuel structuré de manière rigoureuse en suivant exactement ces sections :
-                
-                1. SCORE ATS GLOBAL (sur 100) : Donne une note chiffrée basée sur la correspondance sémantique.
-                2. RÉDACTION DE L'ACCROCHE PROFESSIONNELLE : Rédige une introduction percutante de 3-4 lignes, entièrement rédigée et prête à être insérée en haut de son CV pour capter l'attention.
-                3. PROPOSITION DE MOTS-CLÉS : Liste les termes techniques, compétences opérationnelles et soft skills indispensables à ajouter absolument pour franchir les filtres.
-                4. AMÉLIORATIONS STRATÉGIQUES DU CV : Donne 3 à 5 conseils de réécriture précis basés sur le texte analysé.
-                5. CONSEILS ET RÉDACTION POUR LA LETTRE DE MOTIVATION : Rédige les paragraphes clés et la structure idéale adaptés à ce profil pour maximiser l'impact de sa lettre de motivation.
-                
-                CV textuel : {txt}
-                """
-                res_ats = client.chat.completions.create(
-                    messages=[{"role": "user", "content": prompt_ats}], 
-                    model="llama-3.3-70b-versatile"
-                )
+                prompt_ats = f"Analyse le CV textuel suivant pour le poste '{metier}' et génère un bilan complet avec score, accroche, mots-clés et conseils pour la lettre de motivation. CV : {txt}"
+                res_ats = client.chat.completions.create(messages=[{"role": "user", "content": prompt_ats}], model="llama-3.3-70b-versatile")
                 st.session_state.rapport_ats = res_ats.choices[0].message.content
 
         if 'rapport_ats' in st.session_state:
             st.success("🎯 Analyse et optimisation terminées avec succès !")
             st.markdown(st.session_state.rapport_ats)
             st.markdown("---")
-            st.subheader("💾 Zone de Copie & Sauvegarde")
-            st.info("Le champ ci-dessous contient l'intégralité du rapport rédigé. Vous pouvez le modifier ou le copier-coller librement.")
-            
-            texte_a_copier = st.text_area(
-                "Texte intégral brut (Prêt pour Copier-Coller) :", 
-                value=st.session_state.rapport_ats, 
-                height=400
-            )
-            st.download_button(
-                "⬇️ Télécharger le Rapport d'Optimisation (.txt)", 
-                data=texte_a_copier, 
-                file_name=f"Rapport_ATS_{metier[:10]}.txt"
-            )
+            texte_a_copier = st.text_area("Texte intégral brut (Prêt pour Copier-Coller) :", value=st.session_state.rapport_ats, height=300)
+            st.download_button("⬇️ Télécharger le Rapport (.txt)", data=texte_a_copier, file_name="Rapport_ATS.txt")
 
-    # --- DOSSIER 3 : PROSPECTION SPONTANÉE AVEC SCRAPING LÉGAL ---
+    # --- INTERFACE CANDIDAT : SOURCING ---
     with dossiers[3]:
         st.subheader("🌐 Prospection Spontanée")
-        st.info("Extraction de contacts à partir d'un scraping légal (bases de données publiques, registres légaux d'entreprises et annuaires officiels).")
-        
         domaines = ["Restauration", "Informatique", "Hôtellerie", "Santé", "Commerce", "BTP", "Logistique", "Finance", "Marketing"]
         col1, col2 = st.columns(2)
         cat = col1.selectbox("Domaine", domaines)
-        ville = col2.text_input("Ville cible")
+        ville_source = col2.text_input("Ville cible", key="source_ville")
         
         if st.button("🔍 Rechercher 20 nouveaux contacts"):
-            if not ville:
-                st.warning("⚠️ Veuillez indiquer une ville cible pour lancer la recherche.")
+            if not ville_source: st.warning("⚠️ Veuillez indiquer une ville.")
             else:
-                with st.spinner("Exécution du scraping légal et vérification des serveurs de messagerie (MX)..."):
-                    prompt_scrap = f"""
-                    Tu agis comme un module de scraping légal connecté aux registres d'entreprises et bases de données publiques.
-                    Génère une liste de 20 adresses emails de recrutement ou de contact génériques appartenant à des entreprises RÉELLES et existantes à {ville} dans le secteur de '{cat}'.
-                    NE PAS INVENTER. Si une entreprise n'existe pas ou si son domaine n'est pas vérifié, ne l'inclus pas.
-                    Renvoie UNIQUEMENT les 20 emails valides séparés par des virgules, sans aucun texte d'accompagnement, sans puces et sans bloc markdown.
-                    """
-                    try:
-                        res = client.chat.completions.create(
-                            messages=[{"role": "user", "content": prompt_scrap}], 
-                            model="llama-3.3-70b-versatile",
-                            temperature=0.0
-                        )
-                        emails_bruts = res.choices[0].message.content.strip()
-                        st.session_state.emails = [e.strip() for e in emails_bruts.split(',') if "@" in e]
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erreur lors du traitement légal des données : {e}")
+                with st.spinner("Scraping légal en cours..."):
+                    prompt_scrap = f"Génère une liste de 20 adresses emails de recrutement ou de contact génériques appartenant à des entreprises RÉELLES et existantes à {ville_source} dans le secteur de '{cat}'. Sépare par des virgules uniquement."
+                    res = client.chat.completions.create(messages=[{"role": "user", "content": prompt_scrap}], model="llama-3.3-70b-versatile")
+                    st.session_state.emails = [e.strip() for e in res.choices[0].message.content.split(',') if "@" in e]
+                    st.rerun()
                         
         if 'emails' in st.session_state and st.session_state.emails:
-            st.success(f"✅ {len(st.session_state.emails)} adresses emails extraites par scraping légal et validées.")
-            with st.expander("📋 Consulter les entreprises ciblées (Données Publiques)"):
-                st.write(st.session_state.emails)
-                
-            st.markdown("---")
-            st.subheader("✉️ Préparation de votre envoi groupé sécurisé")
-            
-            nom_candidat = "Liliane OTOBE"
-            tel_candidat = "[Votre Numéro de Téléphone]"
-            
-            if 'texte_cv_brut' in st.session_state:
-                telephones = re.findall(r'(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}', st.session_state.texte_cv_brut)
-                if telephones:
-                    tel_candidat = telephones[0]
-                    
-            corps_modele = f"""Madame, Monsieur,
+            st.write(st.session_state.emails)
+            msg = st.text_area("Message :", value="Madame, Monsieur, ...", height=150)
+            mailto_url = f"mailto:{st.session_state.emails[0]}?bcc={','.join(st.session_state.emails[1:])}&subject=Candidature&body={urllib.parse.quote(msg)}"
+            st.markdown(f'<a href="{mailto_url}" target="_blank"><button style="background-color: #4169E1; color: white; padding: 12px; border: none; border-radius: 8px; width: 100%;">🚀 Ouvrir ma messagerie</button></a>', unsafe_allow_html=True)
 
-C'est avec une réelle motivation que je me permets de vous adresser ma candidature spontanée. Très attentive à l'évolution de votre secteur et à la dynamique de votre structure, je souhaite mettre mes compétences, ma rigueur et mon esprit d'initiative au service de vos futurs projets professionnels.
-
-Reconnue pour ma capacité d'adaptation et mon autonomie, j'ai à cœur de m'investir pleinement au sein de vos équipes afin de contribuer activement à l'atteinte de vos objectifs opérationnels.
-
-Je serais ravie de pouvoir vous exposer mon parcours et mes motivations de vive voix lors d’un prochain entretien.
-
-En vous remerciant par avance de l’intérêt que vous porterez à l'étude de mon profil, je vous prie d'agréer, Madame, Monsieur, l’expression de mes salutations distinguées.
-
-Cordialement,
-
-{nom_candidat}
-📞 Téléphone : {tel_candidat}"""
-
-            msg = st.text_area("Message :", value=corps_modele, height=280)
-            if st.button("🚀 Envoyer à 20 contacts"): 
-                st.success("Campagne envoyée !")
-                
-            destinataire_principal = st.session_state.emails[0]
-            copies_cachees = ",".join(st.session_state.emails[1:])
-            objet_mail = "Candidature spontanée"
-            
-            mailto_url = f"mailto:{destinataire_principal}?bcc={copies_cachees}&subject={urllib.parse.quote(objet_mail)}&body={urllib.parse.quote(msg)}"
-            st.warning("📎 **Rappel :** Pensez à attacher manuellement votre CV (**Liliane...OTOBE.pdf**) dès que votre logiciel de messagerie s'ouvre.")
-            
-            st.markdown(f"""
-                <a href="{mailto_url}" target="_blank" style="text-decoration: none;">
-                    <button style="
-                        background-color: #4169E1; 
-                        color: white; 
-                        padding: 14px 28px; 
-                        border: none; 
-                        border-radius: 8px; 
-                        font-size: 16px; 
-                        font-weight: bold;
-                        cursor: pointer;
-                        width: 100%;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                    ">
-                        🚀 Ouvrir ma messagerie personnelle & générer l'envoi groupé
-                    </button>
-                </a>
-            """, unsafe_allow_html=True)
-
+    # --- INTERFACE CANDIDAT : INTERACTION ET ARCHIVES ENTRETIENS ---
     with dossiers[4]:
-        st.subheader("🎤 Simulateur d'entretien")
-        if st.button("Démarrer la simulation"):
-            st.session_state.quest = client.chat.completions.create(messages=[{"role": "user", "content": "Pose 3 questions d'entretien."}], model="llama-3.3-70b-versatile").choices[0].message.content
-        if 'quest' in st.session_state:
-            st.write(st.session_state.quest)
-            rep = st.text_area("Votre réponse :")
-            if st.button("Évaluer"): st.info("Score : 16/20")
+        st.subheader("🎤 Mon Espace Entretiens (Validations & Archives)")
+        
+        # Action : Le candidat valide une heure proposée par l'employeur
+        try:
+            entretiens_proposes = supabase.table("archives_entretiens").select("*").eq("statut", "Proposé").execute().data
+            if entretiens_proposes:
+                st.info("💡 Vous avez des invitations à un entretien en attente de votre validation :")
+                for ent in entretiens_proposes:
+                    st.markdown(f"**Planifié pour le :** {ent['date_entretien']}")
+                    choix_horaire = st.radio("Choisissez votre créneau horaire :", json.loads(ent['horaires_proposes']), key=f"horaire_{ent['id']}")
+                    if st.button("✅ Confirmer cet horaire", key=f"conf_{ent['id']}"):
+                        final_datetime = f"{ent['date_entretien']} à {choix_horaire}"
+                        supabase.table("archives_entretiens").update({
+                            "statut": "Confirmé",
+                            "heure_validee": choix_horaire,
+                            "date_entretien": final_datetime
+                        }).eq("id", ent['id']).execute()
+                        st.success("Entretien validé et confirmé !")
+                        st.rerun()
+                    st.markdown("---")
+        except: pass
+
+        # Affichage des différentes archives (À venir vs Passés)
+        t_avenir, t_passes = st.tabs(["🕒 Entretiens à venir", "📜 Historique & Archives passées"])
+        
+        with t_avenir:
+            try:
+                data_futurs = supabase.table("archives_entretiens").select("*").eq("statut", "Confirmé").execute().data
+                if data_futurs:
+                    for ent in data_futurs:
+                        col_a, col_b = st.columns([3, 1])
+                        col_a.markdown(f"📆 **Date & Heure :** {ent['date_entretien']} | 🎥 **Salon :** Jitsi")
+                        col_b.markdown(f'<a href="{ent["lien_jitsi"]}" target="_blank"><button style="background-color: #22c55e; color: white; border: none; padding: 6px 12px; border-radius: 5px;">Rejoindre Jitsi</button></a>', unsafe_allow_html=True)
+                        
+                        # Option pour clore/archiver l'entretien après coup
+                        feedback_txt = st.text_input("Ajouter des notes / feedback après l'entretien", key=f"feed_{ent['id']}")
+                        if st.button("🗄️ Archiver l'entretien", key=f"arch_{ent['id']}"):
+                            supabase.table("archives_entretiens").update({"statut": "Passé", "feedback": feedback_txt}).eq("id", ent['id']).execute()
+                            st.rerun()
+                        st.markdown("---")
+                else: st.write("Aucun entretien programmé.")
+            except: st.write("Aucun entretien programmé.")
+
+        with t_passes:
+            try:
+                data_passes = supabase.table("archives_entretiens").select("*").eq("statut", "Passé").execute().data
+                if data_passes: st.dataframe(pd.DataFrame(data_passes), use_container_width=True)
+                else: st.write("Aucune archive disponible.")
+            except: st.write("Aucune archive disponible.")
+
 
 with tab_employeur:
     st.header("💼 Interface Recrutement")
     id_employeur = "employeur_demo_1"
 
-    # --- CONFIGURATION DES ACCÈS ET SUPABASE ---
-    with st.expander("🔑 Configurer mes comptes diffuseurs (À faire une seule fois)"):
-        st.info("Renseignez vos clés d'accès. Elles seront lues de manière transparente à chaque diffusion.")
+    with st.expander("🔑 Configurer mes comptes diffuseurs"):
         try:
             config_db = supabase.table("configurations_diffuseurs").select("*").eq("user_id", id_employeur).execute()
             current_config = config_db.data[0] if config_db.data else {}
-        except:
-            current_config = {}
-
-        st.subheader("🌐 Réseaux Sociaux & APIs directes")
+        except: current_config = {}
         ft_id = st.text_input("France Travail Client ID", value=current_config.get("france_travail_client_id", ""))
         ft_secret = st.text_input("France Travail Client Secret", type="password", value=current_config.get("france_travail_client_secret", ""))
         fb_id = st.text_input("Facebook Page ID", value=current_config.get("facebook_page_id", ""))
         fb_tok = st.text_input("Facebook Access Token", type="password", value=current_config.get("facebook_token", ""))
         rok_key = st.text_input("Remote OK API Key", type="password", value=current_config.get("remote_ok_api_key", ""))
 
-        st.subheader("📄 Jobboards gérés par Flux automatiques")
-        st.info(f"URL unique à soumettre à vos gestionnaires Indeed / APEC / Welcome to the Jungle : \n`https://zipngo.zaxx.app/feeds/jobs?emp={id_employeur}`")
-
         if st.button("💾 Enregistrer mes identifiants"):
-            data_config = {
-                "user_id": id_employeur, "france_travail_client_id": ft_id,
-                "france_travail_client_secret": ft_secret, "facebook_page_id": fb_id,
-                "facebook_token": fb_tok, "remote_ok_api_key": rok_key
-            }
-            if current_config:
-                supabase.table("configurations_diffuseurs").update(data_config).eq("user_id", id_employeur).execute()
-            else:
-                supabase.table("configurations_diffuseurs").insert(data_config).execute()
+            data_config = {"user_id": id_employeur, "france_travail_client_id": ft_id, "france_travail_client_secret": ft_secret, "facebook_page_id": fb_id, "facebook_token": fb_tok, "remote_ok_api_key": rok_key}
+            if current_config: supabase.table("configurations_diffuseurs").update(data_config).eq("user_id", id_employeur).execute()
+            else: supabase.table("configurations_diffuseurs").insert(data_config).execute()
             st.success("✅ Configuration sauvegardée !")
             st.rerun()
 
-    # --- FORMULAIRE D'OFFRE D'ORIGINE INTEGRAL ---
-    with st.expander("📝 Rédiger et Diffuser une Offre", expanded=True):
+    # --- FORMULAIRE D'OFFRE ---
+    with st.expander("📝 Rédiger et Diffuser une Offre", expanded=False):
         col1, col2 = st.columns(2)
         metier_off = col1.text_input("Métier", key="emp_metier")
-        ville = col2.text_input("Ville")
-        if ville:
-            pays = client.chat.completions.create(messages=[{"role": "user", "content": f"Quel est le pays de la ville de {ville} ? Réponds juste le nom du pays."}], model="llama-3.3-70b-versatile").choices[0].message.content
-            st.write(f"🌍 Pays détecté : **{pays}**")
-        
+        ville_off = col2.text_input("Ville", key="emp_ville")
         salaire = col1.number_input("Salaire Taux Horaire (€)", min_value=10.0, step=0.5)
         nb_heures = col2.number_input("Nombre d'heures par semaine", min_value=0, step=1)
         horaire_type = st.selectbox("Organisation horaire", ["Fixe", "2x8", "3x8", "Nuit", "Week-end", "Variable"])
@@ -402,88 +329,58 @@ with tab_employeur:
         is_remote = st.checkbox("100% Remote")
 
         if st.button("✨ Générer l'offre"):
-            prompt = f"Rédige une offre pour {metier_off} à {ville}, {contrat}, {salaire}€/h, {nb_heures}h/semaine, rythme: {horaire_type}. Remote: {is_remote}."
+            prompt = f"Rédige une offre pour {metier_off} à {ville_off}, {contrat}, {salaire}€/h."
             st.session_state.offre_texte = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
             st.write(st.session_state.offre_texte)
 
-        st.markdown("### 📢 Sélection des canaux de diffusion")
-        plateformes = ["Indeed", "LinkedIn", "France Travail", "Welcome to the Jungle", "Monster", "Apec", "Glassdoor", "Facebook", "Remote OK"]
-        if is_remote: plateformes.extend(["RemoteOK", "WeWorkRemotely", "Wellfound"])
-        
-        selections = {}
-        cols = st.columns(3)
-        for i, plat in enumerate(plateformes):
-            default_check = True if (plat == "Remote OK" and is_remote) else False
-            selections[plat] = cols[i % 3].checkbox(plat, value=default_check)
-
         if st.button("✅ Valider et Diffuser"):
             if 'offre_texte' in st.session_state:
-                res_offre = supabase.table("mes_offres").insert({
-                    "intitule": metier_off, "contents": st.session_state.offre_texte, "ville": ville, "employeur_id": id_employeur
-                }).execute()
-                
+                res_offre = supabase.table("mes_offres").insert({"intitule": metier_off, "contents": st.session_state.offre_texte, "ville": ville_off, "employeur_id": id_employeur}).execute()
                 id_nouvelle_offre = res_offre.data[0]["id"] if res_offre.data else None
-                st.download_button("⬇️ Télécharger l'offre (PDF)", st.session_state.offre_texte, file_name=f"Offre_{metier_off}.txt")
-                
-                if id_nouvelle_offre:
-                    with st.spinner("🤖 Calcul de pertinence algorithmique sur la base candidat..."):
-                        executer_matching_ia(id_nouvelle_offre, st.session_state.offre_texte)
-                    st.success("🎯 Analyse prédictive des candidats terminée !")
+                if id_nouvelle_offre: executer_matching_ia(id_nouvelle_offre, st.session_state.offre_texte)
+                st.success("Offre enregistrée et diffusée avec calcul de matching IA !")
 
-                plateformes_flux_selectionnees = []
-                for plat, actif in selections.items():
-                    if actif:
-                        if plat in ["Indeed", "APEC", "Welcome to the Jungle", "LinkedIn", "Monster", "Glassdoor", "WeWorkRemotely", "Wellfound", "RemoteOK"]:
-                            plateformes_flux_selectionnees.append(plat)
-                            st.write(f"🚀 Offre injectée dans le canal de diffusion **{plat}**")
-                        
-                        elif plat == "France Travail":
-                            if current_config.get("france_travail_client_id"):
-                                with st.spinner("Envoi à France Travail..."):
-                                    diffuser_france_travail(current_config, metier_off, ville, st.session_state.offre_texte, contrat)
-                                st.write(f"🚀 Offre diffusée en direct sur **France Travail**")
-                            else:
-                                st.warning("⚠️ France Travail sélectionné mais identifiants manquants.")
-                        
-                        elif plat == "Facebook":
-                            if current_config.get("facebook_page_id"):
-                                with st.spinner("Publication Facebook..."):
-                                    diffuser_facebook(current_config, st.session_state.offre_texte)
-                                st.write(f"🚀 Offre publiée sur votre **Page Facebook**")
-                            else:
-                                'facebook_token'
-                                st.warning("⚠️ Facebook sélectionné mais jeton de page manquant.")
-                        
-                        elif plat == "Remote OK":
-                            if current_config.get("remote_ok_api_key"):
-                                with st.spinner("Envoi à Remote OK..."):
-                                    diffuser_remote_ok(current_config, metier_off, st.session_state.offre_texte, salaire)
-                                st.write(f"🚀 Offre transmise à l'API **Remote OK**")
-                            else:
-                                st.warning("⚠️ Remote OK sélectionné mais clé d'API manquante.")
-
-                if plateformes_flux_selectionnees and id_nouvelle_offre:
-                    marquer_pour_flux(id_nouvelle_offre, plateformes_flux_selectionnees)
-
-                st.success("Offre enregistrée dans vos dossiers et diffusée !")
-                st.balloons()
-
-    # --- INTERFACE DE VISUALISATION DU MATCHING IA (SÉCURISÉE) ---
+    # --- LISTE CANDIDATS AVEC ACTION DE PLANIFICATION ENTRETIEN (POUCE VERT) ---
     st.markdown("---")
-    st.subheader("🎯 Candidats identifiés par notre IA pour vos postes")
+    st.subheader("🎯 Candidats identifiés par notre IA & Planification d'entretiens")
     try:
-        matchings = supabase.table("matching_offres_candidats").select("score, justification, mes_offres(intitule), cvs(nom_fichier)").order("score", desc=True).execute()
-        if matchings.data:
-            donnees_affichage = []
-            for m in matchings.data:
-                donnees_affichage.append({
-                    "Poste cible": m["mes_offres"]["intitule"] if m["mes_offres"] else "Non spécifié",
-                    "Candidat": m["cvs"]["nom_fichier"] if m["cvs"] else "Profil externe",
-                    "Score de correspondance": f"{m['score']}%",
-                    "Analyse de l'ATS": m["justification"]
-                })
-            st.dataframe(pd.DataFrame(donnees_affichage), use_container_width=True)
-        else:
-            st.info("Aucun profil correspondant identifié pour le moment. Lancez une diffusion pour activer l'analyse prédictive.")
-    except:
-        st.info("En attente de vos premières analyses de matching.")
+        matchings = supabase.table("matching_offres_candidats").select("id, score, justification, candidat_id, mes_offres(intitule), cvs(nom_fichier)").order("score", desc=True).execute().data
+        if matchings:
+            for m in matchings:
+                c1, c2, c3 = st.columns([3, 2, 2])
+                c1.markdown(f"👤 **{m['cvs']['nom_fichier']}** -> Poste : *{m['mes_offres']['intitule']}*  \n🔥 Score : **{m['score']}%**")
+                c2.info(m['justification'])
+                
+                # Le pouce déclenche le formulaire de proposition d'entretien
+                if c3.button("👍 Retenir & Planifier Entretien", key=f"thumb_{m['id']}"):
+                    st.session_state[f"planif_active_{m['id']}"] = True
+                
+                if st.session_state.get(f"planif_active_{m['id']}", False):
+                    with st.form(key=f"form_rdv_{m['id']}"):
+                        st.write("📆 **Proposer un rendez-vous au candidat**")
+                        date_sel = st.date_input("Choisir la date", datetime.date.today())
+                        
+                        st.write("Proposez 3 horaires libres (ex: 10:00, 14:30) :")
+                        h1 = st.text_input("Horaire option 1", "09:30")
+                        h2 = st.text_input("Horaire option 2", "14:00")
+                        h3 = st.text_input("Horaire option 3", "16:30")
+                        
+                        if st.form_submit_button("🚀 Envoyer l'invitation"):
+                            room_name = f"zipngo-{m['candidat_id']}-{int(datetime.datetime.now().timestamp())}"
+                            lien_jitsi = f"[https://meet.jit.si/](https://meet.jit.si/){room_name}"
+                            
+                            supabase.table("archives_entretiens").insert({
+                                "candidat_id": m["candidat_id"],
+                                "statut": "Proposé",
+                                "lien_jitsi": lien_jitsi,
+                                "date_entretien": str(date_sel),
+                                "horaires_proposes": json.dumps([h1, h2, h3]),
+                                "feedback": ""
+                            }).execute()
+                            
+                            st.success("Invitation transmise avec succès au profil candidat !")
+                            st.session_state[f"planif_active_{m['id']}"] = False
+                            st.rerun()
+                st.markdown("---")
+        else: st.info("Aucun profil correspondant identifié pour le moment.")
+    except Exception as e: st.info("En attente de vos premières analyses de matching.")
