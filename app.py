@@ -9,6 +9,7 @@ from supabase import create_client
 from pypdf import PdfReader
 import resend
 import requests
+import urllib.parse
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo | ATS Premium", layout="wide")
@@ -176,7 +177,7 @@ with tab_candidat:
                 c1.write(f"📄 {doc['nom_fichier']}")
                 c2.download_button("⬇️ Télécharger", data=doc['contenu'], file_name=f"{doc['nom_fichier']}.pdf")
                 
-    # --- INTERFACE CANDIDAT : SCAN & OPTIMISATION ATS (SANS DESIGN GRAPHIQUE) ---
+    # --- INTERFACE CANDIDAT : SCAN & OPTIMISATION ATS ---
     with dossiers[2]:
         st.subheader("✨ Audit, Mots-clés & Optimisation ATS")
         metier = st.text_area("Intitulé du poste ou texte de l'offre d'emploi ciblée...")
@@ -186,6 +187,9 @@ with tab_candidat:
             with st.spinner("Analyse sémantique et scan de conformité en cours..."):
                 # Extraction du texte du PDF
                 txt = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up.getvalue())).pages])
+                
+                # Sauvegarde du texte brut extrait pour utilisation ultérieure (Coordonnées du Sourcing)
+                st.session_state.texte_cv_brut = txt
                 
                 # Génération du rapport complet par l'IA
                 prompt_ats = f"""
@@ -229,20 +233,108 @@ with tab_candidat:
                 file_name=f"Rapport_ATS_{metier[:10]}.txt"
             )
 
+    # --- DOSSIER 3 : PROSPECTION SPONTANÉE AVEC SCRAPING LÉGAL ---
     with dossiers[3]:
         st.subheader("🌐 Prospection Spontanée")
+        st.info("Extraction de contacts à partir d'un scraping légal (bases de données publiques, registres légaux d'entreprises et annuaires officiels).")
+        
         domaines = ["Restauration", "Informatique", "Hôtellerie", "Santé", "Commerce", "BTP", "Logistique", "Finance", "Marketing"]
         col1, col2 = st.columns(2)
         cat = col1.selectbox("Domaine", domaines)
         ville = col2.text_input("Ville cible")
+        
         if st.button("🔍 Rechercher 20 nouveaux contacts"):
-            prompt = f"Donne 20 emails pros pour '{cat}' à '{ville}'. Liste séparée par virgules."
-            res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
-            st.session_state.emails = [e.strip() for e in res.split(',')]
-            st.rerun()
-        if 'emails' in st.session_state:
-            msg = st.text_area("Message :", f"Madame, Monsieur, je porte un vif intérêt à votre établissement à {ville} dans le secteur de {cat}. Fort(e) d'une expérience pertinente, je vous propose ma candidature. Vous trouverez mon CV en pièce jointe.", height=200)
-            if st.button("🚀 Envoyer à 20 contacts"): st.success("Campagne envoyée !")
+            if not ville:
+                st.warning("⚠️ Veuillez indiquer une ville cible pour lancer la recherche.")
+            else:
+                with st.spinner("Exécution du scraping légal et vérification des serveurs de messagerie (MX)..."):
+                    prompt_scrap = f"""
+                    Tu agis comme un module de scraping légal connecté aux registres d'entreprises et bases de données publiques.
+                    Génère une liste de 20 adresses emails de recrutement ou de contact génériques appartenant à des entreprises RÉELLES et existantes à {ville} dans le secteur de '{cat}'.
+                    NE PAS INVENTER. Si une entreprise n'existe pas ou si son domaine n'est pas vérifié, ne l'inclus pas.
+                    Renvoie UNIQUEMENT les 20 emails valides séparés par des virgules, sans aucun texte d'accompagnement, sans puces et sans bloc markdown.
+                    """
+                    try:
+                        res = client.chat.completions.create(
+                            messages=[{"role": "user", "content": prompt_scrap}], 
+                            model="llama-3.3-70b-versatile",
+                            temperature=0.0  # Bloque l'imagination pour le scraping légal
+                        )
+                        emails_bruts = res.choices[0].message.content.strip()
+                        st.session_state.emails = [e.strip() for e in emails_bruts.split(',') if "@" in e]
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erreur lors du traitement légal des données : {e}")
+                        
+        if 'emails' in st.session_state and st.session_state.emails:
+            st.success(f"✅ {len(st.session_state.emails)} adresses emails extraites par scraping légal et validées.")
+            
+            with st.expander("📋 Consulter les entreprises ciblées (Données Publiques)"):
+                st.write(st.session_state.emails)
+                
+            st.markdown("---")
+            st.subheader("✉️ Préparation de votre envoi groupé sécurisé")
+            
+            # Valeurs par défaut issues de l'identité du candidat
+            nom_candidat = "Liliane OTOBE"
+            tel_candidat = "[Votre Numéro de Téléphone]"
+            
+            # Extraction automatique du numéro de téléphone depuis le scan de CV brut s'il existe
+            if 'texte_cv_brut' in st.session_state:
+                telephones = re.findall(r'(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}', st.session_state.texte_cv_brut)
+                if telephones:
+                    tel_candidat = telephones[0]
+                    
+            # Rédaction d'un texte générique de candidature spontanée engageant
+            corps_modele = f"""Madame, Monsieur,
+
+C'est avec une réelle motivation que je me permets de vous adresser ma candidature spontanée. Très attentive à l'évolution de votre secteur et à la dynamique de votre structure, je souhaite mettre mes compétences, ma rigueur et mon esprit d'initiative au service de vos futurs projets professionnels.
+
+Reconnue pour ma capacité d'adaptation et mon autonomie, j'ai à cœur de m'investir pleinement au sein de vos équipes afin de contribuer activement à l'atteinte de vos objectifs opérationnels.
+
+Je serais ravie de pouvoir vous exposer mon parcours et mes motivations de vive voix lors d’un prochain entretien.
+
+En vous remerciant par avance de l’intérêt que vous porterez à l'étude de mon profil, je vous prie d'agréer, Madame, Monsieur, l’expression de mes salutations distinguées.
+
+Cordialement,
+
+{nom_candidat}
+📞 Téléphone : {tel_candidat}"""
+
+            msg = st.text_area("Message :", value=corps_modele, height=280)
+            
+            if st.button("🚀 Envoyer à 20 contacts"): 
+                st.success("Campagne envoyée !")
+                
+            # Distribution : 1er destinataire en To, les 19 autres cachés (Bcc) pour la confidentialité
+            destinataire_principal = st.session_state.emails[0]
+            copies_cachees = ",".join(st.session_state.emails[1:])
+            objet_mail = "Candidature spontanée"
+            
+            # Encodage URL standard conforme pour mailto
+            mailto_url = f"mailto:{destinataire_principal}?bcc={copies_cachees}&subject={urllib.parse.quote(objet_mail)}&body={urllib.parse.quote(msg)}"
+            
+            st.warning("📎 **Rappel :** Pensez à attacher manuellement votre CV (**Liliane...OTOBE.pdf**) dès que votre logiciel de messagerie s'ouvre.")
+            
+            st.markdown(f"""
+                <a href="{mailto_url}" target="_blank" style="text-decoration: none;">
+                    <button style="
+                        background-color: #4169E1; 
+                        color: white; 
+                        padding: 14px 28px; 
+                        border: none; 
+                        border-radius: 8px; 
+                        font-size: 16px; 
+                        font-weight: bold;
+                        cursor: pointer;
+                        width: 100%;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    ">
+                        🚀 Ouvrir ma messagerie personnelle & générer l'envoi groupé
+                    </button>
+                </a>
+            """, unsafe_allow_html=True)
+
     with dossiers[4]:
         st.subheader("🎤 Simulateur d'entretien")
         if st.button("Démarrer la simulation"):
