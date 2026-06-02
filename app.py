@@ -37,6 +37,23 @@ def traduire_avec_ia(texte, langue_cible):
     return res.choices[0].message.content
 
 
+# --- NETTOYAGE SÉCURISÉ DU JSON SANS STR.REPLACE ---
+def extraire_json_propre(texte_brut):
+    """Extrait proprement le JSON renvoyé par l'IA sans risquer de crash de chaîne"""
+    try:
+        texte_nettoye = re.sub(r"```json|```", "", texte_brut).strip()
+        return json.loads(texte_nettoye)
+    except:
+        # En cas d'échec, on tente de chercher des accolades
+        try:
+            match = re.search(r"\{.*\}", texte_brut, re.DOTALL)
+            if match:
+                return json.loads(match.group(0))
+        except:
+            pass
+    return {"score": 0, "justification": "Erreur d'analyse du profil."}
+
+
 # --- MOTEUR DE MATCHING ARRIÈRE-PLAN IA (> 50%) ---
 def executer_matching_automatique_cv(id_cv, contenu_cv, candidat_remote, candidat_pays, candidat_ville):
     """S'exécute immédiatement après l'upload d'un CV pour chercher les offres correspondantes"""
@@ -49,10 +66,9 @@ def executer_matching_automatique_cv(id_cv, contenu_cv, candidat_remote, candida
             offre_remote = offre.get("is_remote", False)
             offre_pays = offre.get("pays", "France")
             
-            # Gestion de la barrière pays/ville grâce au mode Remote
             if not (candidat_remote and offre_remote):
                 if candidat_pays != offre_pays:
-                    continue  # Saute cette offre si les pays ne correspondent pas
+                    continue
 
             prompt = f"""
             Evalue la pertinence du CV suivant pour l'offre d'emploi fournie.
@@ -60,7 +76,7 @@ def executer_matching_automatique_cv(id_cv, contenu_cv, candidat_remote, candida
             {offre['contents']}
             CV DU CANDIDAT :
             {contenu_cv}
-            Renvoie UNIQUEMENT un objet JSON (sans bloc de code ```json) structuré ainsi :
+            Renvoie UNIQUEMENT un objet JSON (sans bloc de code) structuré ainsi :
             {{
                 "score": <un entier entre 0 et 100>,
                 "justification": "<2 phrases maximum expliquant le score>"
@@ -68,13 +84,12 @@ def executer_matching_automatique_cv(id_cv, contenu_cv, candidat_remote, candida
             """
             try:
                 res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile", temperature=0.1)
-                brut = res.choices[0].message.content.strip()
+                brut = res.choices[0].message.content
                 
-                clean_matching = brut.replace("
-```json", "").replace("```", "")
-                resultat_json = json.loads(clean_matching)
+                # --- UTILISATION DE LA FONCTION DE NETTOYAGE SECURISEE ---
+                resultat_json = extraire_json_propre(brut)
                 
-                if int(resultat_json["score"]) >= 50:
+                if int(resultat_json.get("score", 0)) >= 50:
                     supabase.table("matching_offres_candidats").insert({
                         "offre_id": offre["id"],
                         "candidat_id": id_cv,
@@ -87,7 +102,6 @@ def executer_matching_automatique_cv(id_cv, contenu_cv, candidat_remote, candida
         pass
 
 
-# --- CORRECTION DE LA FONCTION LIGNE 100 ---
 def executer_matching_ia_depuis_offre(id_offre, texte_offre, offre_remote, offre_pays):
     """S'exécute lorsqu'un employeur crée une nouvelle offre"""
     try:
@@ -99,7 +113,6 @@ def executer_matching_ia_depuis_offre(id_offre, texte_offre, offre_remote, offre
             cand_remote = candidat.get("is_remote", False)
             cand_pays = candidat.get("pays", "France")
             
-            # Filtrage géographique ou passe-droit Remote
             if not (offre_remote and cand_remote):
                 if offre_pays != cand_pays: 
                     continue
@@ -107,13 +120,11 @@ def executer_matching_ia_depuis_offre(id_offre, texte_offre, offre_remote, offre
             try:
                 prompt = f"Calcule le score de matching (0 à 100) en JSON entre cette offre : {texte_offre} et ce CV : {candidat['contenu']}"
                 res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
-                brut = res.choices[0].message.content.strip()
+                brut = res.choices[0].message.content
                 
-                clean_matching = brut.replace("```json", "").replace("
-```", "")
-                resultat_json = json.loads(clean_matching)
+                resultat_json = extraire_json_propre(brut)
                 
-                if int(resultat_json["score"]) >= 50:
+                if int(resultat_json.get("score", 0)) >= 50:
                     supabase.table("matching_offres_candidats").insert({
                         "offre_id": id_offre, 
                         "candidat_id": candidat["id"], 
@@ -164,7 +175,8 @@ with tab_candidat:
                 if up_file.name.endswith(".pdf"):
                     contenu_texte = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up_file.getvalue())).pages])
                 else:
-                    contenu_texte = up_file.getvalue().decode("utf-8")
+                    contents_bytes = up_file.getvalue()
+                    contenu_texte = contents_bytes.decode("utf-8", errors="ignore")
                 
                 res_cv = supabase.table("cvs").insert({
                     "nom_fichier": nom_doc, 
