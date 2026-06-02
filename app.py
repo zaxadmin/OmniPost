@@ -62,7 +62,7 @@ def executer_matching_ia_depuis_offre(id_offre, texte_offre, offre_remote, offre
             cand_pays = candidat.get("pays", "France")
             
             if not (offre_remote and cand_remote):
-                if offre_pays != cand_pays: continue
+                if cand_pays != offre_pays: continue
                 
             try:
                 prompt = f"Calcule le score de matching (0 à 100) en JSON entre cette offre : {texte_offre} et ce CV : {candidat['contenu']}"
@@ -125,26 +125,54 @@ def simuler_ia_reception_email(email_recu, nom_candidat, email_reel, tel_reel, t
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color:#555555; margin-top: -5px; font-size: 14px;'>.zaxx.app</p>", unsafe_allow_html=True)
 
+# --- SIDEBAR AVEC CRÉATRICE ET ENVELOPPE CLIQUABLE ---
+st.sidebar.markdown("### 🛠️ Création & Support")
+st.sidebar.markdown("**Créatrice :** Liliane RAKOTOBE")
+st.sidebar.markdown(
+    '<a href="mailto:creationsites06@gmail.com" style="text-decoration: none; font-size: 20px;">✉️ <span style="font-size: 14px; vertical-align: middle;">Contact par Email</span></a>', 
+    unsafe_allow_html=True
+)
+st.sidebar.markdown("---")
+
 langues = ["Français", "English (US)", "Malagasy", "Español", "Deutsch"]
 if 'langue' not in st.session_state: st.session_state.langue = "Français"
-st.session_state.langue = st.selectbox("🌐 Langue", langues, index=0)
+st.session_state.langue = st.sidebar.selectbox("🌐 Langue de l'application", langues, index=0)
 
-tab_home, tab_candidat, tab_employeur = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["🏠 Accueil", "🚀 Candidat", "💼 Employeur"]])
+tab_home, tab_candidat, tab_employeur = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["🏠 Accueil & Mode d'emploi", "🚀 Candidat", "💼 Employeur"]])
 
 
-# --- 1. ACCUEIL ---
+# --- 1. ACCUEIL : TEXTE DE PRÉSENTATION GENERALE ---
 with tab_home:
-    st.markdown(f"## {traduire_avec_ia('L\'ATS au service de l\'anonymat protecteur et équitable', st.session_state.langue)}")
+    st.markdown(f"## {traduire_avec_ia('Bienvenue sur zipngo, l\'ATS intelligent et anonyme sans frontières ! 🌍', st.session_state.langue)}")
+    
     st.markdown(traduire_avec_ia("""
-    **zipngo** protège l'identité des talents et des recruteurs ! L'ensemble du processus au sein de l'application s'effectue sous **anonymat total** (Coordonnées masquées) afin de contrer tous les biais de recrutement. 
-    Les identités réelles ne sont dévoilées que si les deux parties s'accordent en validant d'un **Pouce 👍** après l'entretien vidéo !
+    **zipngo** est une plateforme de recrutement de nouvelle génération, propulsée par une Intelligence Artificielle avancée. 
+    Notre mission est double : **supprimer les barrières géographiques** pour permettre le recrutement local et à l'international, et **garantir une totale équité** grâce à un système d'anonymat crypté.
+    
+    Sur zipngo, les processus de sélection se font uniquement sur les compétences. Les coordonnées privées (noms, téléphones, emails) restent entièrement masquées tant qu'une entente mutuelle n'a pas été scellée d'un commun accord !
+    
+    ### 🛠️ Guide de démarrage rapide :
+    * **Étape 1 :** Choisissez votre langue préférée dans le menu latéral gauche.
+    * **Étape 2 :** Si vous cherchez un emploi, accédez à l'onglet **🚀 Candidat** pour configurer votre profil discret.
+    * **Étape 3 :** Si vous êtes un recruteur, accédez à l'onglet **💼 Employeur** pour renseigner vos identifiants d'entreprise et piloter vos tiroirs de tri automatiques.
     """, st.session_state.langue))
+    
+    st.info(traduire_avec_ia("💡 Moteur de matching autonome : À chaque dépôt d'offre, l'IA parcourt l'intégralité de la base de profils pour trouver instantanément la perle rare.", st.session_state.langue))
 
 
 # --- 2. ZONE CANDIDAT ---
 with tab_candidat:
     st.markdown(f"### 🚀 {traduire_avec_ia('Espace Candidat Anonymisé', st.session_state.langue)}")
     
+    # Mode d'emploi explicite côté Candidat
+    with st.expander(f"💡 {traduire_avec_ia('Mode d\'emploi Candidat — Comment ça marche ?', st.session_state.langue)}", expanded=True):
+        st.markdown(traduire_avec_ia("""
+        1. **Création du profil secret :** Renseignez vos vraies coordonnées et importez votre CV (PDF/TXT). Vos données personnelles sont immédiatement protégées et masquées aux yeux des recruteurs (`[Profil Anonyme App]`).
+        2. **Option Télétravail (Remote) :** En cochant l'option 100% Remote, vous permettez à l'IA de vous matcher avec des employeurs du monde entier, sans contrainte de frontières.
+        3. **Suivi & Entretien Jitsi :** Lorsqu'un recruteur est intéressé par vos compétences (Score de matching >= 50%), il génère un salon vidéo anonyme. Rendez-vous dans le sous-onglet **Mes Entretiens** pour y participer.
+        4. **Levée de l'Anonymat :** L'entretien s'est bien passé ? Appuyez sur le **Pouce 👍** pour accepter de dévoiler votre identité réelle et vos coordonnées à cet employeur.
+        """, st.session_state.langue))
+
     dossiers = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["📂 Candidatures", "📄 CVs & Profil", "🎤 Mes Entretiens"]])
     
     with dossiers[1]:
@@ -176,7 +204,6 @@ with tab_candidat:
                     st.info(f"📅 Salon vidéo planifié : {rdv['date_entretien']}")
                     st.markdown(f"[🟩 Entrer en entretien Jitsi]({rdv['lien_jitsi']})", unsafe_allow_html=True)
                     
-                    # SYSTEME DU DEUXIEME POUCE CANDIDAT APRES RDV
                     if rdv['statut'] == "Archivé" or rdv['statut'] == "Confirmé":
                         if st.button("👍 Dévoiler mes coordonnées réelles à cet employeur", key=f"pouce_cand_{rdv['id']}"):
                             supabase.table("archives_entretiens").update({"candidat_agree": True}).eq("id", rdv['id']).execute()
@@ -189,17 +216,28 @@ with tab_candidat:
 with tab_employeur:
     st.header("💼 Espace Recruteur")
     
+    # Mode d'emploi explicite côté Employeur
+    with st.expander(f"💡 {traduire_avec_ia('Mode d\'emploi Employeur — Gestion des Tiroirs & Flux', st.session_state.langue)}", expanded=True):
+        st.markdown(traduire_avec_ia("""
+        1. **Authentification Entreprise :** Renseignez votre SIRET et votre email professionnel de gestion de candidatures.
+        2. **Le Tiroir Match (>= 50%) :** Regroupe automatiquement les profils pertinents de la BDD interne de l'application (anonymes) ET les candidatures externes arrivées par e-mail qui dépassent les 50% de pertinence après analyse IA.
+        3. **Le Tiroir Vivier (< 50%) :** Stocke automatiquement les profils de basse pertinence issus de votre boîte email pour ne perdre aucun flux.
+        4. **Gestion de l'Anonymat :** Dans l'application, tout est masqué. Si vous publiez une offre **hors-app** (Indeed, etc.), l'identité et le contact de votre entreprise sont automatiquement visibles pour recevoir les candidatures externes spontanées (dont l'anonymat sera levé d'office).
+        5. **Débloquer les coordonnées :** Après l'entretien Jitsi, appuyez de nouveau sur le **Pouce 👍** pour afficher l'identité et les coordonnées réelles du candidat.
+        """, st.session_state.langue))
+    
     if "entreprise_connectee" not in st.session_state: st.session_state.entreprise_connectee = None
 
     if not st.session_state.entreprise_connectee:
+        st.warning("🔒 Veuillez d'abord authentifier votre entreprise via le formulaire ci-dessous :")
         with st.form("form_enregistrement_entreprise"):
-            nom_ent = st.text_input("🏢 Nom de l'entreprise (Masqué dans l'app) *")
-            siret_ent = st.text_input("🔢 SIRET *")
-            email_notif = st.text_input("📩 Email de réception (Masqué dans l'app) *")
+            nom_ent = st.text_input("🏢 Nom de l'entreprise *")
+            siret_ent = st.text_input("🔢 Numéro SIRET (14 chiffres) *")
+            email_notif = st.text_input("📩 Email de réception des candidatures *")
             tel_ent = st.text_input("📞 Téléphone contact *")
             pays_ent = st.selectbox("📍 Pays", list(PAYS_CONFIG.keys()))
             
-            if st.form_submit_button("🔓 Ouvrir le compte"):
+            if st.form_submit_button("🔓 Valider et Ouvrir mon Tableau de Bord"):
                 st.session_state.entreprise_connectee = {"id": "emp_123", "nom": nom_ent, "siret": siret_ent, "email_reception": email_notif, "tel": tel_ent, "pays": pays_ent}
                 st.rerun()
                     
@@ -229,21 +267,17 @@ with tab_employeur:
                 for m in matchings:
                     if int(m['score']) >= 50:
                         is_externe = m['cvs'].get('source') == "email" or m['cvs'].get('anonymat_leve') == True
-                        
-                        # Affichage selon les règles d'anonymat
                         nom_affiche = m['cvs']['nom_fichier'] if is_externe else f"👤 Candidat Anonyme App #{m['cvs']['id']}"
                         
                         with st.expander(f"{nom_affiche} — Score : {m['score']}% (Poste : {m['mes_offres']['intitule']})"):
                             st.write(f"**Analyse IA :** {m['justification']}")
                             
-                            # Si l'anonymat est levé réciproquement (Deuxième pouce validé des deux côtés)
                             try:
                                 rdv_check = supabase.table("archives_entretiens").select("*").eq("candidat_id", m['candidat_id']).execute().data
                                 if rdv_check and rdv_check[0].get('candidat_agree'):
                                     st.success(f"🔓 **Anonymat Levé !** Vrai Nom : {m['cvs']['nom_fichier']} | Email : {m['cvs']['email_reel']} | Tel : {m['cvs']['tel_reel']}")
                             except: pass
                             
-                            # Premier pouce pour proposer le rdv vidéo
                             if st.button("👍 Planifier un entretien vidéo", key=f"pouce_rec_{m['id']}"):
                                 room = f"zipngo-room-{m['id']}"
                                 supabase.table("archives_entretiens").insert({
@@ -273,7 +307,6 @@ with tab_employeur:
             pub_hors_app = col_b2.button("🌍 Exporter hors application (Indeed / France Travail — Identité Visible)")
             
             if pub_app or pub_hors_app:
-                # Si diffusion externe, on ajoute les coordonnées réelles directement dans l'offre diffusée
                 texte_final = corps_offre if pub_app else f"{corps_offre} \n\n[POSTULEZ DIRECTEMENT SUR L'EMAIL DE L'ENTREPRISE : {ent_info['email_reception']} / TEL : {ent_info['tel']}]"
                 
                 res_o = supabase.table("mes_offres").insert({
@@ -282,12 +315,19 @@ with tab_employeur:
                 }).execute()
                 
                 if res_o.data:
-                    # RECHERCHE AUTOMATIQUE DANS LA BDD DES PROFILS DES QUE L'OFFRE EST EMISSIME
                     executer_matching_ia_depuis_offre(res_o.data[0]["id"], texte_final, True, ent_info['pays'])
                     st.success("🚀 Offre enregistrée ! Recherche lancée dans la BDD des profils, tiroir de match mis à jour.")
                     st.rerun()
 
-# --- CONDITIONS GÉNÉRALES DE VENTE (CGV) ---
+# --- CONDITIONS GÉNÉRALES DE VENTE & PIED DE PAGE CRÉATRICE ---
 st.markdown("---")
-with st.expander("⚖️ Conditions Générales de Vente (CGV)"):
-    st.markdown("** zipngo 2026 ** : Le traitement des données est géré de manière chiffrée. L'anonymat est levé uniquement par consentement mutuel explicite ou lors d'interactions directes en dehors de l'écosystème zipngo.")
+col_f1, col_f2 = st.columns(2)
+with col_f1:
+    with st.expander("⚖️ Conditions Générales de Vente (CGV)"):
+        st.markdown("** zipngo 2026 ** : Le traitement des données est géré de manière chiffrée. L'anonymat est levé uniquement par consentement mutuel explicite ou lors d'interactions directes en dehors de l'écosystème zipngo.")
+
+with col_f2:
+    st.markdown(
+        '<p style="text-align: right; color: #555555;">Application réalisée par <b>Liliane RAKOTOBE</b> — <a href="mailto:creationsites06@gmail.com" style="text-decoration: none;">✉️ Contact</a></p>', 
+        unsafe_allow_html=True
+    )
