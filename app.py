@@ -1,7 +1,8 @@
-import streamlit as st, pandas as pd, io, json
+import streamlit as st, pandas as pd, io, json, re
 from supabase import create_client
 from groq import Groq
 from pypdf import PdfReader
+from fpdf import FPDF
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo | Plateforme Professionnelle", layout="wide")
@@ -21,14 +22,42 @@ with st.sidebar:
 if role == "Candidat":
     st.subheader("👤 Espace Candidat")
     with st.expander("📖 Mode d'emploi"):
-        st.write("1. Déposez votre CV. 2. Indiquez le poste. 3. Gérez vos candidatures. Accès gratuit 3 mois.")
+        st.write("1. Déposez votre CV. 2. Indiquez le poste. 3. Obtenez une réécriture complète et stratégique de votre parcours.")
     
     cv_file = st.file_uploader("Document obligatoire : Déposez votre CV (PDF)", type=["pdf"])
+    
     if cv_file:
+        pdf_reader = PdfReader(io.BytesIO(cv_file.getvalue()))
+        txt_cv = "".join([page.extract_text() for page in pdf_reader.pages])
+        
         tab1, tab2 = st.tabs(["Optimisation de parcours", "Suivi & Entretien"])
+        
         with tab1:
-            poste = st.text_input("Poste visé")
-            if st.button("Valider"): st.success("Analyse en cours.")
+            poste = st.text_input("Intitulé du poste visé")
+            if st.button("🚀 Générer mes solutions complètes"):
+                with st.spinner("Analyse et réécriture stratégique en cours..."):
+                    prompt = f"""
+                    Expert en recrutement. Analyse ce CV pour le poste '{poste}'. 
+                    Retourne un JSON avec: 
+                    'score' (int 0-100), 'accroche' (str), 'competences_a_ajouter' (list), 
+                    'experiences_revisitees' (str réécriture complète), 'conseils' (list).
+                    CV: {txt_cv}
+                    """
+                    res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
+                    data = json.loads(re.search(r'\{.*\}', res.choices[0].message.content.strip(), re.DOTALL).group())
+                    st.session_state.resultat = data
+            
+            if 'resultat' in st.session_state:
+                res = st.session_state.resultat
+                st.metric("Score de correspondance", f"{res['score']}/100")
+                st.subheader("🎯 Votre Accroche")
+                st.info(res['accroche'])
+                st.subheader("🛠 Parcours et Expériences optimisés")
+                texte_final = st.text_area("Copiez/Collez cette version :", value=res['experiences_revisitees'], height=300)
+                st.subheader("💡 Conseils stratégiques")
+                for c in res['conseils']: st.write(f"• {c}")
+                
+                st.download_button("⬇️ Télécharger mes solutions", data=f"ACCROCHE:\n{res['accroche']}\n\nPARCOURS:\n{res['experiences_revisitees']}", file_name="mes_solutions_pro.txt")
     else:
         st.warning("⚠️ Le dépôt du CV est requis pour accéder aux fonctionnalités.")
 
@@ -41,20 +70,11 @@ elif role == "Employeur":
     with st.form("form_employeur"):
         col1, col2 = st.columns(2)
         entreprise = col1.text_input("Nom de l'entreprise")
-        contact_nom = col2.text_input("Nom et prénom")
-        email = col1.text_input("Email de contact")
-        tel = col2.text_input("Téléphone")
-        
         poste = col1.text_input("Intitulé du poste")
         duree = col2.selectbox("Type de contrat", ["CDI", "CDD", "Alternance", "Stage", "Intérim"])
-        horaire = col1.selectbox("Organisation horaire", ["Fixe", "2x8", "3x8", "Variable"])
-        ville = col2.text_input("Ville")
-        
-        exigences = st.multiselect("Prérequis", ["Diplôme", "Permis", "Langues"])
-        salaire = st.number_input("Salaire proposé")
-        
+        salaire = col2.number_input("Salaire proposé")
         if st.form_submit_button("Valider et Créer l'offre"):
-            st.success(f"Offre pour {poste} créée. Transmission aux profils correspondants en cours.")
+            st.success(f"Offre pour {poste} créée. Transmission aux profils en cours.")
 
 # --- CONDITIONS ET PREMIUM ---
 st.markdown("---")
