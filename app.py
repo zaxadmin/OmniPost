@@ -47,7 +47,7 @@ def archiver_entretien(candidat_id, statut, lien_jitsi, feedback=""):
 
 # --- FONCTIONS RÉELLES DE DIFFUSION & MATCHING ---
 def diffuser_france_travail(config, metier, ville, description, contrat):
-    auth_url = "https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire"
+    auth_url = "[https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire](https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire)"
     payload = {
         "grant_type": "client_credentials",
         "client_id": config.get("france_travail_client_id"),
@@ -58,7 +58,7 @@ def diffuser_france_travail(config, metier, ville, description, contrat):
         token_res = requests.post(auth_url, headers={"Content-Type": "application/x-www-form-urlencoded"}, data=payload)
         token = token_res.json().get("access_token")
         
-        api_url = "https://api.francetravail.io/partenaire/offresdepot/v1/offres"
+        api_url = "[https://api.francetravail.io/partenaire/offresdepot/v1/offres](https://api.francetravail.io/partenaire/offresdepot/v1/offres)"
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         offre_payload = {
             "intitule": metier,
@@ -74,7 +74,7 @@ def diffuser_france_travail(config, metier, ville, description, contrat):
 def diffuser_facebook(config, texte_offre):
     page_id = config.get("facebook_page_id")
     token = config.get("facebook_token")
-    url = f"https://graph.facebook.com/v18.0/{page_id}/feed"
+    url = f"[https://graph.facebook.com/v18.0/](https://graph.facebook.com/v18.0/){page_id}/feed"
     payload = {"message": f"📢 NOUVELLE OFFRE D'EMPLOI\n\n{texte_offre}", "access_token": token}
     try:
         res = requests.post(url, data=payload)
@@ -83,7 +83,7 @@ def diffuser_facebook(config, texte_offre):
         return False
 
 def diffuser_remote_ok(config, metier, description, sala):
-    url = "https://remoteok.com/api/post"
+    url = "[https://remoteok.com/api/post](https://remoteok.com/api/post)"
     payload = {
         "api_key": config.get("remote_ok_api_key"),
         "title": metier,
@@ -123,8 +123,9 @@ def executer_matching_ia(id_offre, texte_offre):
         try:
             res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile", temperature=0.2)
             brut_matching = res.choices[0].message.content.strip()
-            clean_matching = brut_matching.replace("
-```json", "").replace("```", "")
+            
+            # --- CORRECTION DE LA LIGNE 126 ---
+            clean_matching = brut_matching.replace("```json", "").replace("```", "")
             resultat_json = json.loads(clean_matching)
             
             try:
@@ -246,7 +247,6 @@ with tab_candidat:
     with dossiers[4]:
         st.subheader("🎤 Mon Espace Entretiens (Validations & Archives)")
         
-        # Action : Le candidat valide une heure proposée par l'employeur
         try:
             entretiens_proposes = supabase.table("archives_entretiens").select("*").eq("statut", "Proposé").execute().data
             if entretiens_proposes:
@@ -266,7 +266,6 @@ with tab_candidat:
                     st.markdown("---")
         except: pass
 
-        # Affichage des différentes archives (À venir vs Passés)
         t_avenir, t_passes = st.tabs(["🕒 Entretiens à venir", "📜 Historique & Archives passées"])
         
         with t_avenir:
@@ -278,7 +277,6 @@ with tab_candidat:
                         col_a.markdown(f"📆 **Date & Heure :** {ent['date_entretien']} | 🎥 **Salon :** Jitsi")
                         col_b.markdown(f'<a href="{ent["lien_jitsi"]}" target="_blank"><button style="background-color: #22c55e; color: white; border: none; padding: 6px 12px; border-radius: 5px;">Rejoindre Jitsi</button></a>', unsafe_allow_html=True)
                         
-                        # Option pour clore/archiver l'entretien après coup
                         feedback_txt = st.text_input("Ajouter des notes / feedback après l'entretien", key=f"feed_{ent['id']}")
                         if st.button("🗄️ Archiver l'entretien", key=f"arch_{ent['id']}"):
                             supabase.table("archives_entretiens").update({"statut": "Passé", "feedback": feedback_txt}).eq("id", ent['id']).execute()
@@ -340,7 +338,12 @@ with tab_employeur:
                 if id_nouvelle_offre: executer_matching_ia(id_nouvelle_offre, st.session_state.offre_texte)
                 st.success("Offre enregistrée et diffusée avec calcul de matching IA !")
 
-    # --- LISTE CANDIDATS AVEC ACTION DE PLANIFICATION ENTRETIEN (POUCE VERT) ---
+                plateformes_flux_selectionnees = []
+                # Traitement simplifié des canaux configurés si requis (ex: France Travail, Facebook)
+                if current_config.get("facebook_page_id") and st.session_state.get("offre_texte"):
+                    diffuser_facebook(current_config, st.session_state.offre_texte)
+
+    # --- LISTE CANDIDATS AVEC ACTION DE PLANIFICATION ENTRETIEN ---
     st.markdown("---")
     st.subheader("🎯 Candidats identifiés par notre IA & Planification d'entretiens")
     try:
@@ -348,10 +351,9 @@ with tab_employeur:
         if matchings:
             for m in matchings:
                 c1, c2, c3 = st.columns([3, 2, 2])
-                c1.markdown(f"👤 **{m['cvs']['nom_fichier']}** -> Poste : *{m['mes_offres']['intitule']}*  \n🔥 Score : **{m['score']}%**")
+                c1.markdown(f"👤 **{m['cvs']['nom_fichier']}** -> Poste : *{m['mes_offres']['intitule']}* \n🔥 Score : **{m['score']}%**")
                 c2.info(m['justification'])
                 
-                # Le pouce déclenche le formulaire de proposition d'entretien
                 if c3.button("👍 Retenir & Planifier Entretien", key=f"thumb_{m['id']}"):
                     st.session_state[f"planif_active_{m['id']}"] = True
                 
@@ -367,7 +369,7 @@ with tab_employeur:
                         
                         if st.form_submit_button("🚀 Envoyer l'invitation"):
                             room_name = f"zipngo-{m['candidat_id']}-{int(datetime.datetime.now().timestamp())}"
-                            lien_jitsi = f"[https://meet.jit.si/](https://meet.jit.si/){room_name}"
+                            lien_jitsi = f"https://meet.jit.si/{room_name}"
                             
                             supabase.table("archives_entretiens").insert({
                                 "candidat_id": m["candidat_id"],
