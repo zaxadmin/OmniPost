@@ -23,16 +23,16 @@ def appliquer_design_geometrique(pdf, data, style="Classique"):
     
     pdf.set_fill_color(*t["bg"]); pdf.rect(0, 0, 60, 300, 'F')
     pdf.set_text_color(*t["text"])
-    pdf.set_xy(5, 10); pdf.set_font("Arial", 'B', 16); pdf.cell(50, 10, h.get('nom', 'N/A'), ln=True)
-    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 5, h.get('contact', ''))
+    pdf.set_xy(5, 10); pdf.set_font("Arial", 'B', 16); pdf.cell(50, 10, str(h.get('nom', 'N/A')), ln=True)
+    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 5, str(h.get('contact', '')))
     pdf.set_xy(5, 50); pdf.set_font("Arial", 'B', 14); pdf.cell(50, 10, "COMPÉTENCES", ln=True)
-    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 7, s.get('contenu', ''))
+    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 7, str(s.get('contenu', '')))
     
     pdf.set_text_color(0, 0, 0)
-    pdf.set_xy(70, 10); pdf.set_font("Arial", 'B', 18); pdf.cell(100, 10, h.get('titre_poste', ''), ln=True)
+    pdf.set_xy(70, 10); pdf.set_font("Arial", 'B', 18); pdf.cell(100, 10, str(h.get('titre_poste', '')), ln=True)
     pdf.set_draw_color(*t["accent"]); pdf.line(70, 20, 190, 20)
-    pdf.set_xy(70, 30); pdf.set_font("Arial", 'B', 14); pdf.cell(100, 10, m.get('titre', ''), ln=True)
-    pdf.set_xy(70, 45); pdf.set_font("Arial", size=11); pdf.multi_cell(130, 7, m.get('corps', ''))
+    pdf.set_xy(70, 30); pdf.set_font("Arial", 'B', 14); pdf.cell(100, 10, str(m.get('titre', '')), ln=True)
+    pdf.set_xy(70, 45); pdf.set_font("Arial", size=11); pdf.multi_cell(130, 7, str(m.get('corps', '')))
 
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='text-align: center; color:#000080;'>zip<span style='color:#4169E1;'>ngo</span> ATS Premium</h1>", unsafe_allow_html=True)
@@ -44,8 +44,7 @@ if role == "Candidat":
     
     with tabs[0]:
         st.subheader("📋 Historique")
-        try:
-            st.table(pd.DataFrame(supabase.table("candidatures").select("*").execute().data))
+        try: st.table(pd.DataFrame(supabase.table("candidatures").select("*").execute().data))
         except: st.write("Aucune donnée.")
         
     with tabs[1]:
