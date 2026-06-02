@@ -11,7 +11,7 @@ client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 LANGUES = ["Français", "Anglais", "Espagnol", "Allemand", "Italien", "Portugais", "Chinois", "Japonais", "Russe", "Arabe", "Néerlandais", "Suédois", "Polonais", "Turc", "Coréen", "Hindi", "Vietnamien", "Thaï", "Indonésien", "Grec"]
 
-# --- FONCTIONS ---
+# --- FONCTIONS DESIGN ---
 def appliquer_design_geometrique(pdf, data, style="Classique"):
     themes = {
         "Classique": {"bg": (52, 73, 94), "text": (255, 255, 255), "accent": (52, 73, 94)},
@@ -41,9 +41,11 @@ role = st.sidebar.radio("Choisissez votre espace :", ["Candidat", "Employeur"])
 
 if role == "Candidat":
     tabs = st.tabs(["📂 Candidatures", "📄 CVs", "✨ Relooking ATS", "🌐 Sourcing", "🎤 Entretien"])
+    
     with tabs[0]:
         st.subheader("📋 Historique")
         st.table(pd.DataFrame(supabase.table("candidatures").select("*").execute().data))
+        
     with tabs[1]:
         nom = st.text_input("Nom du fichier"); up = st.file_uploader("Upload", type=["pdf"])
         if up and st.button("💾 Enregistrer"):
@@ -51,17 +53,30 @@ if role == "Candidat":
                 supabase.table("cvs").insert({"nom_fichier": nom, "contenu": up.getvalue().hex(), "user_id": "00000000-0000-0000-0000-000000000000"}).execute()
                 st.success("Enregistré !")
             except Exception as e: st.error(f"Erreur : {e}")
+            
     with tabs[2]:
-        metier = st.text_area("Intitulé du poste visé..."); up_cv = st.file_uploader("Upload CV", type=["pdf"])
+        if 'cv_data' not in st.session_state: st.session_state.cv_data = None
+        
+        metier = st.text_area("Intitulé du poste visé...")
+        up_cv = st.file_uploader("Upload CV actuel", type=["pdf"])
         style_choisi = st.selectbox("Style graphique", ["Classique", "Moderne", "Épuré"])
-        if up_cv and metier and st.button("🚀 Optimiser & Scanner"):
+        
+        if up_cv and metier and st.button("🔍 Scanner mon CV"):
             txt = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up_cv.getvalue())).pages])
             prompt = f"Analyse ce CV pour '{metier}'. Score ATS (0-100), feedback, et structure JSON: {{'header':{{'nom','contact','titre_poste'}}, 'sidebar':{{'contenu'}}, 'main':{{'titre','corps'}}}} CV: {txt}"
             res = client.chat.completions.create(messages=[{"role":"user", "content":prompt}], model="llama-3.3-70b-versatile")
-            data = json.loads(re.search(r'\{.*\}', res.choices[0].message.content.strip(), re.DOTALL).group())
-            st.metric("Score ATS", f"{data.get('score', 'N/A')}/100"); st.info(data.get('feedback', ''))
-            pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, data, style=style_choisi)
-            st.download_button("⬇️ Télécharger", pdf.output(dest='S').encode('latin-1'), "CV_Optimise.pdf")
+            st.session_state.cv_data = json.loads(re.search(r'\{.*\}', res.choices[0].message.content.strip(), re.DOTALL).group())
+            
+        if st.session_state.cv_data:
+            st.metric("Score ATS", f"{st.session_state.cv_data.get('score', 'N/A')}/100")
+            st.info(st.session_state.cv_data.get('feedback', ''))
+            
+            if st.button("✅ Valider et Télécharger"):
+                pdf = FPDF()
+                pdf.add_page()
+                appliquer_design_geometrique(pdf, st.session_state.cv_data, style=style_choisi)
+                st.download_button("⬇️ Télécharger le CV optimisé", pdf.output(dest='S').encode('latin-1'), "CV_Optimise.pdf")
+
     with tabs[3]:
         domaine = st.text_input("Métier"); emails_input = st.text_area("Emails")
         if st.button("✅ Préparer l'envoi"): st.markdown(f'<a href="mailto:?bcc={emails_input.replace(chr(10),",")}&subject=Candidature&body=Poste {domaine}">📤 Ouvrir messagerie</a>', unsafe_allow_html=True)
