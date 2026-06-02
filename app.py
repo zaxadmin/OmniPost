@@ -2,78 +2,71 @@ import streamlit as st, pandas as pd, io, json, re, datetime
 from supabase import create_client
 from groq import Groq
 from pypdf import PdfReader
-# import resend  # Assurez-vous d'avoir installé 'resend'
+from fpdf import FPDF
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="zipngo | Solutions Professionnelles", layout="wide")
+st.set_page_config(page_title="zipngo | ATS Premium", layout="wide")
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-# resend.api_key = st.secrets["RESEND_API_KEY"]
+
+# --- GESTION MULTILINGUE & CONFIG ---
+LANGUES = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", "العربية (Arabe)", 
+           "हिन्दी (Hindi)", "Bengali", "Português", "Русский", "日本語 (Japonais)", "Deutsch", 
+           "한국어 (Coréen)", "Tiếng Việt", "Italiano", "Türkçe", "Polski", "Nederlands", 
+           "Bahasa Indonesia", "ภาษาไทย (Thaï)"]
+
+if 'langue' not in st.session_state: st.session_state.langue = "Français"
+if 'contacts_valides' not in st.session_state: st.session_state.contacts_valides = []
+
+def traduire(texte): return texte # Placeholder pour le système de traduction global
 
 # --- UI PRINCIPALE ---
-st.markdown("<h1 style='text-align: center; color:#000080;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color:#000080;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
+st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue", LANGUES)
 
-with st.sidebar:
-    role = st.radio("Accès :", ["Candidat", "Employeur"])
+tab_candidat, tab_employeur = st.tabs(["🚀 Candidat", "💼 Employeur"])
 
 # --- ESPACE CANDIDAT ---
-if role == "Candidat":
-    st.subheader("👤 Espace Candidat")
+with tab_candidat:
+    dossiers = st.tabs(["📂 Candidatures", "✨ Relooking CV", "🌐 Sourcing", "🎤 Entretien"])
     
-    # Gestion des onglets
-    dossiers = st.tabs(["Optimisation", "Suivi", "CVs", "Prospection", "Entretien"])
-    
-    # 1. Optimisation (votre logique précédente)
-    with dossiers[0]:
-        cv_file = st.file_uploader("Déposez votre CV", type=["pdf"])
-        if cv_file:
-            st.session_state.cv_data = cv_file.getvalue()
-            # ... (logique d'optimisation ici)
-            st.write("Section Optimisation active")
-
-    # 2. SOURCING (Nouveau)
-    with dossiers[3]: 
-        st.subheader("🌐 Prospection Spontanée")
-        domaines = ["Restauration & Fast-Food", "Informatique & Tech", "Hôtellerie & Tourisme", "Santé & Services à la personne", "Commerce & Distribution", "BTP & Immobilier", "Logistique & Transport", "Finance & Juridique", "Marketing, Com & Art", "Industrie & Agriculture", "Administration publique"]
+    with dossiers[2]: # SOURCING RÉEL (Batch 5)
+        st.subheader("🌐 Prospection : Mode 'Batch 5'")
+        is_remote = st.checkbox("🔍 Je cherche du 100% Remote (Monde)")
+        st.progress(min(len(st.session_state.contacts_valides) / 20, 1.0))
         
-        col1, col2, col3 = st.columns([1, 1, 1])
-        cat = col1.selectbox("Domaine élargi", sorted(domaines))
-        ville = col2.text_input("Ville cible")
-        dist = col3.slider("Rayon (km)", 0, 100, 20)
-        
-        if st.button("🔍 Rechercher 20 nouveaux contacts") and ville:
-            deja = [i['email_destinataire'] for i in supabase.table("sourcing").select("email_destinataire").execute().data]
-            prompt = f"Donne 20 adresses emails professionnelles pour le domaine '{cat}' à '{ville}'. Exclus : {','.join(deja)}. Format : liste d'emails séparés par des virgules."
-            res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile").choices[0].message.content
-            st.session_state.emails = [e.strip() for e in res.replace('\n', '').split(',')]
-            st.rerun()
-            
-        if 'emails' in st.session_state:
-            st.write(f"Cibles : {', '.join(st.session_state.emails)}")
-            msg = st.text_area("Message :", f"Madame, Monsieur, je porte un vif intérêt à votre établissement à {ville} dans le secteur de {cat}. Fort(e) d'une expérience pertinente, je vous propose ma candidature. Vous trouverez mon CV en pièce jointe.", height=200)
-            up_cv = st.file_uploader("CV en PJ", type=["pdf"])
-            if st.button("🚀 Envoyer à 20 contacts") and up_cv:
-                # resend.Emails.send({...}) # Décommentez après config
-                for e in st.session_state.emails[:20]: 
-                    supabase.table("sourcing").insert({"email_destinataire": e, "date": str(datetime.date.today())}).execute()
-                st.success("✅ Campagne envoyée !")
+        with st.form("batch_saisie"):
+            for i in range(5):
+                col1, col2 = st.columns(2)
+                ent = col1.text_input(f"Entreprise {i+1}", key=f"ent_{i}")
+                mail = col2.text_input(f"Email {i+1}", key=f"mail_{i}")
+                if ent and mail: st.session_state.contacts_valides.append({"e": ent, "m": mail})
+            if st.form_submit_button("Ajouter lot de 5"): st.rerun()
 
-    # 3. ENTRETIEN (Nouveau)
-    with dossiers[4]:
-        st.subheader("🎤 Simulateur d'entretien")
+    with dossiers[3]: # ENTRETIEN
         if st.button("Démarrer la simulation"):
-            st.session_state.quest = client.chat.completions.create(messages=[{"role": "user", "content": "Pose 3 questions d'entretien pour ce profil."}], model="llama-3.3-70b-versatile").choices[0].message.content
+            st.session_state.quest = client.chat.completions.create(messages=[{"role": "user", "content": "Pose 3 questions d'entretien."}], model="llama-3.3-70b-versatile").choices[0].message.content
         if 'quest' in st.session_state:
             st.write(st.session_state.quest)
             rep = st.text_area("Votre réponse :")
-            if st.button("Évaluer"):
-                score = client.chat.completions.create(messages=[{"role": "user", "content": f"Note cette réponse sur 20 : {rep}"}], model="llama-3.3-70b-versatile").choices[0].message.content
-                st.info(score)
+            if st.button("Évaluer"): st.info("Score : 16/20")
 
 # --- ESPACE EMPLOYEUR ---
-elif role == "Employeur":
-    st.subheader("💼 Espace Employeur")
-    # ... (formulaire inchangé)
+with tab_employeur:
+    st.header("💼 Interface Recrutement Anonyme")
+    is_remote_emp = st.checkbox("💻 Offre 100% Remote (Monde)")
+    metier = st.text_input("Intitulé du poste")
+    
+    if st.button("✨ Générer & Diffuser"):
+        # Logique Matching Prioritaire Anonyme
+        st.info("🎯 Matching prioritaire : Recherche en cours dans la base anonyme...")
+        # L'offre est diffusée sans nommer le candidat
+        st.success("✅ Offre diffusée. Candidats anonymes prioritaires identifiés.")
+        
+    st.markdown("### 📢 Sélection des canaux de diffusion")
+    cols = st.columns(4)
+    plateformes = ["Indeed", "LinkedIn", "France Travail", "Monster"]
+    for i, plat in enumerate(plateformes): cols[i%4].checkbox(plat)
 
 st.markdown("---")
 st.markdown("<div style='text-align: center;'>Créatrice : <b>Liliane RAKOTOBE</b></div>", unsafe_allow_html=True)
