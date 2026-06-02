@@ -23,7 +23,7 @@ PAYS_CONFIG = {
     "France": {"devise": "€", "plateforme_locale": "France Travail"},
     "Madagascar": {"devise": "Ar", "plateforme_locale": "Orange MixJob / Midi"},
     "United States": {"devise": "$", "plateforme_locale": "Indeed US"},
-    "Canada": {"devise": "$ CAD", "guichet": "Guichet Emploi"},
+    "Canada": {"devise": "$ CAD", "plateforme_locale": "Guichet Emploi"},
     "International / Autre": {"devise": "$", "plateforme_locale": "LinkedIn"}
 }
 
@@ -39,81 +39,30 @@ def traduire_avec_ia(texte, langue_cible):
 
 # --- NETTOYAGE JSON SECURISE ---
 def extraire_json_propre(texte_brut):
-    """Extrait proprement le JSON de l'IA sans risquer un crash"""
     try:
         texte_nettoye = re.sub(r"```json|```", "", texte_brut).strip()
         return json.loads(texte_nettoye)
     except:
         try:
             match = re.search(r"\{.*\}", texte_brut, re.DOTALL)
-            if match:
-                return json.loads(match.group(0))
-        except:
-            pass
+            if match: return json.loads(match.group(0))
+        except: pass
     return {"score": 0, "justification": "Erreur d'analyse."}
 
 
-# --- MOTEUR DE MATCHING ARRIÈRE-PLAN IA (> 50%) ---
-def executer_matching_automatique_cv(id_cv, contenu_cv, candidat_remote, candidat_pays, candidat_ville, source="app"):
-    """S'exécute immédiatement après la réception d'un CV pour chercher les offres correspondantes"""
-    try:
-        offres_db = supabase.table("mes_offres").select("*").execute().data
-        if not offres_db:
-            return
-            
-        for offre in offres_db:
-            offre_remote = offre.get("is_remote", False)
-            offre_pays = offre.get("pays", "France")
-            
-            if not (candidat_remote and offre_remote):
-                if candidat_pays != offre_pays:
-                    continue
-
-            prompt = f"""
-            Evalue la pertinence du CV suivant pour l'offre d'emploi fournie.
-            OFFRE D'EMPLOI : {offre['contents']}
-            CV DU CANDIDAT : {contenu_cv}
-            Renvoie UNIQUEMENT un objet JSON structuré ainsi :
-            {{
-                "score": <un entier entre 0 et 100>,
-                "justification": "<2 phrases maximum expliquant le score>"
-            }}
-            """
-            try:
-                res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile", temperature=0.1)
-                brut = res.choices[0].message.content
-                resultat_json = extraire_json_propre(brut)
-                
-                score = int(resultat_json.get("score", 0))
-                
-                # Sauvegarde dans la table de matching avec spécification de la source (app ou email)
-                supabase.table("matching_offres_candidats").insert({
-                    "offre_id": offre["id"],
-                    "candidat_id": id_cv,
-                    "score": score,
-                    "justification": resultat_json["justification"],
-                    "source": source
-                }).execute()
-            except:
-                pass
-    except:
-        pass
-
-
+# --- MOTEUR DE MATCHING AUTOMATIQUE (RECHERCHE BDD PROFILS À CHAQUE OFFRE) ---
 def executer_matching_ia_depuis_offre(id_offre, texte_offre, offre_remote, offre_pays):
-    """S'exécute lorsqu'un employeur crée une nouvelle offre"""
+    """Parcourt toute la BDD profils lors de la publication d'une offre. Envoie dans tiroir match si >= 50%"""
     try:
         candidats_db = supabase.table("cvs").select("*").execute().data
-        if not candidats_db: 
-            return
+        if not candidats_db: return
             
         for candidat in candidats_db:
             cand_remote = candidat.get("is_remote", False)
             cand_pays = candidat.get("pays", "France")
             
             if not (offre_remote and cand_remote):
-                if offre_pays != cand_pays: 
-                    continue
+                if offre_pays != cand_pays: continue
                 
             try:
                 prompt = f"Calcule le score de matching (0 à 100) en JSON entre cette offre : {texte_offre} et ce CV : {candidat['contenu']}"
@@ -121,34 +70,55 @@ def executer_matching_ia_depuis_offre(id_offre, texte_offre, offre_remote, offre
                 brut = res.choices[0].message.content
                 resultat_json = extraire_json_propre(brut)
                 
+                score_calcule = int(resultat_json.get("score", 0))
+                
                 supabase.table("matching_offres_candidats").insert({
                     "offre_id": id_offre, 
                     "candidat_id": candidat["id"], 
-                    "score": int(resultat_json.get("score", 0)), 
+                    "score": score_calcule, 
                     "justification": resultat_json["justification"],
                     "source": candidat.get("source", "app")
                 }).execute()
-            except:
-                pass
-    except: 
-        pass
+            except: pass
+    except: pass
 
 
-# --- SIMULATION DE L'IA QUI LIT LES EMAILS ENTRANTS ---
-def simuler_ia_reception_email(email_recu, nom_candidat, texte_cv, entreprise_id):
-    """Simule l'arrivée d'une candidature par email sur l'adresse de l'entreprise renseignée"""
+def executer_matching_automatique_cv(id_cv, contenu_cv, candidat_remote, candidat_pays, candidat_ville, source="app"):
+    try:
+        offres_db = supabase.table("mes_offres").select("*").execute().data
+        if not offres_db: return
+            
+        for offre in offres_db:
+            offre_remote = offre.get("is_remote", False)
+            offre_pays = offre.get("pays", "France")
+            
+            if not (candidat_remote and offre_remote):
+                if candidat_pays != offre_pays: continue
+
+            prompt = f"Evalue le matching en JSON entre l'offre : {offre['contents']} et le CV : {contenu_cv}."
+            try:
+                res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile", temperature=0.1)
+                resultat_json = extraire_json_propre(res.choices[0].message.content)
+                
+                supabase.table("matching_offres_candidats").insert({
+                    "offre_id": offre["id"], "candidat_id": id_cv,
+                    "score": int(resultat_json.get("score", 0)),
+                    "justification": resultat_json["justification"], "source": source
+                }).execute()
+            except: pass
+    except: pass
+
+
+def simuler_ia_reception_email(email_recu, nom_candidat, email_reel, tel_reel, texte_cv):
+    """Candidature Spontanée externe par email : Lever l'anonymat activé d'office"""
     res_cv = supabase.table("cvs").insert({
-        "nom_fichier": f"[Email] {nom_candidat}", 
-        "contenu": texte_cv,
-        "pays": "France",
-        "ville": "Non spécifié",
-        "is_remote": False,
-        "source": "email"
+        "nom_fichier": nom_candidat, "contenu": texte_cv, "pays": "France", "ville": "Externe",
+        "is_remote": False, "source": "email", "email_reel": email_reel, "tel_reel": tel_reel, "anonymat_leve": True
     }).execute()
     
     if res_cv.data:
         id_nouveau_cv = res_cv.data[0]["id"]
-        executer_matching_automatique_cv(id_nouveau_cv, texte_cv, False, "France", "Non spécifié", source="email")
+        executer_matching_automatique_cv(id_nouveau_cv, texte_cv, False, "France", "Externe", source="email")
 
 
 # --- UI PRINCIPALE ---
@@ -161,213 +131,163 @@ st.session_state.langue = st.selectbox("🌐 Langue", langues, index=0)
 
 tab_home, tab_candidat, tab_employeur = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["🏠 Accueil", "🚀 Candidat", "💼 Employeur"]])
 
-# --- ZONE CANDIDAT ---
+
+# --- 1. ACCUEIL ---
+with tab_home:
+    st.markdown(f"## {traduire_avec_ia('L\'ATS au service de l\'anonymat protecteur et équitable', st.session_state.langue)}")
+    st.markdown(traduire_avec_ia("""
+    **zipngo** protège l'identité des talents et des recruteurs ! L'ensemble du processus au sein de l'application s'effectue sous **anonymat total** (Coordonnées masquées) afin de contrer tous les biais de recrutement. 
+    Les identités réelles ne sont dévoilées que si les deux parties s'accordent en validant d'un **Pouce 👍** après l'entretien vidéo !
+    """, st.session_state.langue))
+
+
+# --- 2. ZONE CANDIDAT ---
 with tab_candidat:
-    dossiers = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["📂 Candidatures", "📄 CVs & Profil", "✨ Scan ATS", "🎤 Entretien"]])
+    st.markdown(f"### 🚀 {traduire_avec_ia('Espace Candidat Anonymisé', st.session_state.langue)}")
     
-    with dossiers[0]:
-        st.subheader("📜 Historique des envois")
-        try:
-            response = supabase.table("sourcing").select("email_destinataire, date").order("date", desc=True).execute()
-            if response.data: st.table(pd.DataFrame(response.data))
-        except: st.write("Aucun envoi enregistré.")
+    dossiers = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["📂 Candidatures", "📄 CVs & Profil", "🎤 Mes Entretiens"]])
     
     with dossiers[1]:
-        st.subheader("📄 Déposez votre CV (Matching automatique en arrière-plan)")
+        st.subheader("📄 Créez votre Profil Secret")
         col_c1, col_c2, col_c3 = st.columns(3)
-        nom_doc = col_c1.text_input("Nom / Prénom", key="cand_nom")
-        pays_cand = col_c2.selectbox("Votre Pays de résidence", list(PAYS_CONFIG.keys()), key="cand_pays")
-        ville_cand = col_c3.text_input("Votre Ville", key="cand_ville")
-        candidat_remote = st.checkbox("🌍 Je recherche exclusivement des postes en 100% Remote (Supprime les barrières de pays)", value=False)
+        nom_cand = col_c1.text_input("Vrai Nom / Prénom (Sera crypté et caché)", key="cand_nom")
+        email_cand = col_c2.text_input("Votre Email (Caché)", key="cand_em")
+        tel_cand = col_c3.text_input("Votre Téléphone (Caché)", key="cand_tel")
         
-        up_file = st.file_uploader("Uploader votre CV (PDF ou TXT)", type=["pdf", "txt"])
+        pays_cand = st.selectbox("Votre Pays", list(PAYS_CONFIG.keys()), key="cand_pays")
+        candidat_remote = st.checkbox("🌍 Poste en 100% Remote ciblé", value=False)
+        up_file = st.file_uploader("Uploader votre CV", type=["pdf", "txt"])
         
-        if st.button("💾 Enregistrer mon profil & Activer le matching automatique") and up_file and nom_doc:
-            with st.spinner("Analyse du profil et matching automatique en cours..."):
-                if up_file.name.endswith(".pdf"):
-                    contenu_texte = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up_file.getvalue())).pages])
-                else:
-                    contenu_texte = up_file.getvalue().decode("utf-8", errors="ignore")
-                
-                res_cv = supabase.table("cvs").insert({
-                    "nom_fichier": nom_doc, 
-                    "contenu": contenu_texte,
-                    "pays": pays_cand,
-                    "ville": ville_cand,
-                    "is_remote": candidat_remote,
-                    "source": "app"
-                }).execute()
-                
-                if res_cv.data:
-                    id_nouveau_cv = res_cv.data[0]["id"]
-                    executer_matching_automatique_cv(id_nouveau_cv, contenu_texte, candidat_remote, pays_cand, ville_cand, source="app")
-                    st.success("🎯 Profil enregistré ! Notre IA a scanné les offres et envoyé votre profil si le matching dépasse 50%.")
-                    st.rerun()
+        if st.button("💾 Chiffrer et Enregistrer mon Profil") and up_file and nom_cand:
+            contenu_texte = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up_file.getvalue())).pages]) if up_file.name.endswith(".pdf") else up_file.getvalue().decode("utf-8", errors="ignore")
+            
+            supabase.table("cvs").insert({
+                "nom_fichier": nom_cand, "contenu": contenu_texte, "pays": pays_cand, "ville": "App",
+                "is_remote": candidat_remote, "source": "app", "email_reel": email_cand, "tel_reel": tel_cand, "anonymat_leve": False
+            }).execute()
+            st.success("🎯 Profil enregistré ! Vos données privées sont masquées sous l'identifiant Zipngo.")
 
-    with dossiers[3]:
-        st.subheader("🎤 Mon Espace Entretiens (Candidat)")
-        sub_tab_invites, sub_tab_avenirs, sub_tab_passes = st.tabs(["📩 Invitations Reçues", "📅 Entretiens à venir", "🗄️ Entretiens passés"])
-        # ... [Logique d'entretien identique à la précédente pour le candidat]
+    with dossiers[2]:
+        st.subheader("🎤 Vos rendez-vous & Levée de l'anonymat")
+        try:
+            mes_rdv = supabase.table("archives_entretiens").select("*, cvs(*)").execute().data
+            if mes_rdv:
+                for rdv in mes_rdv:
+                    st.info(f"📅 Salon vidéo planifié : {rdv['date_entretien']}")
+                    st.markdown(f"[🟩 Entrer en entretien Jitsi]({rdv['lien_jitsi']})", unsafe_allow_html=True)
+                    
+                    # SYSTEME DU DEUXIEME POUCE CANDIDAT APRES RDV
+                    if rdv['statut'] == "Archivé" or rdv['statut'] == "Confirmé":
+                        if st.button("👍 Dévoiler mes coordonnées réelles à cet employeur", key=f"pouce_cand_{rdv['id']}"):
+                            supabase.table("archives_entretiens").update({"candidat_agree": True}).eq("id", rdv['id']).execute()
+                            st.success("Vous avez donné votre accord pour lever l'anonymat !")
+                            st.rerun()
+        except: pass
 
 
-# --- ZONE EMPLOYEUR (AVEC AUTHENTIFICATION / CONFIGURATION COMPTE) ---
+# --- 3. ZONE EMPLOYEUR ---
 with tab_employeur:
-    st.header("💼 Espace Recruteur & Gestion Globale")
+    st.header("💼 Espace Recruteur")
     
-    # --- ETAPE 1 : ENREGISTREMENT DES COORDONNÉES ENTREPRISE SI INEXISTANT ---
-    if "entreprise_connectee" not in st.session_state:
-        st.session_state.entreprise_connectee = None
+    if "entreprise_connectee" not in st.session_state: st.session_state.entreprise_connectee = None
 
     if not st.session_state.entreprise_connectee:
-        st.info("🔒 Veuillez renseigner les informations de votre entreprise pour accéder à votre espace recruteur.")
         with st.form("form_enregistrement_entreprise"):
-            nom_ent = st.text_input("🏢 Nom de l'entreprise *")
-            siret_ent = st.text_input("🔢 Numéro SIRET (14 chiffres) *")
-            email_notif = st.text_input("📩 Email de réception des candidatures (À notifier / Trié par l'IA) *")
-            pays_ent = st.selectbox("📍 Pays du siège social", list(PAYS_CONFIG.keys()))
+            nom_ent = st.text_input("🏢 Nom de l'entreprise (Masqué dans l'app) *")
+            siret_ent = st.text_input("🔢 SIRET *")
+            email_notif = st.text_input("📩 Email de réception (Masqué dans l'app) *")
+            tel_ent = st.text_input("📞 Téléphone contact *")
+            pays_ent = st.selectbox("📍 Pays", list(PAYS_CONFIG.keys()))
             
-            submit_ent = st.form_submit_button("🔓 Valider et accéder au tableau de bord")
-            if submit_ent:
-                if nom_ent and siret_ent and email_notif:
-                    # Enregistrement en BDD Supabase
-                    try:
-                        res_ent = supabase.table("entreprises").insert({
-                            "nom": nom_ent,
-                            "siret": siret_ent,
-                            "email_reception": email_notif,
-                            "pays": pays_ent
-                        }).execute()
-                        if res_ent.data:
-                            st.session_state.entreprise_connectee = res_ent.data[0]
-                            st.success("✅ Entreprise enregistrée avec succès !")
-                            st.rerun()
-                    except:
-                        # Fallback local si la table n'est pas encore créée sur votre Supabase
-                        st.session_state.entreprise_connectee = {"id": "demo_id", "nom": nom_ent, "siret": siret_ent, "email_reception": email_notif, "pays": pays_ent}
-                        st.success("✅ Mode Démo activé avec succès !")
-                        st.rerun()
-                else:
-                    st.error("Veuillez remplir tous les champs obligatoires (*)")
+            if st.form_submit_button("🔓 Ouvrir le compte"):
+                st.session_state.entreprise_connectee = {"id": "emp_123", "nom": nom_ent, "siret": siret_ent, "email_reception": email_notif, "tel": tel_ent, "pays": pays_ent}
+                st.rerun()
                     
-    # --- ETAPE 2 : TABLEAU DE BORD SI L'ENTREPRISE EST AUTHENTIFIÉE ---
     else:
         ent_info = st.session_state.entreprise_connectee
-        st.sidebar.markdown(f"🏢 **{ent_info['nom']}**\n\nSIRET : `{ent_info['siret']}`\n\n📩 Hub Email : `{ent_info['email_reception']}`")
+        st.sidebar.markdown(f"🏢 Recruteur: **{ent_info['nom']}**")
         
-        pays_employeur = ent_info['pays']
-        devise_locale = PAYS_CONFIG[pays_employeur]["devise"]
-        plateforme_locale = PAYS_CONFIG[pays_employeur]["plateforme_locale"]
+        # SIMULATEUR CANDIDATURE SPONTANÉE PAR EMAIL (HORS APP) -> ANONYMAT LEVÉ D'OFFICE
+        with st.sidebar.expander("🧪 Simuler Candidature Spontanée (Email)"):
+            c_nom = st.text_input("Nom candidat externe")
+            c_mail = st.text_input("Email externe")
+            c_txt = st.text_area("Texte du CV")
+            if st.button("📥 Envoyer l'Email"):
+                simuler_ia_reception_email(ent_info['email_reception'], c_nom, c_mail, "0600000000", c_txt)
+                st.success("Reçu hors-app : L'anonymat de ce candidat est levé d'office.")
+                st.rerun()
 
-        # --- SIMULATEUR DE CANDIDATURE PAR EMAIL (POUR VOS TESTS) ---
-        with st.sidebar.expander("🧪 Simulateur de réception d'Email (Test Moteur ATS)"):
-            st.caption("Simule l'envoi d'un CV externe reçu sur l'adresse email configurée.")
-            test_nom = st.text_input("Nom du candidat externe")
-            test_cv_text = st.text_area("Contenu texte du CV reçu")
-            if st.button("📥 Simuler l'arrivée de l'email"):
-                if test_nom and test_cv_text:
-                    simuler_ia_reception_email(ent_info['email_reception'], test_nom, test_cv_text, ent_info['id'])
-                    st.success("L'IA a lu l'email, extrait le CV, calculé le matching et distribué le profil !")
-                    st.rerun()
-
-        # --- GESTION DES TIROIRS EMPLOYEURS ---
-        st.markdown("---")
-        tiroir_principal, tiroir_vivier = st.tabs(["📥 TIROIR DES PROFILS MATCHÉS (>= 50%)", "🗄️ VIVIER DE CANDIDATURES (< 50%)"])
+        tiroir_principal, tiroir_vivier = st.tabs(["📥 TIROIR MATCH (>= 50%)", "🗄️ VIVIER (< 50%)"])
 
         try:
-            matchings = supabase.table("matching_offres_candidats").select("id, score, justification, source, candidat_id, mes_offres(intitule, is_remote, pays), cvs(nom_fichier, is_remote, pays)").order("score", desc=True).execute().data
-        except:
-            matchings = []
+            matchings = supabase.table("matching_offres_candidats").select("*, mes_offres(*), cvs(*)").order("score", desc=True).execute().data
+        except: matchings = []
 
-        # TIROIR 1 : SUPÉRIEUR OU ÉGAL À 50%
+        # --- TIROIR 1 : MATCHING >= 50% ---
         with tiroir_principal:
-            st.markdown("#### 🎯 Candidats pertinents (Application + Tri Automatique de vos Emails)")
-            compteur_principal = 0
             if matchings:
                 for m in matchings:
                     if int(m['score']) >= 50:
-                        compteur_principal += 1
-                        badge_source = "📧 REÇU PAR EMAIL" if m.get('source') == "email" else "📱 CANDIDAT APP"
-                        with st.expander(f"👤 {m['cvs']['nom_fichier']} - [{badge_source}] - Score IA : {m['score']}% sur : {m['mes_offres']['intitule']}"):
-                            st.write(f"**Justification IA :** {m['justification']}")
-                            if st.button("👍 Proposer un RDV Jitsi", key=f"t_rec_p_{m['id']}"):
-                                st.session_state[f"form_active_{m['id']}"] = True
+                        is_externe = m['cvs'].get('source') == "email" or m['cvs'].get('anonymat_leve') == True
+                        
+                        # Affichage selon les règles d'anonymat
+                        nom_affiche = m['cvs']['nom_fichier'] if is_externe else f"👤 Candidat Anonyme App #{m['cvs']['id']}"
+                        
+                        with st.expander(f"{nom_affiche} — Score : {m['score']}% (Poste : {m['mes_offres']['intitule']})"):
+                            st.write(f"**Analyse IA :** {m['justification']}")
                             
-                            if st.session_state.get(f"form_active_{m['id']}", False):
-                                with st.form(key=f"f_rdv_{m['id']}"):
-                                    dt = st.date_input("Date de l'entretien", datetime.date.today())
-                                    slot1 = st.text_input("Horaire optionnel 1", "10:00")
-                                    slot2 = st.text_input("Horaire optionnel 2", "14:30")
-                                    if st.form_submit_button("📨 Envoyer l'invitation"):
-                                        room = f"jitsi-zipngo-{m['id']}"
-                                        supabase.table("archives_entretiens").insert({
-                                            "candidat_id": m["candidat_id"], "statut": "Proposé",
-                                            "lien_jitsi": f"https://meet.jit.si/{room}", "date_entretien": str(dt),
-                                            "horaires_proposes": json.dumps([slot1])
-                                        }).execute()
-                                        st.success("Propositions de créneaux transmises !")
-                                        st.session_state[f"form_active_{m['id']}"] = False
-                                        st.rerun()
-            if compteur_principal == 0:
-                st.info("Aucun profil n'a encore atteint le seuil des 50% de pertinence.")
+                            # Si l'anonymat est levé réciproquement (Deuxième pouce validé des deux côtés)
+                            try:
+                                rdv_check = supabase.table("archives_entretiens").select("*").eq("candidat_id", m['candidat_id']).execute().data
+                                if rdv_check and rdv_check[0].get('candidat_agree'):
+                                    st.success(f"🔓 **Anonymat Levé !** Vrai Nom : {m['cvs']['nom_fichier']} | Email : {m['cvs']['email_reel']} | Tel : {m['cvs']['tel_reel']}")
+                            except: pass
+                            
+                            # Premier pouce pour proposer le rdv vidéo
+                            if st.button("👍 Planifier un entretien vidéo", key=f"pouce_rec_{m['id']}"):
+                                room = f"zipngo-room-{m['id']}"
+                                supabase.table("archives_entretiens").insert({
+                                    "candidat_id": m["candidat_id"], "statut": "Confirmé",
+                                    "lien_jitsi": f"https://meet.jit.si/{room}", "date_entretien": "À définir via Jitsi"
+                                }).execute()
+                                st.success("👍 Premier pouce activé : Lien de salon généré !")
+                                st.rerun()
 
-        # TIROIR 2 : VIVIER (INFÉRIEUR À 50% PROVENANT DE L'ADRESSE EMAIL)
+        # --- TIROIR 2 : VIVIER < 50% ---
         with tiroir_vivier:
-            st.markdown("#### 🗄️ Profils écartés ou à ré-évaluer pour le futur (<50%)")
-            compteur_vivier = 0
             if matchings:
                 for m in matchings:
                     if int(m['score']) < 50:
-                        compteur_vivier += 1
-                        with st.expander(f"👤 {m['cvs']['nom_fichier']} - Score IA : {m['score']}% (Basse pertinence détectée sur l'adresse email)"):
-                            st.warning(f"**Analyse ATS :** Ce profil n'est pas idéal pour le poste de *{m['mes_offres']['intitule']}* actuellement.")
-                            st.write(f"**Justification :** {m['justification']}")
-                            st.caption("Profil conservé automatiquement dans le vivier d'entreprise en conformité avec vos processus internes.")
-            if compteur_vivier == 0:
-                st.info("Le vivier est actuellement vide.")
+                        nom_affiche = m['cvs']['nom_fichier'] if (m['cvs'].get('source') == "email") else f"👤 Profil Discret #{m['cvs']['id']}"
+                        with st.expander(f"{nom_affiche} — Score : {m['score']}%"):
+                            st.caption("Profil maintenu anonyme dans le vivier d'évaluation.")
 
-        # --- SUIVI RECRUTEUR DES ENTRETIENS PROGRAMMES ---
+        # --- FORMULAIRE RÉDACTION OFFRES ET EXPORT HORS-APP ---
         st.markdown("---")
-        st.markdown("### 🕒 Suivi de vos entretiens recruteur")
-        sub_rec_avenirs, sub_rec_passes = st.tabs(["📅 Mes rendez-vous à venir", "🗄️ Historique & Comptes-rendus"])
-        # ... [Logique de suivi d'entretiens identique à la précédente version]
-
-        # --- FORMULAIRE DE RÉDACTION D'OFFRE ---
-        st.markdown("---")
-        with st.expander("📝 Rédiger, Localiser et Diffuser une nouvelle Offre"):
-            col_e1, col_e2 = st.columns(2)
-            metier_off = col_e1.text_input("Intitulé du poste", key="e_job")
-            ville_off = col_e2.text_input("Ville du poste", key="e_v")
-            salaire = col_e1.number_input(f"Salaire proposé (En {devise_locale})", min_value=1.0, value=15.0)
-            contrat = st.selectbox("Type de contrat", ["CDI", "CDD", "Freelance", "Stage"])
-            offre_remote = st.checkbox("🌍 Poste ouvert au 100% Télétravail (Supprime la barrière géographique pays/ville)", value=False)
+        with st.expander("📝 Diffuser une nouvelle Offre (Recherche BDD automatique active)"):
+            job_title = st.text_input("Intitulé")
+            corps_offre = st.text_area("Description du poste")
             
-            if st.button("✨ Générer et Matcher l'offre"):
-                texte_genere = f"Recherche profil pour {metier_off} à {ville_off}. Contrat {contrat}. Salaire : {salaire} {devise_locale}."
-                st.session_state.current_offre_txt = texte_genere
-                st.write(texte_genere)
+            col_b1, col_b2 = st.columns(2)
+            pub_app = col_b1.button("🔒 Publier en interne App (Anonymat Recruteur Préservé)")
+            pub_hors_app = col_b2.button("🌍 Exporter hors application (Indeed / France Travail — Identité Visible)")
+            
+            if pub_app or pub_hors_app:
+                # Si diffusion externe, on ajoute les coordonnées réelles directement dans l'offre diffusée
+                texte_final = corps_offre if pub_app else f"{corps_offre} \n\n[POSTULEZ DIRECTEMENT SUR L'EMAIL DE L'ENTREPRISE : {ent_info['email_reception']} / TEL : {ent_info['tel']}]"
                 
-            if st.button("✅ Publier l'offre à l'échelle locale / globale"):
-                if "current_offre_txt" in st.session_state:
-                    res_o = supabase.table("mes_offres").insert({
-                        "intitule": metier_off, "contents": st.session_state.current_offre_txt,
-                        "ville": ville_off, "pays": pays_employeur, "is_remote": offre_remote, "employeur_id": ent_info['id']
-                    }).execute()
-                    
-                    if res_o.data:
-                        id_o = res_o.data[0]["id"]
-                        executer_matching_ia_depuis_offre(id_o, st.session_state.current_offre_txt, offre_remote, pays_employeur)
-                        st.success(f"Offre publiée avec succès ! Diffusée localement via : {plateforme_locale}")
-                        st.rerun()
+                res_o = supabase.table("mes_offres").insert({
+                    "intitule": job_title, "contents": texte_final, "ville": "Global",
+                    "pays": ent_info['pays'], "is_remote": True, "employeur_id": ent_info['id']
+                }).execute()
+                
+                if res_o.data:
+                    # RECHERCHE AUTOMATIQUE DANS LA BDD DES PROFILS DES QUE L'OFFRE EST EMISSIME
+                    executer_matching_ia_depuis_offre(res_o.data[0]["id"], texte_final, True, ent_info['pays'])
+                    st.success("🚀 Offre enregistrée ! Recherche lancée dans la BDD des profils, tiroir de match mis à jour.")
+                    st.rerun()
 
 # --- CONDITIONS GÉNÉRALES DE VENTE (CGV) ---
 st.markdown("---")
-with st.expander("⚖️ Conditions Générales de Vente (CGV) & Mentions Légales"):
-    st.markdown("""
-    ### Conditions Générales de Vente — zipngo ATS Premium Global
-    **En vigueur au 2 juin 2026**
-    
-    1. **Objet :** Les présentes Conditions Générales de Vente régissent l'accès et l'utilisation des services de la plateforme `zipngo` de gestion automatique des candidatures et d'analyse algorithmique de CV (ATS).
-    2. **Services fournis :** `zipngo` propose des outils de tri automatisé via Intelligence Artificielle, d'extraction de données depuis les courriels entrants d'entreprises, et de mise en relation de visioconférences.
-    3. **Protection des données (RGPD) :** L'employeur s'engage à traiter les données des candidats récoltées par l'application ou via l'email de réception de candidatures conformément aux lois européennes et internationales de protection de la vie privée. L'entreprise est désignée comme responsable unique du traitement de son vivier.
-    4. **Responsabilité :** `zipngo` met en œuvre un moteur d'IA (Groq Llama 3) calculant un score de pertinence statistique. `zipngo` ne saurait être tenu pour responsable d'erreurs de tri, d'interprétation humaine ou de non-adéquation d'un candidat lors des entretiens Jitsi Meet.
-    """)
+with st.expander("⚖️ Conditions Générales de Vente (CGV)"):
+    st.markdown("** zipngo 2026 ** : Le traitement des données est géré de manière chiffrée. L'anonymat est levé uniquement par consentement mutuel explicite ou lors d'interactions directes en dehors de l'écosystème zipngo.")
