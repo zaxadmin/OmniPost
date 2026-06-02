@@ -11,6 +11,12 @@ client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 LANGUES = ["Français", "Anglais", "Espagnol", "Allemand", "Italien", "Portugais", "Chinois", "Japonais", "Russe", "Arabe", "Néerlandais", "Suédois", "Polonais", "Turc", "Coréen", "Hindi", "Vietnamien", "Thaï", "Indonésien", "Grec"]
 
+# --- FONCTION DE NETTOYAGE ---
+def nettoyer_texte(valeur):
+    if isinstance(valeur, list):
+        return ", ".join([str(item) for item in valeur])
+    return str(valeur).replace("['", "").replace("']", "").replace("', '", ", ").replace('["', "").replace('"]', "").replace('", "', ", ")
+
 # --- FONCTIONS DESIGN ---
 def appliquer_design_geometrique(pdf, data, style="Classique"):
     themes = {
@@ -23,16 +29,16 @@ def appliquer_design_geometrique(pdf, data, style="Classique"):
     
     pdf.set_fill_color(*t["bg"]); pdf.rect(0, 0, 60, 300, 'F')
     pdf.set_text_color(*t["text"])
-    pdf.set_xy(5, 10); pdf.set_font("Arial", 'B', 16); pdf.cell(50, 10, str(h.get('nom', 'N/A')), ln=True)
-    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 5, str(h.get('contact', '')))
+    pdf.set_xy(5, 10); pdf.set_font("Arial", 'B', 16); pdf.cell(50, 10, nettoyer_texte(h.get('nom', 'N/A')), ln=True)
+    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 5, nettoyer_texte(h.get('contact', '')))
     pdf.set_xy(5, 50); pdf.set_font("Arial", 'B', 14); pdf.cell(50, 10, "COMPÉTENCES", ln=True)
-    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 7, str(s.get('contenu', '')))
+    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 7, nettoyer_texte(s.get('contenu', '')))
     
     pdf.set_text_color(0, 0, 0)
-    pdf.set_xy(70, 10); pdf.set_font("Arial", 'B', 18); pdf.cell(100, 10, str(h.get('titre_poste', '')), ln=True)
+    pdf.set_xy(70, 10); pdf.set_font("Arial", 'B', 18); pdf.cell(100, 10, nettoyer_texte(h.get('titre_poste', '')), ln=True)
     pdf.set_draw_color(*t["accent"]); pdf.line(70, 20, 190, 20)
-    pdf.set_xy(70, 30); pdf.set_font("Arial", 'B', 14); pdf.cell(100, 10, str(m.get('titre', '')), ln=True)
-    pdf.set_xy(70, 45); pdf.set_font("Arial", size=11); pdf.multi_cell(130, 7, str(m.get('corps', '')))
+    pdf.set_xy(70, 30); pdf.set_font("Arial", 'B', 14); pdf.cell(100, 10, nettoyer_texte(m.get('titre', '')), ln=True)
+    pdf.set_xy(70, 45); pdf.set_font("Arial", size=11); pdf.multi_cell(130, 7, nettoyer_texte(m.get('corps', '')))
 
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='text-align: center; color:#000080;'>zip<span style='color:#4169E1;'>ngo</span> ATS Premium</h1>", unsafe_allow_html=True)
@@ -63,7 +69,14 @@ if role == "Candidat":
         
         if up_cv and metier and st.button("🔍 Scanner mon CV"):
             txt = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up_cv.getvalue())).pages])
-            prompt = f"Analyse ce CV pour '{metier}'. Retourne uniquement un JSON strict: {{'score': 0-100, 'feedback': '...', 'header': {{'nom', 'contact', 'titre_poste'}}, 'sidebar': {{'contenu'}}, 'main': {{'titre', 'corps'}}}} CV: {txt}"
+            prompt = f"""
+            Tu es un expert ATS. Analyse ce CV pour le poste : '{metier}'.
+            1. Rédige une phrase d'accroche percutante intégrant le titre du poste.
+            2. Intègre les mots-clés techniques indispensables.
+            3. Retourne un JSON strict SANS listes Python (utilise du texte fluide): 
+            {{'score': 0-100, 'feedback': '...', 'header': {{'nom', 'contact', 'titre_poste'}}, 'sidebar': {{'contenu': 'Accroche + Liste mots-clés'}}, 'main': {{'titre', 'corps'}}}}
+            CV: {txt}
+            """
             res = client.chat.completions.create(messages=[{"role":"user", "content":prompt}], model="llama-3.3-70b-versatile")
             st.session_state.cv_data = json.loads(re.search(r'\{.*\}', res.choices[0].message.content.strip(), re.DOTALL).group())
             
