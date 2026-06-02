@@ -123,13 +123,17 @@ def executer_matching_ia(id_offre, texte_offre):
             clean_matching = brut_matching.replace("```json", "")
             clean_matching = clean_matching.replace("```", "")
             resultat_json = json.loads(clean_matching)
-            if resultat_json["score"] >= 50:
+            
+            # Note : On tente d'insérer dans la table de matching si elle existe
+            try:
                 supabase.table("matching_offres_candidats").insert({
                     "offre_id": id_offre,
                     "candidat_id": candidat["id"],
                     "score": resultat_json["score"],
                     "justification": resultat_json["justification"]
                 }).execute()
+            except:
+                pass
         except:
             pass
 
@@ -163,7 +167,7 @@ with tab_candidat:
             if response.data: st.table(pd.DataFrame(response.data))
         except Exception as e: st.error(f"Erreur : {e}")
     
-    # --- DOSSIER 1 : CVS (AVEC AJOUT DE LA SUPPRESSION) ---
+    # --- DOSSIER 1 : CVS (CORRIGÉ AVEC SUPPRESSION SÉCURISÉE) ---
     with dossiers[1]:
         st.subheader("📄 Mes Documents & CVs")
         type_doc = st.selectbox("Type", ["CV", "Lettre de Motivation"])
@@ -181,16 +185,20 @@ with tab_candidat:
                 c1.write(f"📄 {doc['nom_fichier']}")
                 c2.download_button("⬇️ Télécharger", data=doc['contenu'], file_name=f"{doc['nom_fichier']}.pdf", key=f"dl_{doc['id']}")
                 
-                # Ajout de l'action de suppression avec identifiant unique
                 if c3.button("🗑️ Supprimer", key=f"del_{doc['id']}", help="Supprimer définitivement ce document"):
+                    # 1. On tente de supprimer les dépendances de matching de manière silencieuse (si la table existe)
                     try:
-                        # Suppression également des correspondances associées au CV pour éviter les erreurs de contraintes SQL
                         supabase.table("matching_offres_candidats").delete().eq("candidat_id", doc['id']).execute()
+                    except:
+                        pass
+                    
+                    # 2. On effectue la suppression principale dans la table 'cvs'
+                    try:
                         supabase.table("cvs").delete().eq("id", doc['id']).execute()
                         st.success(f"Document supprimé !")
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Erreur lors de la suppression : {e}")
+                        st.error(f"Erreur lors de la suppression du CV : {e}")
                 
     # --- INTERFACE CANDIDAT : SCAN & OPTIMISATION ATS ---
     with dossiers[2]:
@@ -363,7 +371,7 @@ with tab_employeur:
         rok_key = st.text_input("Remote OK API Key", type="password", value=current_config.get("remote_ok_api_key", ""))
 
         st.subheader("📄 Jobboards gérés par Flux automatiques")
-        st.info(f"URL unique à soumettre à vos gestionnaires Indeed / APEC / Welcome to the Jungle : \n`[https://zipngo.zaxx.app/feeds/jobs?emp=](https://zipngo.zaxx.app/feeds/jobs?emp=){id_employeur}`")
+        st.info(f"URL unique à soumettre à vos gestionnaires Indeed / APEC / Welcome to the Jungle : \n`https://zipngo.zaxx.app/feeds/jobs?emp={id_employeur}`")
 
         if st.button("💾 Enregistrer mes identifiants"):
             data_config = {
@@ -443,6 +451,7 @@ with tab_employeur:
                                     diffuser_facebook(current_config, st.session_state.offre_texte)
                                 st.write(f"🚀 Offre publiée sur votre **Page Facebook**")
                             else:
+                                'facebook_token'
                                 st.warning("⚠️ Facebook sélectionné mais jeton de page manquant.")
                         
                         elif plat == "Remote OK":
@@ -459,7 +468,7 @@ with tab_employeur:
                 st.success("Offre enregistrée dans vos dossiers et diffusée !")
                 st.balloons()
 
-    # --- INTERFACE COMPLÈTE DE VISUALISATION DU MATCHING IA ---
+    # --- INTERFACE DE VISUALISATION DU MATCHING IA (SÉCURISÉE) ---
     st.markdown("---")
     st.subheader("🎯 Candidats identifiés par notre IA pour vos postes")
     try:
