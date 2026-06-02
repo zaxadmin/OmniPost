@@ -9,68 +9,69 @@ st.set_page_config(page_title="zipngo | ATS Premium", layout="wide")
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-def nettoyer_texte(valeur):
-    if isinstance(valeur, list):
-        return ", ".join([str(item) for item in valeur])
-    return str(valeur).replace("['", "").replace("']", "").replace("', '", ", ").replace('["', "").replace('"]', "").replace('", "', ", ")
+LANGUES = ["Français", "Anglais", "Espagnol", "Allemagne", "Italien", "Portugais", "Chinois", "Japonais", "Russe", "Arabe", "Néerlandais", "Suédois", "Polonais", "Turc", "Coréen", "Hindi", "Vietnamien", "Thaï", "Indonésien", "Grec"]
+
+# --- FONCTIONS ---
+def obtenir_contenu_structure(txt_cv, metier):
+    prompt = f"Analyse ce CV pour {metier}. Retourne JSON: {{header, sidebar, main, mots_cles_ajoutes}}. CV: {txt_cv}"
+    res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
+    return json.loads(re.search(r'\{.*\}', res.choices[0].message.content.strip(), re.DOTALL).group())
 
 def appliquer_design_geometrique(pdf, data):
-    pdf.set_fill_color(52, 73, 94); pdf.rect(0, 0, 60, 300, 'F')
-    pdf.set_text_color(255, 255, 255)
     h, s, m = data.get('header', {}), data.get('sidebar', {}), data.get('main', {})
-    
-    pdf.set_xy(5, 10); pdf.set_font("Arial", 'B', 16); pdf.cell(50, 10, nettoyer_texte(h.get('nom', 'N/A')), ln=True)
-    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 5, nettoyer_texte(h.get('contact', '')))
-    pdf.set_xy(5, 50); pdf.set_font("Arial", 'B', 14); pdf.cell(50, 10, "ACCROCHE", ln=True)
-    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 7, nettoyer_texte(s.get('accroche', '')))
-    
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_xy(70, 10); pdf.set_font("Arial", 'B', 18); pdf.cell(100, 10, nettoyer_texte(h.get('titre_poste', '')), ln=True)
-    pdf.set_draw_color(52, 73, 94); pdf.line(70, 20, 190, 20)
-    pdf.set_xy(70, 30); pdf.set_font("Arial", 'B', 14); pdf.cell(100, 10, nettoyer_texte(m.get('titre', '')), ln=True)
-    pdf.set_xy(70, 45); pdf.set_font("Arial", size=11); pdf.multi_cell(130, 7, nettoyer_texte(m.get('corps', '')))
+    pdf.set_fill_color(52, 73, 94); pdf.rect(0, 0, 60, 300, 'F'); pdf.set_text_color(255, 255, 255)
+    pdf.set_xy(5, 10); pdf.set_font("Arial", 'B', 16); pdf.cell(50, 10, h.get('nom', 'N/A'), ln=True)
+    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 5, h.get('contact', ''))
+    pdf.set_xy(5, 50); pdf.set_font("Arial", 'B', 14); pdf.cell(50, 10, "COMPÉTENCES", ln=True)
+    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 7, s.get('contenu', ''))
+    pdf.set_text_color(0, 0, 0); pdf.set_xy(70, 10); pdf.set_font("Arial", 'B', 18); pdf.cell(100, 10, h.get('titre_poste', ''), ln=True)
+    pdf.set_xy(70, 30); pdf.set_font("Arial", 'B', 14); pdf.cell(100, 10, m.get('titre', ''), ln=True)
+    pdf.set_xy(70, 45); pdf.set_font("Arial", size=11); pdf.multi_cell(130, 7, m.get('corps', ''))
 
-st.markdown("<h1 style='text-align: center; color:#000080;'>zip<span style='color:#4169E1;'>ngo</span> ATS Premium</h1>", unsafe_allow_html=True)
+# --- UI PRINCIPALE ---
+st.markdown("<h1 style='text-align: center; color:#000080;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
 
-if 'cv_data' not in st.session_state: st.session_state.cv_data = None
+# Sélection directe de l'espace sans auth
+role = st.sidebar.radio("Choisissez votre espace :", ["Candidat", "Employeur"])
 
-if st.sidebar.radio("Espace :", ["Candidat", "Employeur"]) == "Candidat":
-    with st.tabs(["📂", "📄", "✨ Relooking ATS", "🌐", "🎤"])[2]:
-        metier = st.text_area("Intitulé du poste visé...")
-        up_cv = st.file_uploader("Upload CV actuel", type=["pdf"])
-        
-        if up_cv and metier and st.button("🔍 Analyser et Réécrire mon CV"):
+if role == "Candidat":
+    st.subheader("👤 Espace Candidat")
+    tabs = st.tabs(["📂 Candidatures", "📄 CVs", "✨ Relooking", "🌐 Sourcing", "🎤 Entretien"])
+    with tabs[0]:
+        st.subheader("📋 Historique des candidatures")
+        st.table(pd.DataFrame(supabase.table("candidatures").select("*").execute().data))
+    with tabs[1]:
+        nom = st.text_input("Nom du fichier"); up = st.file_uploader("Upload", type=["pdf"])
+        if up and st.button("💾 Enregistrer"):
+            try:
+                # Correction UUID pour valider l'insertion dans la table
+                supabase.table("cvs").insert({
+                    "nom_fichier": nom, 
+                    "contenu": up.getvalue().hex(),
+                    "user_id": "00000000-0000-0000-0000-000000000000"
+                }).execute()
+                st.success("Enregistré avec succès !")
+            except Exception as e:
+                st.error(f"Détail de l'erreur Supabase : {e}")
+    with tabs[2]:
+        metier = st.text_area("Intitulé du poste..."); up_cv = st.file_uploader("Upload CV", type=["pdf"])
+        if up_cv and metier and st.button("🚀 Optimiser & Designer"):
             txt = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up_cv.getvalue())).pages])
-            prompt = f"""
-            Tu es un rédacteur CV expert. Analyse le CV suivant pour le poste '{metier}' :
-            1. Rédige une accroche stratégique (profil professionnel) adaptée au poste.
-            2. REÉCRIS les expériences professionnelles pour mettre en valeur les résultats et utiliser les mots-clés du poste.
-            3. Retourne un JSON strict :
-            {{
-                "score": (note de 0 à 100),
-                "recommandations": ["liste de conseils stratégiques"],
-                "accroche": "Ta phrase d'accroche rédigée",
-                "header": {{"nom": "Liliane RAKOTOBE", "contact": "06 12 40 54 91", "titre_poste": "{metier}"}},
-                "sidebar": {{"accroche": "La phrase rédigée ci-dessus"}},
-                "main": {{"titre": "Expériences Optimisées", "corps": "Tes expériences réécrites de manière professionnelle et percutante"}}
-            }}
-            CV : {txt}
-            """
-            res = client.chat.completions.create(messages=[{"role":"user", "content":prompt}], model="llama-3.3-70b-versatile")
-            st.session_state.cv_data = json.loads(re.search(r'\{.*\}', res.choices[0].message.content.strip(), re.DOTALL).group())
-            
-        if st.session_state.cv_data:
-            st.metric("Score ATS", f"{st.session_state.cv_data.get('score', 'N/A')}/100")
-            
-            st.subheader("🛠️ Réécriture réelle de votre contenu :")
-            st.info(st.session_state.cv_data.get('main', {}).get('corps', ''))
-            
-            st.subheader("🎯 Conseils stratégiques :")
-            for rec in st.session_state.cv_data.get('recommandations', []):
-                st.write(f"- {rec}")
-            
-            if st.button("✅ Télécharger le CV réécrit"):
-                pdf = FPDF()
-                pdf.add_page()
-                appliquer_design_geometrique(pdf, st.session_state.cv_data)
-                st.download_button("⬇️ Télécharger PDF", pdf.output(dest='S').encode('latin-1'), "CV_Optimise.pdf")
+            pdf = FPDF(); pdf.add_page(); appliquer_design_geometrique(pdf, obtenir_contenu_structure(txt, metier))
+            st.download_button("⬇️ Télécharger", pdf.output(dest='S').encode('latin-1'), "CV_Optimise.pdf")
+    with tabs[3]:
+        domaine = st.text_input("Métier"); emails_input = st.text_area("Emails")
+        if st.button("✅ Préparer l'envoi"):
+            st.markdown(f'<a href="mailto:?bcc={emails_input.replace(chr(10),",")}&subject=Candidature&body=Poste {domaine}">📤 Ouvrir messagerie</a>', unsafe_allow_html=True)
+    with tabs[4]:
+        for slot in supabase.table("agenda").select("*").execute().data:
+            if st.button(f"Réserver {slot['creneau']}", key=slot['id']): st.success("RDV pris !")
+
+elif role == "Employeur":
+    st.subheader("💼 Espace Employeur")
+    metier = st.text_input("Poste")
+    langue = st.selectbox("Langue", LANGUES)
+    if st.button("✨ Générer IA"):
+        st.write(client.chat.completions.create(messages=[{"role":"user", "content":f"Annonce pour {metier} en {langue}"}], model="llama-3.3-70b-versatile").choices[0].message.content)
+
+st.markdown("<div style='text-align: center;'>Créatrice : <b>Liliane RAKOTOBE</b></div>", unsafe_allow_html=True)
