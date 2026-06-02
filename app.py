@@ -42,7 +42,17 @@ if role == "Candidat":
         st.table(pd.DataFrame(supabase.table("candidatures").select("*").execute().data))
     with tabs[1]:
         nom = st.text_input("Nom du fichier"); up = st.file_uploader("Upload", type=["pdf"])
-        if up and st.button("💾 Enregistrer"): supabase.table("cvs").insert({"nom_fichier": nom, "contenu": up.getvalue().hex()}).execute()
+        if up and st.button("💾 Enregistrer"):
+            try:
+                # Tentative d'insertion avec gestion d'erreur
+                supabase.table("cvs").insert({
+                    "nom_fichier": nom, 
+                    "contenu": up.getvalue().hex()
+                }).execute()
+                st.success("Enregistré avec succès !")
+            except Exception as e:
+                # Affiche l'erreur détaillée pour vous aider à diagnostiquer
+                st.error(f"Détail de l'erreur Supabase : {e}")
     with tabs[2]:
         metier = st.text_area("Intitulé du poste..."); up_cv = st.file_uploader("Upload CV", type=["pdf"])
         if up_cv and metier and st.button("🚀 Optimiser & Designer"):
