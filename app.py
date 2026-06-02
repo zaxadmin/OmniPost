@@ -71,9 +71,14 @@ if role == "Candidat":
             st.subheader("💼 Parcours réécrit (Prêt à copier)")
             st.code(sol['parcours_revisite'], language='text')
             
-            st.download_button("⬇️ Télécharger mes solutions", 
-                               data=f"ACCROCHE:\n{sol['accroche']}\n\nVOCABULAIRE MÉTIER:\n{', '.join(sol['vocabulaire'])}\n\nPARCOURS:\n{sol['parcours_revisite']}", 
-                               file_name="mes_solutions_candidature.txt")
+            # --- TÉLÉCHARGEMENT AVEC ENCODAGE CORRIGÉ ---
+            contenu_fichier = f"ACCROCHE:\n{sol['accroche']}\n\nVOCABULAIRE MÉTIER:\n{', '.join(sol['vocabulaire'])}\n\nPARCOURS:\n{sol['parcours_revisite']}"
+            st.download_button(
+                label="⬇️ Télécharger mes solutions", 
+                data=contenu_fichier.encode('utf-8-sig'), 
+                file_name="mes_solutions_candidature.txt",
+                mime="text/plain"
+            )
 
 # --- ESPACE EMPLOYEUR ---
 elif role == "Employeur":
