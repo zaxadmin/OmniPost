@@ -9,7 +9,7 @@ st.set_page_config(page_title="zipngo | ATS Premium", layout="wide")
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-LANGUES = ["Français", "Anglais", "Espagnol", "Allemand", "Italien", "Portugais", "Chinois", "Japonais", "Russe", "Arabe", "Néerlandais", "Suédois", "Polonais", "Turc", "Coréen", "Hindi", "Vietnamien", "Thaï", "Indonésien", "Grec"]
+LANGUES = ["Français", "Anglais", "Espagnol", "Allemagne", "Italien", "Portugais", "Chinois", "Japonais", "Russe", "Arabe", "Néerlandais", "Suédois", "Polonais", "Turc", "Coréen", "Hindi", "Vietnamien", "Thaï", "Indonésien", "Grec"]
 
 # --- FONCTIONS ---
 def obtenir_contenu_structure(txt_cv, metier):
@@ -44,11 +44,11 @@ if role == "Candidat":
         nom = st.text_input("Nom du fichier"); up = st.file_uploader("Upload", type=["pdf"])
         if up and st.button("💾 Enregistrer"):
             try:
-                # Tentative d'insertion avec user_id forcé à "anonyme"
+                # Correction UUID pour valider l'insertion dans la table
                 supabase.table("cvs").insert({
                     "nom_fichier": nom, 
                     "contenu": up.getvalue().hex(),
-                    "user_id": "anonyme"
+                    "user_id": "00000000-0000-0000-0000-000000000000"
                 }).execute()
                 st.success("Enregistré avec succès !")
             except Exception as e:
