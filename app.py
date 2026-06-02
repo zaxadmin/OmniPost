@@ -7,7 +7,6 @@ import json
 from groq import Groq
 from supabase import create_client
 from pypdf import PdfReader
-from fpdf import FPDF
 import resend
 import requests
 
@@ -28,18 +27,6 @@ def traduire_avec_ia(texte, langue_cible):
 
 
 # --- FONCTIONS D'ORIGINE ---
-def creer_pdf_cv_pro(texte_ia, nom_fichier, style):
-    pdf = FPDF()
-    pdf.add_page()
-    if style == "Classique": pdf.set_font("Times", 'B', 16)
-    elif style == "Moderne": pdf.set_font("Arial", 'B', 18)
-    else: pdf.set_font("Courier", 'B', 16)
-    pdf.cell(200, 10, txt="Mon CV Optimisé", ln=True, align='C')
-    pdf.ln(10)
-    pdf.set_font("Arial", size=11)
-    pdf.multi_cell(0, 7, txt=texte_ia)
-    pdf.output(nom_fichier)
-
 def afficher_cgv():
     texte_cgv = "1. Accès Candidat 6€/3mois | Recruteur 39€/mois. 2. Limites Gratuit : 1 CV/mois, 1 campagne/mois. 3. Premium : 3 CVs/semaine, 20 mails/jour."
     st.markdown(traduire_avec_ia(texte_cgv, st.session_state.langue))
@@ -52,29 +39,6 @@ def archiver_entretien(candidat_id, statut, lien_jitsi, feedback=""):
         "feedback": feedback,
         "date_archivage": str(datetime.datetime.now())
     }).execute()
-
-
-# --- NOUVELLES FONCTIONS ---
-def obtenir_contenu_structure(txt_cv, metier):
-    prompt = f"Analyse pour le poste '{metier}'. Retourne uniquement un JSON structuré avec: 'header' (nom, titre_poste, contact), 'sidebar' (contenu), 'main' (titre, corps), 'mots_cles_ajoutes'. CV: {txt_cv}"
-    res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
-    
-    # Sécurisation absolue anti-SyntaxError (Lignes scindées)
-    brut_ia = res.choices[0].message.content.strip()
-    nettoye_json = brut_ia.replace("```json", "")
-    nettoye_json = nettoye_json.replace("```", "")
-    return json.loads(nettoye_json)
-
-def appliquer_design_geometrique(pdf, data):
-    pdf.set_fill_color(52, 73, 94); pdf.rect(0, 0, 60, 300, 'F')
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_xy(5, 10); pdf.set_font("Arial", 'B', 16); pdf.cell(50, 10, data['header']['nom'], ln=True)
-    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 5, data['header']['contact'])
-    pdf.set_xy(5, 50); pdf.set_font("Arial", 'B', 14); pdf.cell(50, 10, "COMPÉTENCES", ln=True)
-    pdf.set_font("Arial", size=10); pdf.multi_cell(50, 7, data['sidebar']['contenu'])
-    pdf.set_text_color(0, 0, 0); pdf.set_xy(70, 10); pdf.set_font("Arial", 'B', 18); pdf.cell(100, 10, data['header']['titre_poste'], ln=True)
-    pdf.set_xy(70, 30); pdf.set_font("Arial", 'B', 14); pdf.cell(100, 10, data['main']['titre'], ln=True)
-    pdf.set_xy(70, 45); pdf.set_font("Arial", size=11); pdf.multi_cell(130, 7, data['main']['corps'])
 
 
 # --- FONCTIONS RÉELLES DE DIFFUSION & MATCHING ---
@@ -190,7 +154,7 @@ st.checkbox(traduire_avec_ia("J'accepte les CGV", st.session_state.langue), key=
 tab_home, tab_candidat, tab_employeur = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["🏠 Accueil", "🚀 Candidat", "💼 Employeur"]])
 
 with tab_candidat:
-    dossiers = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["📂 Candidatures", "📄 CVs", "✨ Relooking & Scan ATS", "🌐 Sourcing", "🎤 Entretien"]])
+    dossiers = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["📂 Candidatures", "📄 CVs", "✨ Scan & Optimisation ATS", "🌐 Sourcing", "🎤 Entretien"]])
     with dossiers[0]:
         st.subheader("📜 Historique des envois")
         try:
@@ -212,31 +176,27 @@ with tab_candidat:
                 c1.write(f"📄 {doc['nom_fichier']}")
                 c2.download_button("⬇️ Télécharger", data=doc['contenu'], file_name=f"{doc['nom_fichier']}.pdf")
                 
-    # --- INTERFACE CANDIDAT : RELOOKING & SCAN ATS ---
+    # --- INTERFACE CANDIDAT : SCAN & OPTIMISATION ATS (SANS DESIGN GRAPHIQUE) ---
     with dossiers[2]:
-        st.subheader("✨ Relooking & Scan ATS exhaustif")
+        st.subheader("✨ Audit, Mots-clés & Optimisation ATS")
         metier = st.text_area("Intitulé du poste ou texte de l'offre d'emploi ciblée...")
         up = st.file_uploader("Téléverser votre CV (Format PDF)", type=["pdf"])
         
-        if up and metier and st.button("🚀 Analyser, Scanner & Optimiser"):
-            with st.spinner("Analyse sémantique de votre CV par l'IA..."):
+        if up and metier and st.button("🚀 Lancer l'optimisation ATS"):
+            with st.spinner("Analyse sémantique et scan de conformité en cours..."):
+                # Extraction du texte du PDF
                 txt = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up.getvalue())).pages])
                 
-                data_structure = obtenir_contenu_structure(txt, metier)
-                pdf = FPDF()
-                pdf.add_page()
-                appliquer_design_geometrique(pdf, data_structure)
-                st.session_state.pdf_final = pdf.output(dest='S').encode('latin-1')
-                
+                # Génération du rapport complet par l'IA
                 prompt_ats = f"""
-                Tu es un auditeur ATS et un coach en recrutement expert. Analyse le CV suivant pour le poste '{metier}'.
-                Génère un bilan textuel structuré de manière rigoureuse en suivant exactement ces sections :
+                Tu es un auditeur de systèmes ATS et un coach en recrutement expert. Analyse le CV suivant pour le poste '{metier}'.
+                Génère un bilan d'optimisation textuel structuré de manière rigoureuse en suivant exactement ces sections :
                 
-                1. SCORE ATS GLOBAL (sur 100) : Donne une note chiffrée selon l'adéquation.
-                2. RÉDACTION DE L'ACCROCHE PROFESSIONNELLE : Rédige une introduction percutante de 3-4 lignes prête à être insérée en haut de son CV pour capter l'attention du recruteur.
-                3. PROPOSITION DE MOTS-CLÉS : Liste les termes techniques, compétences fondamentales et soft skills manquants ou indispensables à ajouter absolument.
-                4. AMÉLIORATIONS DU CV : Donne 3 conseils de réécriture précis basés sur les faiblesses détectées.
-                5. CONSEILS ET RÉDACTION POUR LA LETTRE DE MOTIVATION : Rédige une structure type et des paragraphes clés adaptés à son profil pour sa lettre de motivation.
+                1. SCORE ATS GLOBAL (sur 100) : Donne une note chiffrée basée sur la correspondance sémantique.
+                2. RÉDACTION DE L'ACCROCHE PROFESSIONNELLE : Rédige une introduction percutante de 3-4 lignes, entièrement rédigée et prête à être insérée en haut de son CV pour capter l'attention.
+                3. PROPOSITION DE MOTS-CLÉS : Liste les termes techniques, compétences opérationnelles et soft skills indispensables à ajouter absolument pour franchir les filtres.
+                4. AMÉLIORATIONS STRATÉGIQUES DU CV : Donne 3 à 5 conseils de réécriture précis basés sur le texte analysé.
+                5. CONSEILS ET RÉDACTION POUR LA LETTRE DE MOTIVATION : Rédige les paragraphes clés et la structure idéale adaptés à ce profil pour maximiser l'impact de sa lettre de motivation.
                 
                 CV textuel : {txt}
                 """
@@ -245,30 +205,26 @@ with tab_candidat:
                     model="llama-3.3-70b-versatile"
                 )
                 st.session_state.rapport_ats = res_ats.choices[0].message.content
-                st.session_state.mots_cles = data_structure['mots_cles_ajoutes']
 
         if 'rapport_ats' in st.session_state:
-            st.success("🎯 Scan ATS exécuté avec succès !")
+            st.success("🎯 Analyse et optimisation terminées avec succès !")
+            
+            # Affichage du rapport structuré à l'écran
             st.markdown(st.session_state.rapport_ats)
-            st.info("✅ Mots-clés intégrés dans le PDF : " + ", ".join(st.session_state.mots_cles))
             
             st.markdown("---")
-            st.subheader("💾 Sauvegarde & Copie du Bilan")
+            st.subheader("💾 Zone de Copie & Sauvegarde")
+            st.info("Le champ ci-dessous contient l'intégralité du rapport rédigé. Vous pouvez le modifier ou le copier-coller librement.")
             
+            # Zone permettant le copier/coller facile
             texte_a_copier = st.text_area(
-                "Vous pouvez copier et modifier ce texte librement :", 
+                "Texte intégral brut (Prêt pour Copier-Coller) :", 
                 value=st.session_state.rapport_ats, 
-                height=300
+                height=400
             )
             
-            col_dl1, col_dl2 = st.columns(2)
-            col_dl1.download_button(
-                "⬇️ Télécharger le CV Design Optmizé (PDF)", 
-                data=st.session_state.pdf_final, 
-                file_name=f"CV_Design_{metier[:10]}.pdf"
-            )
-            col_dl2.download_button(
-                "⬇️ Sauvegarder le Rapport ATS (Texte)", 
+            st.download_button(
+                "⬇️ Télécharger le Rapport d'Optimisation (.txt)", 
                 data=texte_a_copier, 
                 file_name=f"Rapport_ATS_{metier[:10]}.txt"
             )
