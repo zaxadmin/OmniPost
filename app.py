@@ -78,7 +78,11 @@ if role == "Candidat":
             CV: {txt}
             """
             res = client.chat.completions.create(messages=[{"role":"user", "content":prompt}], model="llama-3.3-70b-versatile")
-            st.session_state.cv_data = json.loads(re.search(r'\{.*\}', res.choices[0].message.content.strip(), re.DOTALL).group())
+            try:
+                raw_res = res.choices[0].message.content.strip()
+                st.session_state.cv_data = json.loads(re.search(r'\{.*\}', raw_res, re.DOTALL).group())
+            except Exception:
+                st.error("Erreur d'analyse IA. Veuillez réessayer.")
             
         if st.session_state.cv_data:
             st.metric("Score ATS", f"{st.session_state.cv_data.get('score', 'N/A')}/100")
