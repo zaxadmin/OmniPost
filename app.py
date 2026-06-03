@@ -16,9 +16,9 @@ LANGUES = [
     "Türkçe", "Polski", "Nederlands", "Bahasa Indonesia", "ภาษาไทย (Thaï)"
 ]
 
+@st.cache_data(show_spinner=False)
 def traduire_avec_ia(texte, langue_cible):
     if langue_cible == "Français": return texte
-    # Note: En production, utilisez un dictionnaire JSON pour la performance
     prompt = f"Traduis le texte suivant en {langue_cible}. Renvoie uniquement le texte : {texte}"
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
     return res.choices[0].message.content
@@ -33,27 +33,31 @@ tab_home, tab_candidat, tab_employeur = st.tabs([traduire_avec_ia(n, st.session_
 
 # --- ESPACE CANDIDAT ---
 with tab_candidat:
-    st.button("💎 " + traduire_avec_ia("Passer en Premium", st.session_state.langue), type="primary")
-    # ... (Logique Candidat ici)
+    # Key unique ajoutée ici
+    st.button("💎 " + traduire_avec_ia("Passer en Premium", st.session_state.langue), type="primary", key="btn_premium_cand")
+    st.subheader(traduire_avec_ia("Espace Candidat", st.session_state.langue))
+    # ... (Logique Candidat)
 
 # --- ESPACE EMPLOYEUR ---
 with tab_employeur:
-    st.button("💎 " + traduire_avec_ia("Passer en Premium", st.session_state.langue), type="primary")
-    # ... (Logique Employeur ici)
+    # Key unique ajoutée ici
+    st.button("💎 " + traduire_avec_ia("Passer en Premium", st.session_state.langue), type="primary", key="btn_premium_emp")
+    st.subheader(traduire_avec_ia("Espace Recruteur", st.session_state.langue))
+    # ... (Logique Employeur)
 
 # --- ACCUEIL & CGV ---
 with tab_home:
     with st.expander(traduire_avec_ia("⚖️ Conditions Générales de Vente & Utilisation", st.session_state.langue)):
         st.markdown(traduire_avec_ia("""
         ### Tarification :
-        - **Accès Candidat :** 6€ pour 3 mois d'accès illimité.
+        - **Accès Candidat :** 6€ pour 3 mois.
         - **Accès Employeur :** 39€ par mois.
         
-        ### Politique de Non-Remboursement :
-        Les services étant numériques et à exécution immédiate, aucun remboursement ne sera effectué.
+        ### Non-Remboursement :
+        Service numérique à exécution immédiate : aucun remboursement possible après activation.
         
         ### Suppression de compte :
-        Droit à l'effacement total de vos données sur simple demande par email à la créatrice. Traitement sous 48h.
+        Droit à l'effacement total de vos données sur simple demande par email. Traitement sous 48h.
         """, st.session_state.langue))
 
 # --- PIED DE PAGE ---
