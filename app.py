@@ -52,16 +52,14 @@ def extraire_json_propre(texte_brut):
         except: pass
     return {"score": 0, "justification": "Erreur d'analyse."}
 
-# --- MOTEUR DE MATCHING ---
+# --- MOTEUR DE MATCHING AUTOMATIQUE ---
 def executer_matching_ia_depuis_offre(id_offre, texte_offre, offre_remote, offre_pays):
     try:
         candidats_db = supabase.table("cvs").select("*").execute().data
         if not candidats_db: return
         for candidat in candidats_db:
-            cand_remote = candidat.get("is_remote", False)
-            cand_pays = candidat.get("pays", "France")
-            if not (offre_remote and cand_remote):
-                if cand_pays != offre_pays: continue
+            if not (offre_remote and candidat.get("is_remote", False)):
+                if candidat.get("pays", "France") != offre_pays: continue
             try:
                 prompt = f"Calcule le score de matching (0 à 100) en JSON entre cette offre : {texte_offre} et ce CV : {candidat['contenu']}"
                 res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
@@ -75,10 +73,8 @@ def executer_matching_automatique_cv(id_cv, contenu_cv, candidat_remote, candida
         offres_db = supabase.table("mes_offres").select("*").execute().data
         if not offres_db: return
         for offre in offres_db:
-            offre_remote = offre.get("is_remote", False)
-            offre_pays = offre.get("pays", "France")
-            if not (candidat_remote and offre_remote):
-                if candidat_pays != offre_pays: continue
+            if not (candidat_remote and offre.get("is_remote", False)):
+                if candidat_pays != offre.get("pays", "France"): continue
             prompt = f"Evalue le matching en JSON entre l'offre : {offre['contents']} et le CV : {contenu_cv}."
             try:
                 res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile", temperature=0.1)
@@ -98,27 +94,33 @@ st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='colo
 if 'langue' not in st.session_state: st.session_state.langue = "Français"
 st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue", LANGUES, index=0)
 
-tab_home, tab_candidat, tab_employeur = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["🏠 Accueil", "🚀 Candidat", "💼 Employeur"]])
+tab_home, tab_candidat, tab_employeur = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["🏠 Accueil & Mode d'emploi", "🚀 Candidat", "💼 Employeur"]])
 
+# --- ZONE CANDIDAT ---
 with tab_candidat:
-    st.button("💎 Passer en Premium", key="btn_premium_cand")
-    # ... (Votre logique candidat existante ici)
+    st.button("💎 Passer en Premium", key="btn_cand_premium", type="primary")
+    st.markdown(f"### 🚀 {traduire_avec_ia('Espace Candidat Anonymisé', st.session_state.langue)}")
+    # ... (Ajoutez ici tout le reste de votre logique candidat originale)
 
+# --- ZONE EMPLOYEUR ---
 with tab_employeur:
-    st.button("💎 Passer en Premium", key="btn_premium_emp")
-    # ... (Votre logique employeur existante ici)
+    st.button("💎 Passer en Premium", key="btn_emp_premium", type="primary")
+    st.header("💼 Espace Recruteur")
+    # ... (Ajoutez ici tout le reste de votre logique employeur originale)
 
+# --- ACCUEIL & CGV ---
 with tab_home:
     with st.expander("⚖️ Conditions Générales de Vente (CGV)"):
         st.markdown("""
         ### Tarification :
         - **Accès Candidat :** 6€ pour 3 mois.
         - **Accès Employeur :** 39€ par mois.
-        ### Politique de Non-Remboursement :
+        ### Non-Remboursement :
         Service numérique à exécution immédiate : aucun remboursement possible après activation.
         ### Suppression de compte :
         Droit à l'effacement total de vos données sur simple demande par email. Traitement sous 48h.
         """)
 
+# --- PIED DE PAGE ---
 st.markdown("---")
 st.markdown("<div style='text-align: center;'>Créatrice : <b>Liliane RAKOTOBE</b> <a href='mailto:creationsites06@gmail.com'>✉️</a></div>", unsafe_allow_html=True)
