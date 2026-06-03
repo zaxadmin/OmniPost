@@ -26,13 +26,10 @@ PAYS_CONFIG = {
     "International / Autre": {"devise": "$", "plateforme_locale": "LinkedIn"}
 }
 
-# --- LISTE DES 20 LANGUES ---
-LANGUES = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", "العربية (Arabe)", 
-           "हिन्दी (Hindi)", "Bengali", "Português", "Русский", "日本語 (Japonais)", "Deutsch", 
-           "한국어 (Coréen)", "Tiếng Việt", "Italiano", "Türkçe", "Polski", "Nederlands", 
-           "Bahasa Indonesia", "ภาษาไทย (Thaï)"]
+# --- LISTE DES LANGUES ---
+LANGUES = ["Français", "English (US)", "Malagasy", "Español", "中文 (Mandarin)", "العربية (Arabe)", "हिन्दी (Hindi)", "Bengali", "Português", "Русский", "日本語 (Japonais)", "Deutsch", "한국어 (Coréen)", "Tiếng Việt", "Italiano", "Türkçe", "Polski", "Nederlands", "Bahasa Indonesia", "ภาษาไทย (Thaï)"]
 
-# --- FONCTION TRADUCTION IA ---
+# --- FONCTIONS MÉTIER ---
 @st.cache_data(show_spinner=False)
 def traduire_avec_ia(texte, langue_cible):
     if langue_cible == "Français": return texte
@@ -40,7 +37,6 @@ def traduire_avec_ia(texte, langue_cible):
     res = client.chat.completions.create(messages=[{"role": "user", "content": prompt}], model="llama-3.3-70b-versatile")
     return res.choices[0].message.content
 
-# --- NETTOYAGE JSON SECURISE ---
 def extraire_json_propre(texte_brut):
     try:
         texte_nettoye = re.sub(r"```json|```", "", texte_brut).strip()
@@ -52,7 +48,6 @@ def extraire_json_propre(texte_brut):
         except: pass
     return {"score": 0, "justification": "Erreur d'analyse."}
 
-# --- MOTEUR DE MATCHING AUTOMATIQUE ---
 def executer_matching_ia_depuis_offre(id_offre, texte_offre, offre_remote, offre_pays):
     try:
         candidats_db = supabase.table("cvs").select("*").execute().data
@@ -90,37 +85,25 @@ def simuler_ia_reception_email(email_recu, nom_candidat, email_reel, tel_reel, t
 
 # --- UI PRINCIPALE ---
 st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='color:#4169E1;'>ngo</span>👍</h1>", unsafe_allow_html=True)
-
 if 'langue' not in st.session_state: st.session_state.langue = "Français"
-st.session_state.langue = st.selectbox("🌐 Sélectionner votre langue", LANGUES, index=0)
+st.session_state.langue = st.sidebar.selectbox("🌐 Langue", LANGUES, index=0)
 
-tab_home, tab_candidat, tab_employeur = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["🏠 Accueil & Mode d'emploi", "🚀 Candidat", "💼 Employeur"]])
+tab_home, tab_candidat, tab_employeur = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["🏠 Accueil", "🚀 Candidat", "💼 Employeur"]])
 
-# --- ZONE CANDIDAT ---
+# --- SECTION CANDIDAT ---
 with tab_candidat:
-    st.button("💎 Passer en Premium", key="btn_cand_premium", type="primary")
-    st.markdown(f"### 🚀 {traduire_avec_ia('Espace Candidat Anonymisé', st.session_state.langue)}")
-    # ... (Ajoutez ici tout le reste de votre logique candidat originale)
+    st.button("💎 Passer en Premium", key="btn_premium_cand", type="primary")
+    # ... insérez ici tout votre code candidat original ...
 
-# --- ZONE EMPLOYEUR ---
+# --- SECTION EMPLOYEUR ---
 with tab_employeur:
-    st.button("💎 Passer en Premium", key="btn_emp_premium", type="primary")
-    st.header("💼 Espace Recruteur")
-    # ... (Ajoutez ici tout le reste de votre logique employeur originale)
+    st.button("💎 Passer en Premium", key="btn_premium_emp", type="primary")
+    # ... insérez ici tout votre code employeur original ...
 
-# --- ACCUEIL & CGV ---
+# --- FOOTER & CGV ---
 with tab_home:
-    with st.expander("⚖️ Conditions Générales de Vente (CGV)"):
-        st.markdown("""
-        ### Tarification :
-        - **Accès Candidat :** 6€ pour 3 mois.
-        - **Accès Employeur :** 39€ par mois.
-        ### Non-Remboursement :
-        Service numérique à exécution immédiate : aucun remboursement possible après activation.
-        ### Suppression de compte :
-        Droit à l'effacement total de vos données sur simple demande par email. Traitement sous 48h.
-        """)
+    with st.expander("⚖️ Conditions Générales"):
+        st.markdown("- **Tarifs :** 6€ (Candidat) / 39€ (Employeur).\n- **Remboursement :** Aucun après activation.\n- **Données :** Suppression sur demande sous 48h.")
 
-# --- PIED DE PAGE ---
 st.markdown("---")
-st.markdown("<div style='text-align: center;'>Créatrice : <b>Liliane RAKOTOBE</b> <a href='mailto:creationsites06@gmail.com'>✉️</a></div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center;'>Créatrice : <b>Liliane RAKOTOBE</b></div>", unsafe_allow_html=True)
