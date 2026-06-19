@@ -4,6 +4,7 @@ import pandas as pd
 import io
 import re
 import json
+import os # Import indispensable pour les variables d'environnement
 from groq import Groq
 from supabase import create_client
 from pypdf import PdfReader
@@ -13,9 +14,11 @@ import urllib.parse
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="zipngo | ATS Premium Global", layout="wide")
-supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-resend.api_key = st.secrets["RESEND_API_KEY"]
+
+# Utilisation de os.environ.get au lieu de st.secrets
+supabase = create_client(os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_KEY"))
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+resend.api_key = os.environ.get("RESEND_API_KEY")
 
 # --- CONFIGURATION DES PAYS & DEVISES ---
 PAYS_CONFIG = {
@@ -116,99 +119,4 @@ with tab_home:
     **zipngo** est une plateforme de recrutement de nouvelle génération, propulsée par une Intelligence Artificielle avancée. 
     Notre mission est double : **supprimer les barrières géographiques** pour permettre le recrutement local et à l'international, et **garantir une totale équité** grâce à un système d'anonymat crypté.
     
-    Sur zipngo, les processus de sélection se font uniquement sur les compétences. Les coordonnées privées (noms, téléphones, emails) restent entièrement masquées tant qu'une entente mutuelle n'a pas été scellée d'un commun accord !
-    
-    ### 🛠️ Guide de démarrage rapide :
-    * **Étape 1 :** Choisissez votre langue préférée dans le menu latéral gauche.
-    * **Étape 2 :** Si vous cherchez un emploi, accédez à l'onglet **🚀 Candidat** pour configurer votre profil discret.
-    * **Étape 3 :** Si vous êtes un recruteur, accédez à l'onglet **💼 Employeur** pour renseigner vos identifiants d'entreprise et piloter vos tiroirs de tri automatiques.
-    """, st.session_state.langue))
-    st.info(traduire_avec_ia("💡 Moteur de matching autonome : À chaque dépôt d'offre, l'IA parcourt l'intégralité de la base de profils pour trouver instantanément la perle rare.", st.session_state.langue))
-
-# --- ZONE CANDIDAT ---
-with tab_candidat:
-    st.markdown(f"### 🚀 {traduire_avec_ia('Espace Candidat Anonymisé', st.session_state.langue)}")
-    with st.expander(f"💡 {traduire_avec_ia('Mode d\'emploi Candidat — Comment ça marche ?', st.session_state.langue)}", expanded=True):
-        st.markdown(traduire_avec_ia("""
-        1. **Création du profil secret :** Renseignez vos vraies coordonnées et importez votre CV (PDF/TXT). Vos données personnelles sont immédiatement protégées et masquées aux yeux des recruteurs (`[Profil Anonyme App]`).
-        2. **Option Télétravail (Remote) :** En cochant l'option 100% Remote, vous permettez à l'IA de vous matcher avec des employeurs du monde entier, sans contrainte de frontières.
-        3. **Suivi & Entretien Jitsi :** Lorsqu'un recruteur est intéressé par vos compétences (Score de matching >= 50%), il génère un salon vidéo anonyme. Rendez-vous dans le sous-onglet **Mes Entretiens** pour y participer.
-        4. **Levée de l'Anonymat :** L'entretien s'est bien passé ? Appuyez sur le **Pouce 👍** pour accepter de dévoiler votre identité réelle et vos coordonnées à cet employeur.
-        """, st.session_state.langue))
-
-    dossiers = st.tabs([traduire_avec_ia(n, st.session_state.langue) for n in ["📂 Candidatures", "📄 CVs & Profil", "🎤 Mes Entretiens"]])
-    with dossiers[1]:
-        st.subheader("📄 Créez votre Profil Secret")
-        col_c1, col_c2, col_c3 = st.columns(3)
-        nom_cand = col_c1.text_input("Vrai Nom / Prénom (Sera crypté et caché)", key="cand_nom")
-        email_cand = col_c2.text_input("Votre Email (Caché)", key="cand_em")
-        tel_cand = col_c3.text_input("Votre Téléphone (Caché)", key="cand_tel")
-        pays_cand = st.selectbox("Votre Pays", list(PAYS_CONFIG.keys()), key="cand_pays")
-        candidat_remote = st.checkbox("🌍 Poste en 100% Remote ciblé", value=False)
-        up_file = st.file_uploader("Uploader votre CV", type=["pdf", "txt"])
-        if st.button("💾 Chiffrer et Enregistrer mon Profil") and up_file and nom_cand:
-            contenu_texte = "".join([p.extract_text() for p in PdfReader(io.BytesIO(up_file.getvalue())).pages]) if up_file.name.endswith(".pdf") else up_file.getvalue().decode("utf-8", errors="ignore")
-            supabase.table("cvs").insert({"nom_fichier": nom_cand, "contenu": contenu_texte, "pays": pays_cand, "ville": "App", "is_remote": candidat_remote, "source": "app", "email_reel": email_cand, "tel_reel": tel_cand, "anonymat_leve": False}).execute()
-            st.success("🎯 Profil enregistré !")
-
-    with dossiers[2]:
-        st.subheader("🎤 Vos rendez-vous & Levée de l'anonymat")
-        try:
-            mes_rdv = supabase.table("archives_entretiens").select("*, cvs(*)").execute().data
-            if mes_rdv:
-                for rdv in mes_rdv:
-                    st.info(f"📅 Salon vidéo planifié : {rdv['date_entretien']}")
-                    st.markdown(f"[🟩 Entrer en entretien Jitsi]({rdv['lien_jitsi']})", unsafe_allow_html=True)
-                    if rdv['statut'] in ["Archivé", "Confirmé"]:
-                        if st.button("👍 Dévoiler mes coordonnées réelles à cet employeur", key=f"pouce_cand_{rdv['id']}"):
-                            supabase.table("archives_entretiens").update({"candidat_agree": True}).eq("id", rdv['id']).execute()
-                            st.rerun()
-        except: pass
-
-# --- ZONE EMPLOYEUR ---
-with tab_employeur:
-    st.header("💼 Espace Recruteur")
-    with st.expander(f"💡 {traduire_avec_ia('Mode d\'emploi Employeur', st.session_state.langue)}", expanded=True):
-        st.markdown(traduire_avec_ia("1. Authentification. 2. Tiroirs de tri. 3. Gestion anonymat.", st.session_state.langue))
-    
-    if "entreprise_connectee" not in st.session_state: st.session_state.entreprise_connectee = None
-    if not st.session_state.entreprise_connectee:
-        with st.form("form_entreprise"):
-            nom_ent = st.text_input("🏢 Nom de l'entreprise *")
-            siret_ent = st.text_input("🔢 SIRET *")
-            email_notif = st.text_input("📩 Email *")
-            tel_ent = st.text_input("📞 Téléphone *")
-            pays_ent = st.selectbox("📍 Pays", list(PAYS_CONFIG.keys()))
-            if st.form_submit_button("🔓 Valider"):
-                st.session_state.entreprise_connectee = {"id": "emp_123", "nom": nom_ent, "email_reception": email_notif, "tel": tel_ent, "pays": pays_ent}
-                st.rerun()
-    else:
-        ent_info = st.session_state.entreprise_connectee
-        tiroir_principal, tiroir_vivier = st.tabs(["📥 TIROIR MATCH (>= 50%)", "🗄️ VIVIER (< 50%)"])
-        try:
-            matchings = supabase.table("matching_offres_candidats").select("*, mes_offres(*), cvs(*)").order("score", desc=True).execute().data
-            with tiroir_principal:
-                for m in matchings:
-                    if int(m['score']) >= 50:
-                        with st.expander(f"{m['cvs']['nom_fichier']} — Score : {m['score']}%"):
-                            if st.button("👍 Planifier un entretien", key=f"pouce_rec_{m['id']}"):
-                                room = f"zipngo-room-{m['id']}"
-                                supabase.table("archives_entretiens").insert({"candidat_id": m["candidat_id"], "statut": "Confirmé", "lien_jitsi": f"https://meet.jit.si/{room}", "date_entretien": "À définir"}).execute()
-                                st.rerun()
-        except: pass
-
-# --- PIED DE PAGE ENRICHI ---
-st.markdown("---")
-with st.expander("⚖️ Conditions Générales de Vente (CGV)"):
-    st.markdown("""
-    **1. Engagement de service :** zipngo s'engage à fournir un outil de mise en relation basé sur l'anonymat et l'IA.
-    **2. Traitement des données :** Les informations sont traitées de manière chiffrée. L'anonymat est strictement préservé jusqu'à validation mutuelle.
-    **3. Responsabilité :** L'utilisateur est seul responsable de l'exactitude des informations fournies. zipngo n'agit qu'en tant qu'intermédiaire technique.
-    **4. Confidentialité :** Aucune donnée personnelle n'est vendue à des tiers. Toute demande de suppression peut être effectuée par écrit.
-    **5. Utilisation :** Le service est mis à disposition 'tel quel'. L'utilisateur accepte les conditions de fonctionnement des outils de visio (Jitsi) et de matching (IA).
-    """)
-
-st.markdown(
-    '<p style="text-align: center; color: #555555;">Application réalisée par <b>Liliane RAKOTOBE</b> — <a href="mailto:creationsites06@gmail.com" style="text-decoration: none;">✉️ Contact</a></p>', 
-    unsafe_allow_html=True
-)
+    Sur zipngo, les processus de sélection se font uniquement sur les compétences. Les coordonnées privées (noms, téléphones, emails) restent entièrement masquées tant qu'une entente mutuelle n'a pas été scellée d'
