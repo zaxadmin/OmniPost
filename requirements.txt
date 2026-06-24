@@ -5,4 +5,8 @@ supabase
 resend
 fpdf
 pandas
+pypdf
+duckduckgo-search
+beautifulsoup4
+requests
 
