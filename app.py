@@ -93,7 +93,7 @@ st.markdown("<h1 style='color:#000080; margin-bottom: 0px;'>zip<span style='colo
 st.markdown("<p style='color:#555555; margin-top: -5px; font-size: 14px;'>.zaxx.app</p>", unsafe_allow_html=True)
 
 # --- SIDEBAR ---
-st.sidebar.markdown("### 🛠️ Création & Support")
+st.sidebar.markdown("### 🛠️ Création")
 st.sidebar.markdown("**Créatrice :** Liliane RAKOTOBE")
 st.sidebar.markdown('<a href="mailto:creationsites06@gmail.com" style="text-decoration: none; font-size: 20px;">✉️ <span style="font-size: 14px; vertical-align: middle;">Contact par Email</span></a>', unsafe_allow_html=True)
 st.sidebar.markdown("---")
