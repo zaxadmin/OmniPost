@@ -107,7 +107,7 @@ tab_home, tab_candidat, tab_employeur = st.tabs([traduire_avec_ia(n, st.session_
 with tab_home:
     st.markdown(f"## {traduire_avec_ia('Bienvenue sur zipngo, l\'ATS intelligent et anonyme sans frontières ! 🌍', st.session_state.langue)}")
     st.markdown(traduire_avec_ia("""
-    **zipngo** est une plateforme de recrutement de nouvelle génération, propulsée par une Intelligence Artificielle avancée. 
+    **zipngo** est une plateforme de recrutement de nouvelle génération. 
     Notre mission est double : **supprimer les barrières géographiques** pour permettre le recrutement local et à l'international, et **garantir une totale équité** grâce à un système d'anonymat crypté.
     """, st.session_state.langue))
 
